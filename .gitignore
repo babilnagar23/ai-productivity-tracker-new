@@ -1,0 +1,58 @@
+# ==============================================================================
+# Monorepo Root Git Ignore Rules for ProductiveAI App
+# ==============================================================================
+
+# Node.js dependencies
+node_modules/
+client/node_modules/
+
+# Production builds and bundles
+dist/
+client/dist/
+dist-ssr/
+client/dist-ssr/
+*.local
+
+# Python Virtual Environments
+server/venv/
+venv/
+.venv/
+env/
+ENV/
+server/env/
+server/ENV/
+
+# Python compilations & cache
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Django specifics
+db.sqlite3
+*.log
+
+# Environment variables, keys & DB credentials (CRITICAL: Do not upload to GitHub!)
+.env
+server/.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor & IDE configurations
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

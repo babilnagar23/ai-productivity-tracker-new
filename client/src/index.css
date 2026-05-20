@@ -1,0 +1,194 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #050816;
+  --color-primary: #1E1E2C;
+  --color-secondary: #292940;
+  --color-accent: #3B82F6;
+  --color-accentPurple: #8B5CF6;
+  --color-text: #F3F4F6;
+  --color-textMuted: #9CA3AF;
+
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-neon: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3);
+
+  --backdrop-blur-glass: 12px;
+}
+
+@layer base {
+  body {
+    background-color: #050816;
+    color: #F3F4F6;
+    font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    overflow-x: hidden;
+  }
+}
+
+[data-theme="light"] body {
+  background-color: #f5f7fb;
+  color: #111827;
+}
+
+[data-theme="light"] .bg-background {
+  background-color: #f5f7fb;
+}
+
+[data-theme="light"] .glass-card {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .text-white {
+  color: #111827;
+}
+
+[data-theme="light"] .text-gray-200,
+[data-theme="light"] .text-gray-300,
+[data-theme="light"] .text-gray-400 {
+  color: #475569;
+}
+
+[data-theme="light"] .text-gray-500,
+[data-theme="light"] .text-gray-600 {
+  color: #64748b;
+}
+
+[data-theme="light"] .border-white\/5,
+[data-theme="light"] .border-white\/10,
+[data-theme="light"] .border-white\/8 {
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .bg-white\/2,
+[data-theme="light"] .bg-white\/3,
+[data-theme="light"] .bg-white\/4,
+[data-theme="light"] .bg-white\/5,
+[data-theme="light"] .bg-white\/8,
+[data-theme="light"] .hover\:bg-white\/4:hover,
+[data-theme="light"] .hover\:bg-white\/5:hover,
+[data-theme="light"] .hover\:bg-white\/10:hover {
+  background-color: rgba(15, 23, 42, 0.05);
+}
+
+[data-theme="light"] .bg-\[\#050816\]\/50 {
+  background-color: rgba(255, 255, 255, 0.75);
+}
+
+[data-theme="light"] .bg-\[\#0d1126\],
+[data-theme="light"] aside.bg-\[\#0d1126\] {
+  background-color: #ffffff;
+}
+
+[data-theme="light"] table .bg-\[\#0d1126\],
+[data-theme="light"] .analytics-table th {
+  background: #ffffff;
+}
+
+[data-theme="light"] input,
+[data-theme="light"] textarea {
+  color: #111827;
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #94a3b8;
+}
+
+/* Glassmorphism custom classes */
+.glass-card {
+  background: rgba(13, 17, 38, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+}
+
+.glass-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card-hover:hover {
+  background: rgba(13, 17, 38, 0.6);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.bg-grid-pattern {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050816;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.6);
+}
+
+/* Glow effects */
+.glow-blue {
+  box-shadow: 0 0 40px rgba(59, 130, 246, 0.2);
+}
+
+.glow-purple {
+  box-shadow: 0 0 40px rgba(139, 92, 246, 0.2);
+}
+
+/* Analytics table hover rows */
+.bg-white\/2 { background-color: rgba(255,255,255,0.02); }
+.bg-white\/3 { background-color: rgba(255,255,255,0.03); }
+.bg-white\/4 { background-color: rgba(255,255,255,0.04); }
+.hover\:bg-white\/4:hover { background-color: rgba(255,255,255,0.04); }
+.bg-white\/8 { background-color: rgba(255,255,255,0.08); }
+
+/* Slow spin animation for settings icon */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 6s linear infinite;
+}
+
+/* Fade in animation for form panels */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Analytics table sticky header */
+.analytics-table th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #0d1126;
+}
+.analytics-table th:first-child {
+  left: 0;
+  z-index: 10;
+}
