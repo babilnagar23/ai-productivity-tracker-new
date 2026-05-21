@@ -47,7 +47,7 @@ const LandingPage = () => {
           className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight"
         >
           Optimize Your Life. <br />
-          <span className="text-gradient">Powered by Gemini AI</span>
+
         </motion.h1>
 
         <motion.p

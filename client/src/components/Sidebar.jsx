@@ -38,7 +38,7 @@ const Sidebar = () => {
         </div>
         <div>
           <h1 className="font-bold text-lg text-white tracking-wide">ProductiveAI</h1>
-          <span className="text-xs text-blue-400 font-medium">Quantum Suite v1.0</span>
+
         </div>
       </div>
 
