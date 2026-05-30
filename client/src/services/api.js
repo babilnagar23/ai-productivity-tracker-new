@@ -75,3 +75,34 @@ export const apiFetch = async (endpoint, options = {}) => {
     throw apiError;
   }
 };
+
+export const forgotPassword = async (email) => {
+  const response = await api.post('/auth/forgot-password', { email });
+  return response.data;
+};
+
+export const resetPassword = async (uid, token, password) => {
+  const response = await api.post('/auth/reset-password', { uid, token, password });
+  return response.data;
+};
+
+export const sendOTP = async (email) => {
+  const response = await api.post('/auth/send-otp', { email });
+  return response.data;
+};
+
+export const verifyOTP = async (email, otp) => {
+  const response = await api.post('/auth/verify-otp', { email, otp });
+  return response.data;
+};
+
+export const completeRegistration = async (email, password, confirm_password) => {
+  const response = await api.post('/auth/complete-registration', {
+    email,
+    password,
+    confirm_password,
+  });
+  return response.data;
+};
+
+

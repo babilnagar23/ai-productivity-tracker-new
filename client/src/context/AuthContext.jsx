@@ -74,6 +74,26 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const completeOTPRegistration = async (email, password, confirm_password) => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/auth/complete-registration', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, confirm_password }),
+      });
+      if (res.success && res.token) {
+        localStorage.setItem('token', res.token);
+        if (res.refresh) localStorage.setItem('refreshToken', res.refresh);
+        await fetchUser();
+        return { success: true };
+      }
+      return { success: false, error: 'Registration failed' };
+    } catch (err) {
+      setLoading(false);
+      return { success: false, error: err.message };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
@@ -82,10 +102,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAuthenticated, login, register, logout, refreshUser: fetchUser }}>
+    <AuthContext.Provider value={{ user, loading, isAuthenticated, login, register, completeOTPRegistration, logout, refreshUser: fetchUser }}>
       {children}
     </AuthContext.Provider>
   );
+
 };
 
 export const useAuth = () => useContext(AuthContext);

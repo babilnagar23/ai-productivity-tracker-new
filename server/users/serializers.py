@@ -83,3 +83,88 @@ class CustomConfigSerializer(serializers.Serializer):
             'coreMetrics': value.get('coreMetrics', []),
             'deletedHistory': value.get('deletedHistory', []),
         }
+
+
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
+from django.contrib.auth.tokens import default_token_generator
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    password = serializers.CharField(write_only=True, min_length=6)
+
+    def validate(self, attrs):
+        uid = attrs.get('uid')
+        token = attrs.get('token')
+        
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            raise serializers.ValidationError('Invalid reset link or expired token.')
+
+        if not default_token_generator.check_token(user, token):
+            raise serializers.ValidationError('Invalid reset link or expired token.')
+
+        attrs['user'] = user
+        return attrs
+
+    def save(self):
+        user = self.validated_data['user']
+        password = self.validated_data['password']
+        user.set_password(password)
+        user.save()
+        return user
+
+
+# ── OTP Registration Serializers ──────────────────────────────────
+
+
+class SendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        return value.lower().strip()
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6, min_length=6)
+
+    def validate_email(self, value):
+        return value.lower().strip()
+
+    def validate_otp(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError('OTP must contain only digits.')
+        return value
+
+
+class OTPRegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=6)
+    confirm_password = serializers.CharField(write_only=True, min_length=6)
+
+    def validate_email(self, value):
+        email = value.lower().strip()
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError('An account with this email already exists.')
+        return email
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        password = attrs['password']
+        if len(password) < 8:
+            raise serializers.ValidationError({'password': 'Password must be at least 8 characters.'})
+        if not any(c.isupper() for c in password):
+            raise serializers.ValidationError({'password': 'Password must contain at least one uppercase letter.'})
+        if not any(c.isdigit() for c in password):
+            raise serializers.ValidationError({'password': 'Password must contain at least one number.'})
+        return attrs
+

@@ -13,6 +13,11 @@ import RoutineTracker from './pages/RoutineTracker';
 import AIAssistant from './pages/AIAssistant';
 import Analytics from './pages/Analytics';
 import Customization from './pages/Customization';
+import CalendarPage from './pages/CalendarPage';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import VerifyOTP from './pages/VerifyOTP';
+import CreatePassword from './pages/CreatePassword';
 
 function App() {
   return (
@@ -24,6 +29,12 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-otp" element={<VerifyOTP />} />
+          <Route path="/create-password" element={<CreatePassword />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
+
+
 
           {/* Protected Routes */}
           <Route 
@@ -47,6 +58,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Customization />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/calendar" 
+            element={
+              <ProtectedRoute>
+                <CalendarPage />
               </ProtectedRoute>
             } 
           />

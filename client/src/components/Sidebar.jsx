@@ -9,7 +9,8 @@ import {
   LogOut,
   Zap,
   Award,
-  Settings
+  Settings,
+  CalendarDays
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -18,6 +19,7 @@ const Sidebar = () => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Google Calendar', path: '/calendar', icon: CalendarDays },
     { name: 'Daily Routines', path: '/routines', icon: CalendarRange },
     { name: 'AI Assistant', path: '/ai-coach', icon: Sparkles },
     { name: 'Analytics', path: '/analytics', icon: BarChart3 },
