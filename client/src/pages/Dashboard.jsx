@@ -175,7 +175,7 @@ const Dashboard = () => {
               <Sparkles className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="font-bold text-white mb-1">Gemini Habit Synthesis</h3>
+              <h3 className="font-bold text-white mb-1">AI Habit Synthesis</h3>
               <p className="text-sm text-gray-300 leading-relaxed italic">
                 "{aiAdvice}"
               </p>
@@ -291,7 +291,7 @@ const Dashboard = () => {
 
                 <a href="/ai-coach" className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl hover:border-purple-500/30 hover:bg-white/10 transition-all text-left">
                   <div>
-                    <h4 className="font-semibold text-sm">Consult Gemini Coach</h4>
+                    <h4 className="font-semibold text-sm">Consult AI Coach</h4>
                     <p className="text-xs text-gray-400">Generate high-efficiency exam routine</p>
                   </div>
                   <Sparkles className="h-5 w-5 text-purple-400 animate-pulse" />

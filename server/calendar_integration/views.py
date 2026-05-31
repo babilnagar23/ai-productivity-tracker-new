@@ -1,7 +1,6 @@
 import json
 from datetime import datetime, timedelta
 
-import google.generativeai as genai
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import status
@@ -9,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.groq_client import generate_ai_json
 from routines.models import Routine
 
 from .models import (
@@ -578,9 +578,8 @@ class AISchedulerView(APIView):
         if not prompt:
             return Response({'success': False, 'error': 'Prompt is required.'}, status=400)
 
-        api_key = settings.GEMINI_API_KEY
-        if not api_key:
-            return Response({'success': False, 'error': 'Gemini API key not configured.'}, status=501)
+        if not getattr(settings, 'GROQ_API_KEY', ''):
+            return Response({'success': False, 'error': 'GROQ_API_KEY is not configured.'}, status=501)
 
         # Gather context from user's routines
         recent_routines = Routine.objects.filter(user=request.user).order_by('-date')[:7]
@@ -642,17 +641,7 @@ Rules:
 - Return ONLY the JSON, no markdown, no explanation"""
 
         try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(settings.GEMINI_MODEL)
-            response = model.generate_content(system_prompt)
-            raw = response.text.strip()
-
-            # Strip markdown code fences if present
-            if raw.startswith('```'):
-                lines = raw.split('\n')
-                raw = '\n'.join(lines[1:-1]) if lines[-1].strip() == '```' else '\n'.join(lines[1:])
-
-            plan_data = json.loads(raw)
+            plan_data = generate_ai_json(system_prompt, max_tokens=2000)
         except json.JSONDecodeError as exc:
             return Response({'success': False, 'error': f'AI returned invalid JSON: {exc}'}, status=500)
         except Exception as exc:
@@ -769,10 +758,9 @@ class AIInsightsView(APIView):
         })
 
     def post(self, request):
-        """Generate fresh AI insights via Gemini."""
-        api_key = settings.GEMINI_API_KEY
-        if not api_key:
-            return Response({'success': False, 'error': 'Gemini API key not configured.'}, status=501)
+        """Generate fresh AI insights via Groq."""
+        if not getattr(settings, 'GROQ_API_KEY', ''):
+            return Response({'success': False, 'error': 'GROQ_API_KEY is not configured.'}, status=501)
 
         routines = Routine.objects.filter(user=request.user).order_by('-date')[:14]
         if not routines:
@@ -813,14 +801,7 @@ Generate exactly 6 unique, actionable insights. Return ONLY valid JSON:
 Be specific, data-driven, and motivating. Reference actual numbers from the data."""
 
         try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(settings.GEMINI_MODEL)
-            response = model.generate_content(system_prompt)
-            raw = response.text.strip()
-            if raw.startswith('```'):
-                lines = raw.split('\n')
-                raw = '\n'.join(lines[1:-1]) if lines[-1].strip() == '```' else '\n'.join(lines[1:])
-            data = json.loads(raw)
+            data = generate_ai_json(system_prompt, max_tokens=2000)
         except Exception as exc:
             return Response({'success': False, 'error': str(exc)}, status=500)
 

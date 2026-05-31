@@ -87,7 +87,7 @@ const AIPlannerModal = ({ isOpen, onClose, onScheduleApplied }) => {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white leading-tight">AI Planner</h2>
-                  <p className="text-xs text-purple-300">Powered by Gemini Intelligence</p>
+                  <p className="text-xs text-purple-300">Powered by Groq Intelligence</p>
                 </div>
               </div>
               <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 text-gray-400 hover:text-white transition-colors">

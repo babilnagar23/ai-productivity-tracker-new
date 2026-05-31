@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'ai_assistant',
     'calendar_integration',
     'productivity_ai',
+    'common',
 ]
 
 # CorsMiddleware MUST be before CommonMiddleware and SessionMiddleware.
@@ -133,9 +134,12 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# ── Gemini AI ──────────────────────────────────────────────────────
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
+# ── Groq AI ────────────────────────────────────────────────────────
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+
+print('\n===== AI CONFIG =====')
+print('GROQ_API_KEY:', 'SET' if GROQ_API_KEY else 'MISSING')
+print('=====================\n')
 
 # ── Google OAuth / Calendar ────────────────────────────────────────
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
@@ -191,6 +195,11 @@ LOGGING = {
             'propagate': False,
         },
         'users': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'ai': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,

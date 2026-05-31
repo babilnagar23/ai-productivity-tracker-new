@@ -7,7 +7,7 @@ import { Sparkles, Send, BrainCircuit, Terminal, ArrowRight } from 'lucide-react
 const AIAssistant = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatLogs, setChatLogs] = useState([
-    { role: 'ai', text: 'Operational greeting. I am the Gemini Productivity Engine. How can I augment your schedule today?' }
+    { role: 'ai', text: 'Operational greeting. I am your AI Productivity Coach. How can I augment your schedule today?' }
   ]);
   const [loadingChat, setLoadingChat] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);

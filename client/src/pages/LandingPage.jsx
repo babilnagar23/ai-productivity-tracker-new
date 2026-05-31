@@ -70,7 +70,7 @@ const LandingPage = () => {
             <div className="bg-blue-500/10 p-3 rounded-xl w-fit">
               <BrainCircuit className="h-6 w-6 text-blue-400" />
             </div>
-            <h3 className="font-semibold text-lg text-white">Gemini AI Assistant</h3>
+            <h3 className="font-semibold text-lg text-white">AI Assistant</h3>
             <p className="text-sm text-gray-400">Generate schedules, receive feedback, and study smarter using AI.</p>
           </div>
 

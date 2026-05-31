@@ -1,81 +1,101 @@
 # AI Productivity Tracker
 
-A React productivity dashboard with a Django REST Framework backend, JWT authentication, SQLite/PostgreSQL-ready persistence, Gemini AI coaching, analytics APIs, and optional Google Calendar integration.
+A full-stack productivity platform with a React web frontend, Flutter mobile app, and a Django REST Framework backend — featuring Groq-powered AI coaching, JWT authentication, routine tracking, analytics, and optional Google Calendar integration.
 
 ## Core Features
 
-- React + Vite frontend with the existing dashboard, routines, analytics, customization, AI assistant, auth UI, animations, and charts.
+- React + Vite frontend with dashboard, routines, analytics, AI assistant, and auth UI.
+- Flutter mobile app (Android / iOS / Web) with the same feature set.
 - Django REST Framework API with SimpleJWT authentication.
-- SQLite by default for development, PostgreSQL via environment variables for production.
-- Routine tracking for study, exercise, ML learning, study hours, sleep/wake time, mobile usage, notes, productivity score, streaks, and XP.
-- Gemini-powered plan generation, chat coaching, and habit analysis.
-- Analytics endpoints for weekly trends, habit rates, streaks, score breakdowns, heatmaps, study vs mobile usage, and sleep consistency.
+- SQLite by default for development, PostgreSQL-ready for production.
+- Routine tracking: study, exercise, ML learning, study hours, sleep/wake time, mobile usage, notes, productivity score, streaks, and XP.
+- **Groq-powered** plan generation, chat coaching, and habit analysis (model: `llama-3.3-70b-versatile`).
+- Analytics endpoints: weekly trends, habit rates, streaks, score breakdowns, heatmaps, study vs mobile usage, and sleep consistency.
 - Optional Google Calendar OAuth, reminder creation, and routine sync endpoints.
-- Light/dark theme toggle in the top navbar.
 
 ## Technology Stack
 
 | Component | Technology |
 |---|---|
-| Frontend | React, Vite, Tailwind CSS, Lucide Icons, Recharts, Framer Motion |
-| Backend | Django, Django REST Framework, SimpleJWT |
-| Database | SQLite for local development, PostgreSQL-ready |
-| AI | Google Gemini through `google-generativeai` |
-| Calendar | Google Calendar API |
+| Web Frontend | React, Vite, Tailwind CSS, Lucide Icons, Recharts, Framer Motion |
+| Mobile | Flutter 3.44+, Riverpod, GoRouter, Dio |
+| Backend | Django 4.2, Django REST Framework, SimpleJWT |
+| Database | SQLite (dev) / PostgreSQL (prod) |
+| AI | Groq — `llama-3.3-70b-versatile` via `groq` SDK |
+| Calendar | Google Calendar API (optional) |
 
 ## Project Architecture
 
 ```text
 AI Productivity Tracker/
-├── client/                 # React frontend
+├── client/                 # React web frontend
 │   └── src/
 │       ├── components/
 │       ├── context/
 │       ├── pages/
 │       └── services/
+├── mobile/                 # Flutter mobile app
+│   └── lib/
+│       ├── core/
+│       └── features/
 ├── server/                 # Django REST backend
+│   ├── common/             # Shared utilities (Groq client)
 │   ├── users/
 │   ├── routines/
 │   ├── analytics_app/
 │   ├── ai_assistant/
 │   ├── calendar_integration/
-│   ├── productivity_ai/
 │   ├── server/
 │   └── manage.py
 ├── .env.example
-├── package.json
 └── README.md
 ```
 
 ## Local Setup
 
+### Backend
+
 ```bash
-npm install
-npm install --prefix client
-server\venv\Scripts\python.exe -m pip install -r server\requirements.txt
-server\venv\Scripts\python.exe server\manage.py migrate
-npm run dev
+cd server
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
 ```
 
-Frontend: `http://localhost:5173`
+### Web Frontend
 
+```bash
+npm install --prefix client
+npm run dev --prefix client
+```
+
+### Flutter Mobile
+
+```bash
+cd mobile
+flutter pub get
+flutter run
+```
+
+Frontend: `http://localhost:5173`  
 Backend API: `http://127.0.0.1:8000/api`
 
-## Environment
+## Environment Variables
 
-Create `.env` in the root or `server/` folder. Start from `.env.example`.
+Create `server/.env` (copy from `.env.example`):
 
 ```env
-PORT=8000
 DJANGO_SECRET_KEY=your_django_secret_key
 DEBUG=True
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 JWT_ACCESS_MINUTES=60
 JWT_REFRESH_DAYS=30
-GEMINI_API_KEY=your_google_gemini_api_key_here
+
+# Groq AI — get your key at https://console.groq.com/keys
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
-Leave `POSTGRES_DB` empty to use SQLite. Fill the `POSTGRES_*` values to use PostgreSQL.
+Leave `POSTGRES_DB` empty to use SQLite. Fill the `POSTGRES_*` values for PostgreSQL.
 
 ## Main API Endpoints
 
@@ -86,13 +106,19 @@ Leave `POSTGRES_DB` empty to use SQLite. Fill the `POSTGRES_*` values to use Pos
 | POST | `/api/auth/token/refresh` | Refresh access token |
 | GET | `/api/auth/me` | Fetch current user |
 | PUT | `/api/auth/custom-config` | Update tracking configuration |
+| POST | `/api/auth/send-otp` | Send OTP for email verification |
+| POST | `/api/auth/verify-otp` | Verify OTP |
+| POST | `/api/auth/complete-registration` | Complete OTP registration |
+| POST | `/api/auth/forgot-password` | Send password reset email |
 | GET/POST | `/api/routines` | List or create routine logs |
 | PUT/DELETE | `/api/routines/:id` | Update or delete a routine log |
 | GET | `/api/analytics/weekly` | Weekly chart data |
 | GET | `/api/analytics/full` | Full analytics and behavioral data |
-| POST | `/api/ai/generate-plan` | Gemini routine planner |
-| POST | `/api/ai/analyze` | Gemini habit analysis |
-| POST | `/api/ai/chat` | AI productivity mentor chat |
+| POST | `/api/ai/generate-plan` | AI routine planner (Groq) |
+| POST | `/api/ai/analyze` | AI habit analysis (Groq) |
+| POST | `/api/ai/chat` | AI productivity mentor chat (Groq) |
 | GET | `/api/calendar/auth-url` | Google OAuth URL |
 | POST | `/api/calendar/callback` | Save Google OAuth tokens |
 | POST | `/api/calendar/sync` | Sync routine reminders |
+| POST | `/api/calendar/ai-schedule` | AI-powered schedule generation (Groq) |
+| GET/POST | `/api/calendar/insights` | AI productivity insights (Groq) |

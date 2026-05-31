@@ -1,26 +1,19 @@
 import json
+import logging
 
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.groq_client import generate_ai_response
 from routines.models import Routine
 from routines.serializers import RoutineSerializer
 
+logger = logging.getLogger('ai')
 
-def configured_model():
-    api_key = getattr(settings, 'GEMINI_API_KEY', '')
-    if not api_key or api_key == 'dummy_placeholder_key_replace_me':
-        return None
-    try:
-        import google.generativeai as genai
 
-        genai.configure(api_key=api_key)
-        return genai.GenerativeModel(getattr(settings, 'GEMINI_MODEL', 'gemini-2.5-flash'))
-    except Exception:
-        return None
-
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def recent_routine_payload(user, request, limit=7):
     routines = list(Routine.objects.filter(user=user).order_by('-date')[:limit])
@@ -32,20 +25,28 @@ def metrics_summary(user):
     if not routines:
         return {'avgStudy': 0, 'avgMobile': 0, 'avgScore': 0}
     return {
-        'avgStudy': round(sum(routine.study_hours for routine in routines) / len(routines), 1),
-        'avgMobile': round(sum(routine.mobile_usage for routine in routines) / len(routines), 1),
-        'avgScore': round(sum(routine.productivity_score for routine in routines) / len(routines), 1),
+        'avgStudy': round(sum(r.study_hours for r in routines) / len(routines), 1),
+        'avgMobile': round(sum(r.mobile_usage for r in routines) / len(routines), 1),
+        'avgScore': round(sum(r.productivity_score for r in routines) / len(routines), 1),
     }
 
+
+def _groq_available():
+    return bool(getattr(settings, 'GROQ_API_KEY', ''))
+
+
+# ── Views ─────────────────────────────────────────────────────────────────────
 
 class GeneratePlanView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        logger.info('[AI] Request received — generate-plan')
         payload = recent_routine_payload(request.user, request)
         summary = metrics_summary(request.user)
-        model = configured_model()
-        if not model:
+
+        if not _groq_available():
+            logger.warning('[AI] GROQ_API_KEY not set — returning static fallback')
             plan = (
                 f"Neural routine blueprint for {request.user.first_name or request.user.email}:\n"
                 f"- Deep work: 2 focused study blocks based on your {summary['avgStudy']} hr average.\n"
@@ -59,18 +60,26 @@ class GeneratePlanView(APIView):
             "You are an AI productivity mentor. Create a concise daily routine and exam prep plan "
             f"for this user using recent logs: {json.dumps(payload)}"
         )
-        response = model.generate_content(prompt)
-        return Response({'success': True, 'plan': response.text})
+        logger.info('[AI] Prompt generated — calling Groq')
+        try:
+            plan = generate_ai_response(prompt)
+            logger.info('[AI] Response received')
+            return Response({'success': True, 'plan': plan})
+        except Exception as exc:
+            logger.exception('[AI] Error: %s', exc)
+            return Response({'success': False, 'error': str(exc)}, status=500)
 
 
 class AnalyzeHabitsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        logger.info('[AI] Request received — analyze-habits')
         payload = recent_routine_payload(request.user, request)
         summary = metrics_summary(request.user)
-        model = configured_model()
-        if not model:
+
+        if not _groq_available():
+            logger.warning('[AI] GROQ_API_KEY not set — returning static fallback')
             analysis = (
                 f"Average score is {summary['avgScore']}%. Study averages {summary['avgStudy']} hrs, "
                 f"with mobile usage around {summary['avgMobile']} hrs. Push one high-focus block earlier "
@@ -82,8 +91,14 @@ class AnalyzeHabitsView(APIView):
             "Analyze these productivity logs and return 3 short behavioral insights. "
             f"Logs: {json.dumps(payload)}"
         )
-        response = model.generate_content(prompt)
-        return Response({'success': True, 'analysis': response.text, 'data': response.text})
+        logger.info('[AI] Prompt generated — calling Groq')
+        try:
+            analysis = generate_ai_response(prompt)
+            logger.info('[AI] Response received')
+            return Response({'success': True, 'analysis': analysis, 'data': analysis})
+        except Exception as exc:
+            logger.exception('[AI] Error: %s', exc)
+            return Response({'success': False, 'error': str(exc)}, status=500)
 
 
 class ChatCoachView(APIView):
@@ -92,13 +107,18 @@ class ChatCoachView(APIView):
     def post(self, request):
         message = (request.data.get('message') or '').strip()
         if not message:
-            return Response({'success': False, 'error': 'Empty prompt messages received.'}, status=400)
+            return Response(
+                {'success': False, 'error': 'Empty prompt messages received.'},
+                status=400,
+            )
 
+        logger.info('[AI] Request received — chat-coach')
         payload = recent_routine_payload(request.user, request, limit=5)
-        model = configured_model()
-        if not model:
+
+        if not _groq_available():
+            logger.warning('[AI] GROQ_API_KEY not set — returning static fallback')
             lower = message.lower()
-            if 'procrastinate' in lower or 'lazy' in lower or 'study' in lower:
+            if any(kw in lower for kw in ('procrastinate', 'lazy', 'study')):
                 reply = (
                     "Use the 5-minute start rule: open the material, set one tiny target, and begin "
                     "before negotiating with yourself. Momentum is the point."
@@ -114,5 +134,11 @@ class ChatCoachView(APIView):
             "Respond as a concise, practical AI productivity mentor. "
             f"Recent routine context: {json.dumps(payload)}\nUser message: {message}"
         )
-        response = model.generate_content(prompt)
-        return Response({'success': True, 'reply': response.text})
+        logger.info('[AI] Prompt generated — calling Groq')
+        try:
+            reply = generate_ai_response(prompt)
+            logger.info('[AI] Response received')
+            return Response({'success': True, 'reply': reply})
+        except Exception as exc:
+            logger.exception('[AI] Error: %s', exc)
+            return Response({'success': False, 'error': str(exc)}, status=500)

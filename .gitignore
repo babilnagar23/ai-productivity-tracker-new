@@ -97,6 +97,9 @@ mobile/.packages
 mobile/.pub-cache/
 mobile/.pub/
 
+mobile/build/
+mobile/.dart_tool/
+
 # Flutter build output
 mobile/build/
 
