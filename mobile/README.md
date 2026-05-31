@@ -26,7 +26,7 @@ mobile/
 │   │   ├── auth/                      ← Login, Register, OTP, Password
 │   │   ├── dashboard/                 ← Home screen with stats
 │   │   ├── routines/                  ← Log + edit daily routines
-│   │   ├── ai_assistant/              ← Gemini AI chat
+│   │   ├── ai_assistant/              ← AI chat (Groq)
 │   │   ├── analytics/                 ← Charts + habit rates
 │   │   ├── calendar/                  ← Calendar heatmap view
 │   │   └── profile/                   ← User settings + logout
@@ -148,7 +148,7 @@ APK will be at: `build/app/outputs/flutter-apk/app-release.apk`
 | Dashboard | Streak, XP, today's score, quick actions |
 | Routine Tracker | List all logs with edit/delete |
 | Add/Edit Routine | Form with habits, hours, sleep, notes |
-| AI Chat | Full chat UI connected to Gemini backend |
+| AI Chat | Full chat UI connected to Groq backend |
 | Analytics | Bar chart, line chart, habit completion rates |
 | Calendar | Calendar heatmap with colour-coded scores |
 | Profile | User info + logout |
