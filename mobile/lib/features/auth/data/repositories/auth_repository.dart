@@ -1,0 +1,105 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
+import '../../../../core/api/api_client.dart';
+import '../../../../core/api/api_endpoints.dart';
+import '../../../../core/storage/secure_storage.dart';
+import '../models/user_model.dart';
+
+class AuthRepository {
+  final Dio _dio = apiClient.dio;
+
+  Future<void> sendOtp(String email) async {
+    debugPrint('[AUTH] sendOtp → $email');
+    await _dio.post(ApiEndpoints.sendOtp, data: {'email': email});
+  }
+
+  Future<void> verifyOtp(String email, String otp) async {
+    debugPrint('[AUTH] verifyOtp → $email');
+    await _dio.post(ApiEndpoints.verifyOtp, data: {'email': email, 'otp': otp});
+  }
+
+  /// Step 3 of OTP registration.
+  /// Backend expects: { email, password, confirm_password }  (snake_case)
+  Future<Map<String, dynamic>> completeRegistration({
+    required String email,
+    required String password,
+    required String confirmPassword,
+  }) async {
+    debugPrint('[AUTH] completeRegistration → $email');
+    final response = await _dio.post(
+      ApiEndpoints.completeRegistration,
+      data: {
+        'email': email,
+        'password': password,
+        'confirm_password': confirmPassword, // ← backend expects snake_case
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    // Registration also returns tokens — save them so the user is logged in
+    final access = data['access'] as String?;
+    final refresh = data['refresh'] as String?;
+    if (access != null && refresh != null) {
+      await SecureStorageService.saveTokens(
+        accessToken: access,
+        refreshToken: refresh,
+      );
+      await SecureStorageService.saveUserEmail(email);
+      debugPrint('[JWT] Tokens saved after registration');
+    }
+    return data;
+  }
+
+  /// Login returns: { success, access, refresh, token, user: {...} }
+  Future<UserModel> login(String email, String password) async {
+    debugPrint('[AUTH] Login started → $email');
+    final response = await _dio.post(
+      ApiEndpoints.login,
+      data: {'email': email, 'password': password},
+    );
+    final data = response.data as Map<String, dynamic>;
+
+    final access = data['access'] as String?;
+    final refresh = data['refresh'] as String?;
+
+    if (access == null || refresh == null) {
+      throw Exception('Server did not return tokens');
+    }
+
+    await SecureStorageService.saveTokens(
+      accessToken: access,
+      refreshToken: refresh,
+    );
+    await SecureStorageService.saveUserEmail(email);
+    debugPrint('[JWT] Access token saved');
+    debugPrint('[JWT] Refresh token saved');
+
+    final userJson = data['user'] as Map<String, dynamic>?;
+    if (userJson == null) {
+      throw Exception('Server did not return user data');
+    }
+
+    final user = UserModel.fromJson(userJson);
+    debugPrint('[AUTH] Login success — user: ${user.email}');
+    return user;
+  }
+
+  /// GET /auth/me — returns { success, data: { id, name, email, ... } }
+  Future<UserModel> getMe() async {
+    debugPrint('[AUTH] getMe');
+    final response = await _dio.get(ApiEndpoints.me);
+    final body = response.data as Map<String, dynamic>;
+    // Backend wraps in { success, data: {...} }
+    final userJson = body['data'] as Map<String, dynamic>? ?? body;
+    return UserModel.fromJson(userJson);
+  }
+
+  Future<void> forgotPassword(String email) async {
+    debugPrint('[AUTH] forgotPassword → $email');
+    await _dio.post(ApiEndpoints.forgotPassword, data: {'email': email});
+  }
+
+  Future<void> logout() async {
+    debugPrint('[AUTH] logout — clearing tokens');
+    await SecureStorageService.clearAll();
+  }
+}

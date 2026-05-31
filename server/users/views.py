@@ -65,11 +65,14 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
+            logger.warning('[AUTH] Login failed — invalid credentials for %s',
+                           request.data.get('email', 'unknown'))
             return Response(
                 {'success': False, 'error': error_response(serializer, 'Invalid credentials')},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         user = serializer.validated_data['user']
+        logger.info('[AUTH] Login success for %s', user.email)
         return Response({'success': True, **token_payload(user), 'user': public_user(user)})
 
 
@@ -117,10 +120,15 @@ class ForgotPasswordView(APIView):
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
             reset_url = f"{frontend_url}/reset-password/{uid}/{token}"
             
+            logger.info('[PASSWORD RESET] Request received for %s', email)
+            logger.info('[PASSWORD RESET] Token generated')
+            logger.info('[PASSWORD RESET] Email sending to %s', email)
             send_password_reset_email(user.email, reset_url)
+            logger.info('[PASSWORD RESET] Email sent to %s', email)
         except User.DoesNotExist:
-            pass
+            logger.info('[PASSWORD RESET] No account found for %s (silent)', email)
         except Exception as e:
+            logger.error('[PASSWORD RESET] Email failed for %s: %s', email, str(e))
             print(f"Password reset email failed: {str(e)}")
             
         return Response({

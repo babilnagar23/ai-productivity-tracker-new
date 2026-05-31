@@ -1,58 +1,141 @@
 # ==============================================================================
-# Monorepo Root Git Ignore Rules for ProductiveAI App
+# ProductiveAI — Monorepo .gitignore
+# Django + Flutter + React
 # ==============================================================================
 
-# Node.js dependencies
-node_modules/
-client/node_modules/
 
-# Production builds and bundles
-dist/
-client/dist/
-dist-ssr/
-client/dist-ssr/
-*.local
-
-# Python Virtual Environments
-server/venv/
-venv/
-.venv/
-env/
-ENV/
-server/env/
-server/ENV/
-
-# Python compilations & cache
-__pycache__/
-**/__pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
-.mypy_cache/
-
-# Django specifics
-db.sqlite3
-*.log
-
-# Environment variables, keys & DB credentials (CRITICAL: Do not upload to GitHub!)
+# ── Secrets & credentials ─────────────────────────────────────────────────────
 .env
+.env.*
+!.env.example
 server/.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+server/.env.*
+credentials.json
+service-account.json
+client_secret*.json
+*_secret*.json
+*api_key*
+*.pem
+*.p12
+*.keystore
+*.jks
+key.properties
 
-# Operating System files
+
+# ── OS files ──────────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
 desktop.ini
+ehthumbs.db
 
-# Editor & IDE configurations
+
+# ── IDE / Editor ──────────────────────────────────────────────────────────────
+.idea/
 .vscode/
 !.vscode/extensions.json
-.idea/
+*.iml
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+
+# ── Python / Django ───────────────────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
+db.sqlite3
+*.log
+server.log
+media/
+staticfiles/
+static_root/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+server/venv/
+server/.venv/
+server/env/
+server/ENV/
+
+
+# ── Node / React (client) ─────────────────────────────────────────────────────
+node_modules/
+client/node_modules/
+dist/
+client/dist/
+dist-ssr/
+client/dist-ssr/
+*.local
+.npm/
+.yarn/
+
+
+# ── Flutter / Dart ────────────────────────────────────────────────────────────
+# Dart tool cache
+.dart_tool/
+mobile/.dart_tool/
+
+# Flutter generated files
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+
+# Flutter build output
+mobile/build/
+
+# Generated code (build_runner)
+*.g.dart
+*.freezed.dart
+*.gr.dart
+
+
+# ── Android build artifacts ───────────────────────────────────────────────────
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/.gradle/
+mobile/android/captures/
+mobile/android/local.properties
+mobile/android/.cxx/
+mobile/android/app/.cxx/
+
+# Gradle wrapper (keep gradle-wrapper.jar and .properties — they are source)
+# mobile/android/gradle/  ← intentionally NOT ignored
+
+# Keystore / signing
+mobile/android/key.properties
+mobile/android/**/*.keystore
+mobile/android/**/*.jks
+
+
+# ── iOS build artifacts ───────────────────────────────────────────────────────
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Flutter.podspec
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/app.flx
+mobile/ios/Flutter/app.zip
+mobile/ios/Flutter/flutter_assets/
+mobile/ios/ServiceDefinitions.json
+mobile/ios/Runner/GeneratedPluginRegistrant.*
+
+
+# ── Web build output ──────────────────────────────────────────────────────────
+mobile/build/web/
