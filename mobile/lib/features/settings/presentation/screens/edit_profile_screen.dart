@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -64,34 +64,51 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 400, maxHeight: 400, imageQuality: 80);
-    if (picked != null) {
-      final bytes = await File(picked.path).readAsBytes();
-      final base64 = base64Encode(bytes);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_avatar', base64);
-      setState(() => _avatarBase64 = base64);
-    }
+
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 400,
+      maxHeight: 400,
+      imageQuality: 80,
+    );
+
+    if (picked == null) return;
+
+    final Uint8List bytes = await picked.readAsBytes();
+
+    final String base64 = base64Encode(bytes);
+
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('user_avatar', base64);
+
+    setState(() {
+      _avatarBase64 = base64;
+    });
   }
 
   Future<void> _save() async {
     setState(() => _isLoading = true);
     final success = await ref.read(authStateProvider.notifier).updateProfile(
-      firstName: _firstNameCtrl.text.trim(),
-      lastName: _lastNameCtrl.text.trim(),
-      email: _emailCtrl.text.trim(),
-    );
+          firstName: _firstNameCtrl.text.trim(),
+          lastName: _lastNameCtrl.text.trim(),
+          email: _emailCtrl.text.trim(),
+        );
     setState(() => _isLoading = false);
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated!'), backgroundColor: AppColors.success),
+          const SnackBar(
+              content: Text('Profile updated!'),
+              backgroundColor: AppColors.success),
         );
         Navigator.pop(context);
       } else {
         final error = ref.read(authStateProvider).error;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error ?? 'Update failed'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(error ?? 'Update failed'),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -104,9 +121,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: Text('Edit Profile', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+        title: Text('Edit Profile',
+            style: GoogleFonts.inter(
+                color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_rounded,
+              color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -121,14 +141,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   width: 80,
                   height: 80,
                   decoration: const BoxDecoration(
-                    gradient: LinearGradient(colors: [AppColors.blue, AppColors.purple]),
+                    gradient: LinearGradient(
+                        colors: [AppColors.blue, AppColors.purple]),
                     shape: BoxShape.circle,
                   ),
                   child: _avatarBase64 != null
-                      ? ClipOval(child: Image.memory(base64Decode(_avatarBase64!), fit: BoxFit.cover))
+                      ? ClipOval(
+                          child: Image.memory(base64Decode(_avatarBase64!),
+                              fit: BoxFit.cover))
                       : Center(
                           child: Text(user?.initials ?? '?',
-                              style: GoogleFonts.inter(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700)),
+                              style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700)),
                         ),
                 ),
                 Positioned(
@@ -139,8 +165,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     child: Container(
                       width: 26,
                       height: 26,
-                      decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
-                      child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
+                      decoration: const BoxDecoration(
+                          color: AppColors.blue, shape: BoxShape.circle),
+                      child: const Icon(Icons.camera_alt_rounded,
+                          color: Colors.white, size: 14),
                     ),
                   ),
                 ),
@@ -152,11 +180,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           // Stats row
           Row(
             children: [
-              Expanded(child: _StatBox(label: 'Total Tasks', value: '$_totalTasks')),
+              Expanded(
+                  child: _StatBox(label: 'Total Tasks', value: '$_totalTasks')),
               const SizedBox(width: 10),
-              Expanded(child: _StatBox(label: 'Focus Hours', value: '${_focusHours.toStringAsFixed(1)}h')),
+              Expanded(
+                  child: _StatBox(
+                      label: 'Focus Hours',
+                      value: '${_focusHours.toStringAsFixed(1)}h')),
               const SizedBox(width: 10),
-              Expanded(child: _StatBox(label: 'Streak', value: '${user?.streak ?? 0}')),
+              Expanded(
+                  child:
+                      _StatBox(label: 'Streak', value: '${user?.streak ?? 0}')),
             ],
           ),
           const SizedBox(height: 24),
@@ -169,7 +203,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           _field(_lastNameCtrl, 'Last name'),
           const SizedBox(height: 12),
           _label('Email'),
-          _field(_emailCtrl, 'Email address', keyboardType: TextInputType.emailAddress),
+          _field(_emailCtrl, 'Email address',
+              keyboardType: TextInputType.emailAddress),
           const SizedBox(height: 32),
 
           SizedBox(
@@ -179,11 +214,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               onPressed: _isLoading ? null : _save,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.blue,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
               child: _isLoading
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text('Save Changes', style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : Text('Save Changes',
+                      style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -194,11 +238,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget _label(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(text, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+      child: Text(text,
+          style: GoogleFonts.inter(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500)),
     );
   }
 
-  Widget _field(TextEditingController ctrl, String hint, {TextInputType? keyboardType}) {
+  Widget _field(TextEditingController ctrl, String hint,
+      {TextInputType? keyboardType}) {
     return TextField(
       controller: ctrl,
       keyboardType: keyboardType,
@@ -208,9 +257,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         hintStyle: GoogleFonts.inter(color: AppColors.textMuted),
         filled: true,
         fillColor: AppColors.card,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.border)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.blue)),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.border)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.border)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.blue)),
       ),
     );
   }
@@ -232,8 +287,15 @@ class _StatBox extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(value, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
-          Text(label, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
+          Text(value,
+              style: GoogleFonts.inter(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800)),
+          Text(label,
+              style:
+                  GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+              textAlign: TextAlign.center),
         ],
       ),
     );

@@ -181,7 +181,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const SizedBox(width: 12),
                       // ignore: prefer_const_constructors
                       Expanded(child: Text('Dark Mode', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 15))),
-                      Switch(value: true, onChanged: null, activeThumbColor: AppColors.textMuted),
+                      const Switch(value: true, onChanged: null, activeThumbColor: AppColors.textMuted),
                     ],
                   ),
                 ),

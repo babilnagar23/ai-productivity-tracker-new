@@ -98,6 +98,12 @@ class MeView(APIView):
         if 'last_name' in data:
             user.last_name = str(data['last_name']).strip()
 
+        avatar = request.data.get('avatar')
+
+        if avatar is not None:
+             request.user.profile.avatar = avatar
+             request.user.profile.save(update_fields=['avatar'])
+
         if 'email' in data:
             new_email = str(data['email']).lower().strip()
             if new_email != user.email:

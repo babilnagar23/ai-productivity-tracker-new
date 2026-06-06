@@ -68,6 +68,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
     streak = models.PositiveIntegerField(default=0)
     xp = models.PositiveIntegerField(default=0)
+    avatar = models.TextField(blank=True, null=True)
     custom_config = models.JSONField(default=default_config)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -17,6 +17,7 @@ def public_user(user):
         'email': user.email,
         'firstName': user.first_name or '',
         'lastName': user.last_name or '',
+        'avatar': profile.avatar or '',
         'streak': profile.streak,
         'xp': profile.xp,
         'customConfig': profile.custom_config or default_config(),
