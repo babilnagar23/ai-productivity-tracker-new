@@ -5,6 +5,9 @@ import '../../../../core/api/api_endpoints.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../models/user_model.dart';
 
+// ignore: unused_import
+export 'package:dio/dio.dart' show DioException;
+
 class AuthRepository {
   final Dio _dio = apiClient.dio;
 
@@ -52,35 +55,40 @@ class AuthRepository {
   /// Login returns: { success, access, refresh, token, user: {...} }
   Future<UserModel> login(String email, String password) async {
     debugPrint('[AUTH] Login started → $email');
-    final response = await _dio.post(
-      ApiEndpoints.login,
-      data: {'email': email, 'password': password},
-    );
-    final data = response.data as Map<String, dynamic>;
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.login,
+        data: {'email': email, 'password': password},
+      );
+      final data = response.data as Map<String, dynamic>;
 
-    final access = data['access'] as String?;
-    final refresh = data['refresh'] as String?;
+      final access = data['access'] as String?;
+      final refresh = data['refresh'] as String?;
 
-    if (access == null || refresh == null) {
-      throw Exception('Server did not return tokens');
+      if (access == null || refresh == null) {
+        throw Exception('Server did not return tokens');
+      }
+
+      await SecureStorageService.saveTokens(
+        accessToken: access,
+        refreshToken: refresh,
+      );
+      await SecureStorageService.saveUserEmail(email);
+      debugPrint('[JWT] Access token saved');
+      debugPrint('[JWT] Refresh token saved');
+
+      final userJson = data['user'] as Map<String, dynamic>?;
+      if (userJson == null) {
+        throw Exception('Server did not return user data');
+      }
+
+      final user = UserModel.fromJson(userJson);
+      debugPrint('[AUTH] Login success — user: ${user.email}');
+      return user;
+    } on DioException {
+      // Re-throw DioException so _parseError in auth_provider can handle it
+      rethrow;
     }
-
-    await SecureStorageService.saveTokens(
-      accessToken: access,
-      refreshToken: refresh,
-    );
-    await SecureStorageService.saveUserEmail(email);
-    debugPrint('[JWT] Access token saved');
-    debugPrint('[JWT] Refresh token saved');
-
-    final userJson = data['user'] as Map<String, dynamic>?;
-    if (userJson == null) {
-      throw Exception('Server did not return user data');
-    }
-
-    final user = UserModel.fromJson(userJson);
-    debugPrint('[AUTH] Login success — user: ${user.email}');
-    return user;
   }
 
   /// GET /auth/me — returns { success, data: { id, name, email, ... } }
@@ -91,6 +99,11 @@ class AuthRepository {
     // Backend wraps in { success, data: {...} }
     final userJson = body['data'] as Map<String, dynamic>? ?? body;
     return UserModel.fromJson(userJson);
+  }
+
+  Future<void> updateProfile(Map<String, dynamic> data) async {
+    debugPrint('[AUTH] updateProfile');
+    await _dio.patch(ApiEndpoints.updateProfile, data: data);
   }
 
   Future<void> forgotPassword(String email) async {

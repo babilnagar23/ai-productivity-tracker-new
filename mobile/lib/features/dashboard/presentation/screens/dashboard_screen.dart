@@ -1,21 +1,37 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/api/api_client.dart';
+import '../../../../core/api/api_endpoints.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../routines/data/models/routine_model.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
-import '../../../../shared/widgets/gradient_card.dart';
 
-final todayRoutineProvider = FutureProvider<RoutineModel?>((ref) async {
-  final repo = RoutineRepository();
-  final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-  final routines = await repo.getRoutines();
+final dashboardRoutinesProvider = FutureProvider<List<RoutineModel>>((ref) async {
+  return RoutineRepository().getRoutines();
+});
+
+final dashboardAnalyticsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   try {
-    return routines.firstWhere((r) => r.date == today);
+    final response = await apiClient.dio.get(ApiEndpoints.analyticsFull);
+    return response.data as Map<String, dynamic>;
   } catch (_) {
-    return null;
+    return {};
+  }
+});
+
+final dashboardEventsProvider = FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final response = await apiClient.dio.get(ApiEndpoints.calendarEvents, queryParameters: {'date': today});
+    final body = response.data as Map<String, dynamic>;
+    return body['data'] as List<dynamic>? ?? body['events'] as List<dynamic>? ?? [];
+  } catch (_) {
+    return [];
   }
 });
 
@@ -24,190 +40,258 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authStateProvider);
-    final user = auth.user;
-    final todayAsync = ref.watch(todayRoutineProvider);
-    final now = DateTime.now();
+    final authNotifier = ref.read(authStateProvider.notifier);
+    final user = ref.watch(authStateProvider).user;
+    final routinesAsync = ref.watch(dashboardRoutinesProvider);
+    ref.watch(dashboardAnalyticsProvider); // preload
+    final eventsAsync = ref.watch(dashboardEventsProvider);
+
+    final xp = user?.xp ?? 0;
+    final level = authNotifier.level;
+    final nextXp = authNotifier.nextLevelXp;
+    final xpProgress = authNotifier.xpProgress;
+    final streak = user?.streak ?? 0;
 
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(todayRoutineProvider),
-        color: AppColors.purple,
-        backgroundColor: AppColors.surface,
+        onRefresh: () async {
+          ref.invalidate(dashboardRoutinesProvider);
+          ref.invalidate(dashboardAnalyticsProvider);
+          ref.invalidate(dashboardEventsProvider);
+        },
+        color: AppColors.blue,
+        backgroundColor: AppColors.card,
         child: CustomScrollView(
           slivers: [
             // App Bar
             SliverAppBar(
-              backgroundColor: AppColors.surface,
+              backgroundColor: AppColors.bg,
               pinned: true,
+              automaticallyImplyLeading: false,
               title: Row(
                 children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.gradientStart, AppColors.gradientEnd],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        user?.initials ?? '?',
-                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
-                      ),
+                  GestureDetector(
+                    onTap: () => context.push('/settings/profile'),
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(colors: [AppColors.blue, AppColors.purple]),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(user?.initials ?? '?',
+                                style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
+                            child: const Icon(Icons.edit_rounded, color: Colors.white, size: 7),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hello, ${user?.displayName ?? 'User'} 👋',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                      ),
-                      Text(
-                        DateFormat('EEEE, MMM d').format(now),
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
+                  Text('Welcome back, ${user?.displayName ?? 'User'}',
+                      style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                 ],
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.person_outline_rounded),
-                  onPressed: () => context.push('/profile'),
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+                      onPressed: () => context.push('/notifications'),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
 
             SliverPadding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // Streak + XP row
+                  // Streak + XP bar
                   Row(
                     children: [
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.local_fire_department_rounded,
-                          iconColor: AppColors.warning,
-                          value: '${user?.streak ?? 0}',
-                          label: 'Day Streak',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.star_rounded,
-                          iconColor: AppColors.purple,
-                          value: '${user?.xp ?? 0}',
-                          label: 'Total XP',
-                        ),
-                      ),
+                      const Text('🔥', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 6),
+                      Text('$streak Days Streak',
+                          style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      Text('Level $level: $xp/$nextXp XP',
+                          style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13)),
                     ],
                   ),
-                  const SizedBox(height: 16),
-
-                  // Today's productivity card
-                  todayAsync.when(
-                    loading: () => const _LoadingCard(),
-                    error: (_, __) => const _ErrorCard(),
-                    data: (routine) => _TodayCard(routine: routine),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Quick actions
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: xpProgress,
+                      backgroundColor: const Color(0x14FFFFFF),
+                      valueColor: const AlwaysStoppedAnimation(AppColors.blue),
+                      minHeight: 6,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.6,
-                    children: [
-                      _QuickAction(
-                        icon: Icons.add_task_rounded,
-                        label: 'Log Today',
-                        color: AppColors.purple,
-                        onTap: () => context.push('/routines/add'),
-                      ),
-                      _QuickAction(
-                        icon: Icons.auto_awesome_rounded,
-                        label: 'Ask AI',
-                        color: AppColors.blue,
-                        onTap: () => context.go('/ai'),
-                      ),
-                      _QuickAction(
-                        icon: Icons.bar_chart_rounded,
-                        label: 'Analytics',
-                        color: AppColors.cyan,
-                        onTap: () => context.go('/analytics'),
-                      ),
-                      _QuickAction(
-                        icon: Icons.calendar_month_rounded,
-                        label: 'Calendar',
-                        color: AppColors.success,
-                        onTap: () => context.go('/calendar'),
-                      ),
-                    ],
+                  const SizedBox(height: 16),
+
+                  // Focus Mode Command Center
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Focus Mode Command Center',
+                            style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: () => context.push('/focus'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.blue,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: Text('Start Focus', style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _PresetChip(label: '25m Pomodoro', onTap: () => context.push('/focus?duration=25')),
+                              const SizedBox(width: 8),
+                              _PresetChip(label: '60m Flow', onTap: () => context.push('/focus?duration=60')),
+                              const SizedBox(width: 8),
+                              _PresetChip(label: '90m Deep Work', onTap: () => context.push('/focus?duration=90')),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Recent routines header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Recent Logs',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                  // Productivity Overview 2x2 grid
+                  routinesAsync.when(
+                    loading: () => const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: AppColors.blue))),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (routines) => _ProductivityGrid(routines: routines),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Today's Schedule
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Today's Schedule",
+                                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                            GestureDetector(
+                              onTap: () => context.go('/calendar'),
+                              child: Text('Open Calendar', style: GoogleFonts.inter(color: AppColors.blue, fontSize: 13)),
+                            ),
+                          ],
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () => context.go('/routines'),
-                        child: const Text('View all', style: TextStyle(color: AppColors.purple, fontSize: 13)),
-                      ),
+                        const SizedBox(height: 12),
+                        eventsAsync.when(
+                          loading: () => const SizedBox(height: 40, child: Center(child: CircularProgressIndicator(color: AppColors.blue))),
+                          error: (_, __) => Text('Could not load events', style: GoogleFonts.inter(color: AppColors.textMuted)),
+                          data: (events) {
+                            if (events.isEmpty) {
+                              return GestureDetector(
+                                onTap: () => context.go('/calendar'),
+                                child: Text('No events today. Tap to add one.',
+                                    style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 14)),
+                              );
+                            }
+                            final shown = events.take(5).toList();
+                            return Column(
+                              children: [
+                                ...shown.map((e) {
+                                  final ev = e as Map<String, dynamic>;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      '${ev['start_time'] ?? ''} - ${ev['end_time'] ?? ''}: ${ev['title'] ?? ''}',
+                                      style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 14),
+                                    ),
+                                  );
+                                }),
+                                if (events.length > 5)
+                                  GestureDetector(
+                                    onTap: () => context.go('/calendar'),
+                                    child: Text('+ ${events.length - 5} more',
+                                        style: GoogleFonts.inter(color: AppColors.blue, fontSize: 13)),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Quick Actions
+                  Text('Quick Actions',
+                      style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13, letterSpacing: 0.5)),
+                  const SizedBox(height: 10),
+                  GridView.count(
+                    crossAxisCount: 3,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 1.1,
+                    children: [
+                      _QuickAction(icon: Icons.edit_note_rounded, label: 'Log Today', color: AppColors.blue,
+                          onTap: () => context.push('/daily-log/add')),
+                      _QuickAction(icon: Icons.psychology_outlined, label: 'Ask AI', color: AppColors.purple,
+                          onTap: () => context.go('/ai-coach')),
+                      _QuickAction(icon: Icons.calendar_today_rounded, label: 'Calendar', color: AppColors.success,
+                          onTap: () => context.go('/calendar')),
+                      _QuickAction(icon: Icons.school_outlined, label: 'Study Plan', color: AppColors.warning,
+                          onTap: () => context.go('/ai-coach')),
+                      _QuickAction(icon: Icons.bar_chart_rounded, label: 'Analytics', color: AppColors.cyan,
+                          onTap: () => context.push('/daily-log/analytics')),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  todayAsync.when(
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (routine) => routine != null
-                        ? _RecentLogTile(routine: routine)
-                        : Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.info_outline_rounded, color: AppColors.textMuted, size: 18),
-                                SizedBox(width: 10),
-                                Text(
-                                  'No log for today yet. Tap "Log Today" above.',
-                                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          ),
-                  ),
-                  const SizedBox(height: 32),
                 ]),
               ),
             ),
@@ -218,161 +302,190 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String value;
+class _PresetChip extends StatelessWidget {
   final String label;
+  final VoidCallback onTap;
+  const _PresetChip({required this.label, required this.onTap});
 
-  const _StatCard({required this.icon, required this.iconColor, required this.value, required this.label});
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.cardElevated,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Text(label, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13)),
+      ),
+    );
+  }
+}
+
+class _ProductivityGrid extends StatelessWidget {
+  final List<RoutineModel> routines;
+  const _ProductivityGrid({required this.routines});
+
+  double _avg(List<RoutineModel> list) {
+    if (list.isEmpty) return 0;
+    return list.map((r) => r.productivityScore).reduce((a, b) => a + b) / list.length;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final last7 = routines.where((r) {
+      try { return DateTime.parse(r.date).isAfter(now.subtract(const Duration(days: 7))); } catch (_) { return false; }
+    }).toList();
+    final last30 = routines.where((r) {
+      try { return DateTime.parse(r.date).isAfter(now.subtract(const Duration(days: 30))); } catch (_) { return false; }
+    }).toList();
+    final prevWeek = routines.where((r) {
+      try {
+        final d = DateTime.parse(r.date);
+        return d.isAfter(now.subtract(const Duration(days: 14))) && d.isBefore(now.subtract(const Duration(days: 7)));
+      } catch (_) { return false; }
+    }).toList();
+
+    final dailyScore = last7.isNotEmpty ? last7.last.productivityScore : 0;
+    final weeklyAvg = _avg(last7).round();
+    final monthlyAvg = _avg(last30).round();
+    final prevWeekAvg = _avg(prevWeek);
+    final weekDiff = prevWeekAvg > 0 ? ((weeklyAvg - prevWeekAvg) / prevWeekAvg * 100).round() : 0;
+    final deepWorkHours = last7.fold(0.0, (sum, r) => sum + r.studyHours);
+
+    final sparklineSpots = last7.asMap().entries
+        .map((e) => FlSpot(e.key.toDouble(), e.value.productivityScore.toDouble()))
+        .toList();
+
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 1.1,
+      children: [
+        _StatCard(
+          label: 'Daily Score',
+          value: '$dailyScore',
+          chart: sparklineSpots.length >= 2 ? _MiniLineChart(spots: sparklineSpots) : null,
+        ),
+        _StatCard(
+          label: 'Weekly Score',
+          value: '$weeklyAvg',
+          sub: weekDiff >= 0 ? '+$weekDiff%' : '$weekDiff%',
+          subColor: weekDiff >= 0 ? AppColors.success : AppColors.error,
+        ),
+        _StatCard(
+          label: 'Monthly Trend',
+          value: '$monthlyAvg',
+          chart: last30.length >= 2
+              ? _MiniLineChart(spots: last30.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.productivityScore.toDouble())).toList())
+              : null,
+        ),
+        _StatCard(
+          label: 'Deep Work Hours',
+          value: '${deepWorkHours.toInt()}h ${((deepWorkHours % 1) * 60).toInt()}m',
+          chart: last7.length >= 2
+              ? _MiniBarChart(values: last7.map((r) => r.studyHours).toList())
+              : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? sub;
+  final Color? subColor;
+  final Widget? chart;
+
+  const _StatCard({required this.label, required this.value, this.sub, this.subColor, this.chart});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
-              Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TodayCard extends StatelessWidget {
-  final RoutineModel? routine;
-  const _TodayCard({this.routine});
-
-  @override
-  Widget build(BuildContext context) {
-    if (routine == null) {
-      return GradientCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.wb_sunny_rounded, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Text('Today\'s Progress', style: TextStyle(color: Colors.white70, fontSize: 13)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'No entry yet',
-              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            const Text('Log your day to track progress', style: TextStyle(color: Colors.white70, fontSize: 13)),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => context.push('/routines/add'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.purple,
-                minimumSize: const Size(0, 36),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('Log Today', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return GradientCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.wb_sunny_rounded, color: Colors.white, size: 18),
-              SizedBox(width: 8),
-              Text('Today\'s Progress', style: TextStyle(color: Colors.white70, fontSize: 13)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${routine!.productivityScore}',
-                style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900),
-              ),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Text('/100', style: TextStyle(color: Colors.white60, fontSize: 18)),
-              ),
-            ],
-          ),
-          const Text('Productivity Score', style: TextStyle(color: Colors.white70, fontSize: 13)),
-          const SizedBox(height: 16),
-          LinearProgressIndicator(
-            value: routine!.productivityScore / 100,
-            backgroundColor: Colors.white24,
-            valueColor: const AlwaysStoppedAnimation(Colors.white),
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _CheckBadge(done: routine!.studyCompleted, label: 'Study'),
-              const SizedBox(width: 8),
-              _CheckBadge(done: routine!.exerciseCompleted, label: 'Exercise'),
-              const SizedBox(width: 8),
-              _CheckBadge(done: routine!.mlCompleted, label: 'ML'),
-            ],
-          ),
+          Text(label, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+          const SizedBox(height: 4),
+          Text(value, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
+          if (sub != null)
+            Text(sub!, style: GoogleFonts.inter(color: subColor ?? AppColors.textMuted, fontSize: 11)),
+          if (chart != null) ...[
+            const Spacer(),
+            SizedBox(height: 36, child: chart!),
+          ],
         ],
       ),
     );
   }
 }
 
-class _CheckBadge extends StatelessWidget {
-  final bool done;
-  final String label;
-  const _CheckBadge({required this.done, required this.label});
+class _MiniLineChart extends StatelessWidget {
+  final List<FlSpot> spots;
+  const _MiniLineChart({required this.spots});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: done ? Colors.white24 : Colors.white10,
-        borderRadius: BorderRadius.circular(6),
+    return LineChart(LineChartData(
+      gridData: const FlGridData(show: false),
+      borderData: FlBorderData(show: false),
+      titlesData: const FlTitlesData(
+        leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(done ? Icons.check_rounded : Icons.close_rounded, color: Colors.white, size: 12),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-        ],
+      lineBarsData: [LineChartBarData(
+        spots: spots,
+        color: AppColors.blue,
+        isCurved: true,
+        barWidth: 2,
+        dotData: const FlDotData(show: false),
+        belowBarData: BarAreaData(show: true, color: AppColors.blue.withValues(alpha: 0.1)),
+      )],
+    ));
+  }
+}
+
+class _MiniBarChart extends StatelessWidget {
+  final List<double> values;
+  const _MiniBarChart({required this.values});
+
+  @override
+  Widget build(BuildContext context) {
+    return BarChart(BarChartData(
+      gridData: const FlGridData(show: false),
+      borderData: FlBorderData(show: false),
+      titlesData: const FlTitlesData(
+        leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
       ),
-    );
+      barGroups: values.asMap().entries.map((e) => BarChartGroupData(
+        x: e.key,
+        barRods: [BarChartRodData(
+          toY: e.value,
+          color: AppColors.blue,
+          width: 8,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+        )],
+      )).toList(),
+    ));
   }
 }
 
@@ -381,7 +494,6 @@ class _QuickAction extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-
   const _QuickAction({required this.icon, required this.label, required this.color, required this.onTap});
 
   @override
@@ -389,112 +501,29 @@ class _QuickAction extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border),
         ),
-        child: Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color, size: 20),
             ),
-            const SizedBox(width: 10),
-            Text(label, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text(label, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center, maxLines: 2),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _RecentLogTile extends StatelessWidget {
-  final RoutineModel routine;
-  const _RecentLogTile({required this.routine});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.purple.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.checklist_rounded, color: AppColors.purple, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Score: ${routine.productivityScore}/100',
-                  style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  routine.date,
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '${routine.studyHours}h study',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoadingCard extends StatelessWidget {
-  const _LoadingCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 140,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: const Center(child: CircularProgressIndicator(color: AppColors.purple)),
-    );
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  const _ErrorCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: const Center(
-        child: Text('Could not load today\'s data', style: TextStyle(color: AppColors.textSecondary)),
       ),
     );
   }

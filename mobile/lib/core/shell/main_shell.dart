@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
 class MainShell extends StatelessWidget {
@@ -7,11 +8,11 @@ class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.child});
 
   static const _tabs = [
-    _Tab(icon: Icons.dashboard_rounded, label: 'Dashboard', path: '/dashboard'),
-    _Tab(icon: Icons.checklist_rounded, label: 'Routines', path: '/routines'),
-    _Tab(icon: Icons.auto_awesome_rounded, label: 'AI', path: '/ai'),
-    _Tab(icon: Icons.bar_chart_rounded, label: 'Analytics', path: '/analytics'),
-    _Tab(icon: Icons.calendar_month_rounded, label: 'Calendar', path: '/calendar'),
+    _Tab(icon: Icons.grid_view_rounded, label: 'Dashboard', path: '/dashboard'),
+    _Tab(icon: Icons.assignment_outlined, label: 'Daily Log', path: '/daily-log'),
+    _Tab(icon: Icons.psychology_outlined, label: 'AI Coach', path: '/ai-coach'),
+    _Tab(icon: Icons.calendar_month_outlined, label: 'Calendar', path: '/calendar'),
+    _Tab(icon: Icons.settings_outlined, label: 'Settings', path: '/settings'),
   ];
 
   int _indexFromLocation(String location) {
@@ -29,16 +30,44 @@ class MainShell extends StatelessWidget {
     return Scaffold(
       body: child,
       bottomNavigationBar: Container(
+        height: 60 + MediaQuery.of(context).padding.bottom,
         decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border)),
+          color: AppColors.nav,
+          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
         ),
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: (index) => context.go(_tabs[index].path),
-          items: _tabs.map((tab) => BottomNavigationBarItem(
-            icon: Icon(tab.icon),
-            label: tab.label,
-          )).toList(),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: List.generate(_tabs.length, (index) {
+              final tab = _tabs[index];
+              final isSelected = currentIndex == index;
+              return Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => context.go(tab.path),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        tab.icon,
+                        size: 22,
+                        color: isSelected ? AppColors.blue : AppColors.textMuted,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        tab.label,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          color: isSelected ? AppColors.blue : AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ),
     );

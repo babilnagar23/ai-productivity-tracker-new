@@ -3,11 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/api/api_client.dart';
 import 'core/routes/app_router.dart';
+import 'core/storage/secure_storage.dart';
 import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   apiClient.init();
+
+  // Load first-login flag synchronously before the router starts
+  final firstLoginDone = await SecureStorageService.getFlag('first_login_done') == 'true';
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -16,7 +21,12 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(const ProviderScope(child: ProductiveAIApp()));
+  runApp(ProviderScope(
+    overrides: [
+      firstLoginDoneProvider.overrideWith((ref) => firstLoginDone),
+    ],
+    child: const ProductiveAIApp(),
+  ));
 }
 
 class ProductiveAIApp extends ConsumerWidget {

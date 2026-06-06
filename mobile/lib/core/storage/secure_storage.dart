@@ -98,4 +98,23 @@ class SecureStorageService {
     final token = await getAccessToken();
     return token != null && token.isNotEmpty;
   }
+
+  // ── Generic flags ──────────────────────────────────────────────────────────
+
+  static Future<void> saveFlag(String key, String value) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(key, value);
+    } else {
+      await _storage.write(key: key, value: value);
+    }
+  }
+
+  static Future<String?> getFlag(String key) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(key);
+    }
+    return _storage.read(key: key);
+  }
 }

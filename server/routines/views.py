@@ -66,7 +66,20 @@ class RoutineViewSet(viewsets.ModelViewSet):
         return Response({'success': True, 'data': {}})
 
     def _sync_profile_rewards(self, user):
+        from datetime import timedelta
+        from django.utils import timezone
+
         profile = user.profile
-        profile.streak = Routine.objects.filter(user=user).count()
-        profile.xp = profile.streak * 10
+        # Calculate consecutive-day streak (not total count)
+        dates = set(
+            Routine.objects.filter(user=user).values_list('date', flat=True)
+        )
+        day = timezone.localdate()
+        streak = 0
+        while day in dates:
+            streak += 1
+            day -= timedelta(days=1)
+
+        profile.streak = streak
+        profile.xp = streak * 10
         profile.save(update_fields=['streak', 'xp'])

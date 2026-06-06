@@ -340,10 +340,17 @@ class CalendarEventsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """List events for a date range. Params: start, end (ISO strings)."""
+        """List events for a date range or specific date. Params: start, end, date (ISO strings)."""
         start_str = request.query_params.get('start')
         end_str = request.query_params.get('end')
+        date_str = request.query_params.get('date')
         qs = CalendarEvent.objects.filter(user=request.user)
+        if date_str:
+            # Filter events that overlap with the given date
+            try:
+                qs = qs.filter(start_time__date=date_str)
+            except Exception:
+                pass
         if start_str:
             try:
                 qs = qs.filter(start_time__gte=start_str)
@@ -455,6 +462,10 @@ class CalendarEventDetailView(APIView):
                     SyncLog.objects.create(user=request.user, direction='push', status='error', error_message=str(exc))
 
         return Response({'success': True, 'event': serialize_event(event)})
+
+    def patch(self, request, pk):
+        """PATCH is identical to PUT — both do partial updates."""
+        return self.put(request, pk)
 
     def delete(self, request, pk):
         event = self._get_event(request, pk)
@@ -920,22 +931,36 @@ class NotificationSettingsView(APIView):
                 'eventRemindersMinutes': settings_obj.event_reminders_minutes,
                 'dailySummary': settings_obj.daily_summary,
                 'aiSuggestions': settings_obj.ai_suggestions,
+                # Flutter-compatible field names
+                'daily_summary': settings_obj.daily_summary,
+                'event_reminders': settings_obj.browser_notifications,
+                'event_reminders_minutes': settings_obj.event_reminders_minutes,
+                'ai_suggestions': settings_obj.ai_suggestions,
             },
         })
 
     def post(self, request):
+        return self._update(request)
+
+    def patch(self, request):
+        return self._update(request)
+
+    def _update(self, request):
         settings_obj, _ = NotificationSettings.objects.get_or_create(user=request.user)
         data = request.data
+        # Accept both camelCase and snake_case
         if 'browserNotifications' in data:
             settings_obj.browser_notifications = data['browserNotifications']
+        if 'event_reminders' in data:
+            settings_obj.browser_notifications = data['event_reminders']
         if 'emailReminders' in data:
             settings_obj.email_reminders = data['emailReminders']
-        if 'eventRemindersMinutes' in data:
-            settings_obj.event_reminders_minutes = data['eventRemindersMinutes']
-        if 'dailySummary' in data:
-            settings_obj.daily_summary = data['dailySummary']
-        if 'aiSuggestions' in data:
-            settings_obj.ai_suggestions = data['aiSuggestions']
+        if 'eventRemindersMinutes' in data or 'event_reminders_minutes' in data:
+            settings_obj.event_reminders_minutes = data.get('eventRemindersMinutes', data.get('event_reminders_minutes', settings_obj.event_reminders_minutes))
+        if 'dailySummary' in data or 'daily_summary' in data:
+            settings_obj.daily_summary = data.get('dailySummary', data.get('daily_summary', settings_obj.daily_summary))
+        if 'aiSuggestions' in data or 'ai_suggestions' in data:
+            settings_obj.ai_suggestions = data.get('aiSuggestions', data.get('ai_suggestions', settings_obj.ai_suggestions))
         if 'vapidSubscription' in data:
             settings_obj.vapid_subscription = data['vapidSubscription']
         settings_obj.save()

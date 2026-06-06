@@ -161,6 +161,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // ── Update Profile ─────────────────────────────────────────────────────────
+
+  Future<bool> updateProfile({String? firstName, String? lastName, String? email}) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final data = <String, dynamic>{};
+      if (firstName != null || lastName != null) {
+        final fullName = [firstName ?? '', lastName ?? ''].where((s) => s.isNotEmpty).join(' ');
+        if (fullName.isNotEmpty) data['name'] = fullName;
+      }
+      if (email != null) data['email'] = email;
+      await _repository.updateProfile(data);
+      final user = await _repository.getMe();
+      state = state.copyWith(user: user, isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _parseError(e));
+      return false;
+    }
+  }
+
   // ── Logout ─────────────────────────────────────────────────────────────────
 
   Future<void> logout() async {
@@ -173,18 +194,99 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(error: null);
   }
 
+  // ── XP / Level helpers ─────────────────────────────────────────────────────
+
+  int get level => (state.user?.xp ?? 0) ~/ 1000 + 1;
+  int get nextLevelXp => level * 1000;
+  double get xpProgress => ((state.user?.xp ?? 0) % 1000) / 1000.0;
+
   // ── Error Parsing ──────────────────────────────────────────────────────────
 
   String _parseError(dynamic e) {
-    if (e is Exception) {
-      final msg = e.toString();
-      if (msg.contains('Invalid credentials')) return 'Invalid email or password.';
-      if (msg.contains('not found')) return 'Account not found.';
-      if (msg.contains('already exists')) return 'Email already registered.';
-      if (msg.contains('not verified')) return 'Email not verified. Please complete OTP verification.';
-      return msg.replaceFirst('Exception: ', '');
+    // Handle DioException (network/HTTP errors)
+    if (e.runtimeType.toString().contains('DioException') ||
+        e.runtimeType.toString().contains('DioError')) {
+      try {
+        final dioErr = e as dynamic;
+        final statusCode = dioErr.response?.statusCode as int?;
+        final responseData = dioErr.response?.data;
+
+        // Extract backend error message if present
+        String? backendMsg;
+        if (responseData is Map) {
+          backendMsg = responseData['error'] as String? ??
+              responseData['detail'] as String? ??
+              responseData['message'] as String?;
+        }
+
+        switch (statusCode) {
+          case 400:
+            return backendMsg ?? 'Please check your input and try again.';
+          case 401:
+            return 'Incorrect email or password. Please try again.';
+          case 403:
+            return 'Account access denied. Contact support if this is unexpected.';
+          case 404:
+            return 'Account not found. Please register first.';
+          case 409:
+            return backendMsg ?? 'A conflict occurred. Please try again.';
+          case 429:
+            return 'Too many attempts. Please wait a moment and try again.';
+          case 500:
+          case 502:
+          case 503:
+            return 'Server is temporarily unavailable. Please try again later.';
+          case null:
+            // No response — network error
+            final errType = dioErr.type?.toString() ?? '';
+            if (errType.contains('connectTimeout') ||
+                errType.contains('receiveTimeout') ||
+                errType.contains('sendTimeout')) {
+              return 'Connection timed out. Check your internet connection.';
+            }
+            if (errType.contains('connectionError') ||
+                errType.contains('other')) {
+              return 'Cannot reach the server. Check your internet connection.';
+            }
+            return 'Network error. Check your internet connection.';
+          default:
+            return backendMsg ?? 'Something went wrong (error $statusCode). Please try again.';
+        }
+      } catch (_) {
+        return 'Network error. Check your internet connection.';
+      }
     }
-    return 'Something went wrong. Try again.';
+
+    // Handle plain Exception
+    if (e is Exception) {
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      if (msg.contains('Invalid credentials') ||
+          msg.contains('Incorrect') ||
+          msg.contains('invalid credentials')) {
+        return 'Incorrect email or password. Please try again.';
+      }
+      if (msg.contains('not found') || msg.contains('does not exist')) {
+        return 'Account not found. Please register first.';
+      }
+      if (msg.contains('already exists') || msg.contains('already registered')) {
+        return 'This email is already registered. Try logging in instead.';
+      }
+      if (msg.contains('not verified')) {
+        return 'Email not verified. Please complete OTP verification.';
+      }
+      if (msg.contains('tokens') || msg.contains('token')) {
+        return 'Authentication failed. Please try again.';
+      }
+      if (msg.contains('internet') || msg.contains('network') ||
+          msg.contains('connection') || msg.contains('socket')) {
+        return 'Check your internet connection and try again.';
+      }
+      // Return the message but strip technical prefixes
+      if (msg.length < 120) return msg;
+      return 'Something went wrong. Please try again.';
+    }
+
+    return 'Something went wrong. Please try again.';
   }
 }
 

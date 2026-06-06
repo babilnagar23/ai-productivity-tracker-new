@@ -5,10 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/routine_model.dart';
 import '../../data/repositories/routine_repository.dart';
-
-final routinesProvider = FutureProvider<List<RoutineModel>>((ref) async {
-  return RoutineRepository().getRoutines();
-});
+import '../providers/routines_provider.dart';
 
 class RoutineTrackerScreen extends ConsumerWidget {
   const RoutineTrackerScreen({super.key});

@@ -32,21 +32,37 @@ class RoutineModel {
   });
 
   factory RoutineModel.fromJson(Map<String, dynamic> json) {
+    // Backend serializer returns camelCase in to_representation.
+    // Accept both camelCase (backend response) and snake_case (legacy / direct).
     return RoutineModel(
       id: json['id'] as int?,
       date: json['date'] as String,
-      studyCompleted: json['study_completed'] as bool? ?? false,
-      exerciseCompleted: json['exercise_completed'] as bool? ?? false,
-      mlCompleted: json['ml_completed'] as bool? ?? false,
-      studyHours: (json['study_hours'] as num?)?.toDouble() ?? 0,
-      sleepTime: json['sleep_time'] as String? ?? '23:00',
-      wakeTime: json['wake_time'] as String? ?? '07:00',
-      mobileUsage: (json['mobile_usage'] as num?)?.toDouble() ?? 0,
+      studyCompleted:
+          (json['studyCompleted'] ?? json['study_completed']) as bool? ?? false,
+      exerciseCompleted:
+          (json['exerciseCompleted'] ?? json['exercise_completed']) as bool? ?? false,
+      mlCompleted:
+          (json['mlCompleted'] ?? json['ml_completed']) as bool? ?? false,
+      studyHours:
+          ((json['studyHours'] ?? json['study_hours']) as num?)?.toDouble() ?? 0,
+      sleepTime:
+          (json['sleepTime'] ?? json['sleep_time']) as String? ?? '23:00',
+      wakeTime:
+          (json['wakeTime'] ?? json['wake_time']) as String? ?? '07:00',
+      mobileUsage:
+          ((json['mobileUsage'] ?? json['mobile_usage']) as num?)?.toDouble() ?? 0,
       notes: json['notes'] as String? ?? '',
-      productivityScore: json['productivity_score'] as int? ?? 0,
-      coreChecklists: json['core_checklists'] as Map<String, dynamic>? ?? {},
-      coreMetrics: json['core_metrics'] as Map<String, dynamic>? ?? {},
-      customLogs: json['custom_logs'] as List<dynamic>? ?? [],
+      productivityScore:
+          ((json['productivityScore'] ?? json['productivity_score']) as num?)
+              ?.toInt() ?? 0,
+      coreChecklists:
+          (json['coreChecklists'] ?? json['core_checklists'])
+              as Map<String, dynamic>? ?? {},
+      coreMetrics:
+          (json['coreMetrics'] ?? json['core_metrics'])
+              as Map<String, dynamic>? ?? {},
+      customLogs:
+          (json['customLogs'] ?? json['custom_logs']) as List<dynamic>? ?? [],
     );
   }
 

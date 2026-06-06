@@ -59,4 +59,14 @@ class RoutineRepository {
       return null;
     }
   }
+
+  Future<Map<String, dynamic>> getCustomConfig() async {
+    final response = await _dio.get(ApiEndpoints.customConfig);
+    final body = response.data as Map<String, dynamic>;
+    return body['data'] as Map<String, dynamic>? ?? body;
+  }
+
+  Future<void> updateCustomConfig(Map<String, dynamic> config) async {
+    await _dio.patch(ApiEndpoints.customConfig, data: config);
+  }
 }

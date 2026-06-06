@@ -82,21 +82,74 @@ class MeView(APIView):
     def get(self, request):
         return Response({'success': True, 'data': public_user(request.user)})
 
+    def patch(self, request):
+        """Update profile fields: name, email, first_name, last_name."""
+        user = request.user
+        data = request.data
+
+        if 'name' in data:
+            name = str(data['name']).strip()
+            parts = name.split(' ', 1)
+            user.first_name = parts[0]
+            user.last_name = parts[1] if len(parts) > 1 else ''
+
+        if 'first_name' in data:
+            user.first_name = str(data['first_name']).strip()
+        if 'last_name' in data:
+            user.last_name = str(data['last_name']).strip()
+
+        if 'email' in data:
+            new_email = str(data['email']).lower().strip()
+            if new_email != user.email:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                if User.objects.filter(email__iexact=new_email).exclude(pk=user.pk).exists():
+                    return Response(
+                        {'success': False, 'error': 'Email already in use.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                user.email = new_email
+                user.username = new_email
+
+        user.save()
+        return Response({'success': True, 'data': public_user(user)})
+
 
 class CustomConfigView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self, request):
-        serializer = CustomConfigSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {'success': False, 'error': error_response(serializer, 'Invalid configuration data format')},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+    def get(self, request):
         profile = request.user.profile
-        profile.custom_config = serializer.validated_data['customConfig']
+        config = profile.custom_config or default_config()
+        return Response({'success': True, 'data': config})
+
+    def put(self, request):
+        return self._save_config(request)
+
+    def patch(self, request):
+        return self._save_config(request)
+
+    def _save_config(self, request):
+        # Accept both wrapped {customConfig: {...}} and flat {coreChecklists: [...], ...}
+        data = request.data
+        if 'customConfig' in data:
+            config_data = data['customConfig']
+        else:
+            config_data = data
+
+        profile = request.user.profile
+        existing = profile.custom_config or default_config()
+
+        # Merge: only update keys that are present
+        updated = {
+            'coreChecklists': config_data.get('coreChecklists', existing.get('coreChecklists', [])),
+            'coreMetrics': config_data.get('coreMetrics', existing.get('coreMetrics', [])),
+            'deletedHistory': config_data.get('deletedHistory', existing.get('deletedHistory', [])),
+        }
+
+        profile.custom_config = updated
         profile.save(update_fields=['custom_config'])
-        return Response({'success': True, 'customConfig': profile.custom_config})
+        return Response({'success': True, 'data': updated})
 
 
 class ForgotPasswordView(APIView):
