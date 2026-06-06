@@ -39,7 +39,7 @@ const Sidebar = () => {
           <Zap className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="font-bold text-lg text-white tracking-wide">ProductiveAI</h1>
+          <h1 className="font-bold text-lg text-white tracking-wide">Productivity Tracker</h1>
 
         </div>
       </div>

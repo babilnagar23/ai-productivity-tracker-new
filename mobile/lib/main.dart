@@ -11,7 +11,8 @@ void main() async {
   apiClient.init();
 
   // Load first-login flag synchronously before the router starts
-  final firstLoginDone = await SecureStorageService.getFlag('first_login_done') == 'true';
+  final firstLoginDone =
+      await SecureStorageService.getFlag('first_login_done') == 'true';
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -25,18 +26,18 @@ void main() async {
     overrides: [
       firstLoginDoneProvider.overrideWith((ref) => firstLoginDone),
     ],
-    child: const ProductiveAIApp(),
+    child: const ProductivityTrackerApp(),
   ));
 }
 
-class ProductiveAIApp extends ConsumerWidget {
-  const ProductiveAIApp({super.key});
+class ProductivityTrackerApp extends ConsumerWidget {
+  const ProductivityTrackerApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
-      title: 'ProductiveAI',
+      title: 'ProductivityTracker',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       routerConfig: router,

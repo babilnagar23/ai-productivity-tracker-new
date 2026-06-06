@@ -69,7 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 24),
                 const Center(
                   child: Text(
-                    'ProductiveAI',
+                    'Productivity Tracker',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 28,
@@ -80,9 +80,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 8),
                 const Center(
                   child: Text(
-                    'Your AI-powered productivity system',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 14),
+                    'Your AI-powered productivity Tracker App',
+                    style:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 14),
                   ),
                 ),
                 const SizedBox(height: 48),

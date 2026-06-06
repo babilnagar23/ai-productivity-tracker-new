@@ -8,8 +8,8 @@ import '../storage/secure_storage.dart';
 /// Android Emulator     → http://10.0.2.2:8000/api
 /// Physical Device      → change _emulatorUrl below to your machine's LAN IP
 ///                        e.g. http://192.168.1.5:8000/api
-const String _emulatorUrl = 'http://10.0.2.2:8000/api';
-const String _webUrl = 'http://localhost:8000/api';
+const String _mobileUrl = 'http://10.119.30.176:8000/api';
+const String _webUrl = 'http://10.119.30.176:8000/api';
 
 String get kBaseUrl {
   if (kIsWeb) {
@@ -18,8 +18,8 @@ String get kBaseUrl {
   }
   // On Android emulator the loopback alias is 10.0.2.2.
   // On a physical device you need your machine's LAN IP.
-  debugPrint('[API] Base URL: $_emulatorUrl (native)');
-  return _emulatorUrl;
+  debugPrint('[API] Base URL: $_mobileUrl (native)');
+  return _mobileUrl;
 }
 
 class ApiClient {

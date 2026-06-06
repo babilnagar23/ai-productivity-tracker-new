@@ -1,11 +1,11 @@
 # Google Calendar + AI Scheduling Ecosystem Setup Guide
 
-To enable Google Calendar sync and OAuth authentication in ProductiveAI, follow these steps to configure your Google Cloud Console project.
+To enable Google Calendar sync and OAuth authentication in Productivity Tracker, follow these steps to configure your Google Cloud Console project.
 
 ## 1. Create a Google Cloud Project
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
 2. Click the project dropdown and select **New Project**.
-3. Name it "ProductiveAI Calendar" and click **Create**.
+3. Name it "Productivity Tracker Calendar" and click **Create**.
 
 ## 2. Enable APIs
 1. Navigate to **APIs & Services** > **Library**.
@@ -18,7 +18,7 @@ To enable Google Calendar sync and OAuth authentication in ProductiveAI, follow 
 1. Go to **APIs & Services** > **OAuth consent screen**.
 2. Choose **External** (if making it public) or **Internal** (if in a Google Workspace) and click **Create**.
 3. Fill in the App information:
-   - App name: ProductiveAI
+   - App name: Productivity Tracker
    - User support email: your email
    - Developer contact info: your email
 4. Add Scopes:
@@ -31,7 +31,7 @@ To enable Google Calendar sync and OAuth authentication in ProductiveAI, follow 
 1. Go to **APIs & Services** > **Credentials**.
 2. Click **Create Credentials** > **OAuth client ID**.
 3. Select **Web application**.
-4. Set the name to "ProductiveAI Web Client".
+4. Set the name to "Productivity Tracker Web Client".
 5. Add Authorized Redirect URIs:
    - For local dev: `http://127.0.0.1:8000/api/calendar/callback`
    - For production: `https://your-backend.com/api/calendar/callback`

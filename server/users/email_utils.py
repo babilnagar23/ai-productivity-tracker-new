@@ -7,14 +7,14 @@ logger = logging.getLogger('users.otp')
 
 def send_otp_email(to_email, otp_code):
     """Send a 6-digit OTP verification code via email."""
-    subject = "[ProductiveAI] Authentication Verification Code"
+    subject = "[Productivity Tracker] Authentication Verification Code"
 
     html_content = f"""
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Verification Code — ProductiveAI</title>
+  <title>Verification Code — Productivity Tracker</title>
   <style>
     body {{
       background-color: #050816;
@@ -112,7 +112,7 @@ def send_otp_email(to_email, otp_code):
   <div class="wrapper">
     <div class="container">
       <div class="header">
-        <div class="logo">ProductiveAI</div>
+        <div class="logo">Productivity Tracker</div>
       </div>
       <h1>Authentication Verification Code</h1>
       <p>Hello Operator,</p>
@@ -124,10 +124,10 @@ def send_otp_email(to_email, otp_code):
         <strong> TIME-SENSITIVE:</strong> This authentication code will expire in <strong>10 minutes</strong>.
       </div>
       <div class="warning">
-        <strong> SECURITY PROTOCOL:</strong> Do not share this code with anyone. ProductiveAI staff will never ask for your verification code.
+        <strong> SECURITY PROTOCOL:</strong> Do not share this code with anyone. Productivity Tracker staff will never ask for your verification code.
       </div>
       <div class="footer">
-        ProductiveAI Mainframe Secure AI Productivity Environment<br>
+        Productivity Tracker Mainframe Secure AI Productivity Environment<br>
         This is an automated notification. Do not reply directly.
       </div>
     </div>
@@ -136,7 +136,7 @@ def send_otp_email(to_email, otp_code):
 </html>
 """
     text_content = f"""
-ProductiveAI
+Productivity Tracker
 Authentication Verification Code
 
 Hello Operator,
@@ -149,7 +149,7 @@ Your authentication code is:
 This code expires in 10 minutes.
 Do not share this code with anyone.
 
-ProductiveAI Mainframe Secure AI Productivity Environment
+Productivity Tracker Mainframe Secure AI Productivity Environment
 """
 
     from_email = settings.DEFAULT_FROM_EMAIL
@@ -162,14 +162,14 @@ ProductiveAI Mainframe Secure AI Productivity Environment
 
 
 def send_password_reset_email(to_email, reset_url):
-    subject = "[ProductiveAI] Initialize Decryption Key Override"
+    subject = "[Productivity Tracker] Initialize Decryption Key Override"
     
     html_content = f"""
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Reset Your Access Key — ProductiveAI</title>
+  <title>Reset Your Access Key — Productivity Tracker</title>
   <style>
     body {{
       background-color: #050816;
@@ -261,7 +261,7 @@ def send_password_reset_email(to_email, reset_url):
   <div class="wrapper">
     <div class="container">
       <div class="header">
-        <div class="logo">ProductiveAI</div>
+        <div class="logo">Productivity Tracker</div>
       </div>
       <h1>Initialize Decryption Key Override</h1>
       <p>Hello Operator,</p>
@@ -275,7 +275,7 @@ def send_password_reset_email(to_email, reset_url):
         <strong>CRITICAL SAFETY PROTOCOL:</strong> This override sequence is highly time-sensitive and will expire in 2 hours. If you did not trigger this protocol, immediately disregard it and contact system command.
       </div>
       <div class="footer">
-        ProductiveAI Mainframe • Secure AI Productivity Environment<br>
+        Productivity Tracker Mainframe • Secure AI Productivity Environment<br>
         This is an automated notification. Do not reply directly.
       </div>
     </div>
@@ -284,7 +284,7 @@ def send_password_reset_email(to_email, reset_url):
 </html>
 """
     text_content = f"""
-ProductiveAI
+Productivity Tracker
 Initialize Decryption Key Override
 
 Hello Operator,
@@ -296,7 +296,7 @@ To complete the authentication sequence and register a new security key, copy an
 
 CRITICAL SAFETY PROTOCOL: This override sequence is highly time-sensitive and will expire in 2 hours. If you did not trigger this protocol, immediately disregard it and contact system command.
 
-ProductiveAI Mainframe • Secure AI Productivity Environment
+Productivity Tracker Mainframe • Secure AI Productivity Environment
 """
     
     from_email = settings.DEFAULT_FROM_EMAIL

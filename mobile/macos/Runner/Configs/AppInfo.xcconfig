@@ -8,7 +8,7 @@
 PRODUCT_NAME = productive_ai
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.productiveai.productiveAi
+PRODUCT_BUNDLE_IDENTIFIER = com.Productivity Tracker.Productivity Tracker
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.productiveai. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.Productivity Tracker. All rights reserved.

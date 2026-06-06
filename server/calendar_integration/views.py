@@ -287,7 +287,7 @@ class CalendarSyncView(APIView):
                 start = timezone.make_aware(start) if timezone.is_naive(start) else start
                 end = start + timedelta(minutes=30)
                 event_body = {
-                    'summary': 'ProductiveAI Daily Routine Review',
+                    'summary': 'Productivity Tracker Daily Routine Review',
                     'description': f'Score: {routine.productivity_score}%. Notes: {routine.notes}',
                     'start': {'dateTime': start.isoformat()},
                     'end': {'dateTime': end.isoformat()},
@@ -319,7 +319,7 @@ class ReminderView(APIView):
         start = timezone.make_aware(datetime.strptime(f'{date} {time_value}', '%Y-%m-%d %H:%M'))
         event_body = {
             'summary': title,
-            'description': request.data.get('description', 'Created by ProductiveAI.'),
+            'description': request.data.get('description', 'Created by Productivity Tracker.'),
             'start': {'dateTime': start.isoformat()},
             'end': {'dateTime': (start + timedelta(minutes=30)).isoformat()},
             'recurrence': request.data.get('recurrence', []),
@@ -609,7 +609,7 @@ class AISchedulerView(APIView):
             for e in existing_events
         ]) or 'No upcoming events.'
 
-        system_prompt = f"""You are an elite AI productivity scheduler embedded in ProductiveAI, a futuristic SaaS productivity OS.
+        system_prompt = f"""You are an elite AI productivity scheduler embedded in Productivity Tracker, a futuristic SaaS productivity OS.
 
 User Request: {prompt}
 

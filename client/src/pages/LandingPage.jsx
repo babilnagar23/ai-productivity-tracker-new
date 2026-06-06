@@ -17,7 +17,7 @@ const LandingPage = () => {
           <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-2xl shadow-neon">
             <Zap className="h-6 w-6 text-white" />
           </div>
-          <span className="font-extrabold text-xl tracking-wider text-white">ProductiveAI</span>
+          <span className="font-extrabold text-xl tracking-wider text-white">Productivity Tracker</span>
         </div>
         <div className="flex gap-4">
           <Link to="/login" className="px-5 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 font-semibold text-sm transition-all duration-300">
@@ -109,7 +109,7 @@ const LandingPage = () => {
 
       {/* Footer */}
       <footer className="w-full text-center text-xs text-gray-500 mt-12 border-t border-white/5 pt-6 max-w-6xl">
-        &copy; {new Date().getFullYear()} ProductiveAI Platform. Built for peak potential.
+        &copy; {new Date().getFullYear()} Productivity Tracker Platform. Built for peak potential.
       </footer>
     </div>
   );

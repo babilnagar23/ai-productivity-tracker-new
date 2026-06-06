@@ -11,7 +11,8 @@ class ChatMessage {
   final bool isUser;
   final DateTime time;
 
-  ChatMessage({required this.text, required this.isUser}) : time = DateTime.now();
+  ChatMessage({required this.text, required this.isUser})
+      : time = DateTime.now();
 }
 
 class AiChatScreen extends ConsumerStatefulWidget {
@@ -39,7 +40,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   void initState() {
     super.initState();
     _messages.add(ChatMessage(
-      text: '⚡ Hello! I\'m your AI productivity mentor.\n\nI can help you with:\n• Study planning & schedules\n• Habit analysis & improvement\n• Reducing procrastination\n• Optimizing your daily routine\n\nWhat would you like to work on today?',
+      text:
+          '⚡ Hello! I\'m your AI productivity mentor.\n\nI can help you with:\n• Study planning & schedules\n• Habit analysis & improvement\n• Reducing procrastination\n• Optimizing your daily routine\n\nWhat would you like to work on today?',
       isUser: false,
     ));
   }
@@ -114,8 +116,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('ProductiveAI', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                Text('AI Productivity Mentor', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                Text('Productivity Tracker',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                Text('AI Productivity Mentor',
+                    style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
               ],
             ),
           ],
@@ -148,9 +153,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 itemCount: _quickPrompts.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => GestureDetector(
-                  onTap: () => _send(_quickPrompts[i].replaceAll(RegExp(r'^[^\s]+ '), '')),
+                  onTap: () => _send(
+                      _quickPrompts[i].replaceAll(RegExp(r'^[^\s]+ '), '')),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(20),
@@ -158,7 +165,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     ),
                     child: Text(
                       _quickPrompts[i],
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ),
                 ),
@@ -198,7 +206,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     onSubmitted: _send,
                     decoration: InputDecoration(
                       hintText: 'Ask about your productivity...',
-                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                      hintStyle: const TextStyle(
+                          color: AppColors.textMuted, fontSize: 14),
                       filled: true,
                       fillColor: AppColors.bg,
                       border: OutlineInputBorder(
@@ -213,7 +222,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                         borderRadius: BorderRadius.circular(24),
                         borderSide: const BorderSide(color: AppColors.purple),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
                     ),
                   ),
                 ),
@@ -225,11 +235,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     height: 44,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [AppColors.gradientStart, AppColors.gradientEnd],
+                        colors: [
+                          AppColors.gradientStart,
+                          AppColors.gradientEnd
+                        ],
                       ),
                       borderRadius: BorderRadius.circular(22),
                     ),
-                    child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                    child: const Icon(Icons.send_rounded,
+                        color: Colors.white, size: 18),
                   ),
                 ),
               ],
@@ -250,10 +264,12 @@ class _AiAvatar extends StatelessWidget {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [AppColors.gradientStart, AppColors.gradientEnd]),
+        gradient: const LinearGradient(
+            colors: [AppColors.gradientStart, AppColors.gradientEnd]),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
+      child:
+          const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
     );
   }
 }
@@ -269,7 +285,8 @@ class _MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[
@@ -278,10 +295,12 @@ class _MessageBubble extends StatelessWidget {
           ],
           Flexible(
             child: Column(
-              crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: isUser ? AppColors.purple : AppColors.surface,
                     borderRadius: BorderRadius.only(
@@ -304,7 +323,8 @@ class _MessageBubble extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   DateFormat('HH:mm').format(message.time),
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                  style:
+                      const TextStyle(color: AppColors.textMuted, fontSize: 10),
                 ),
               ],
             ),
@@ -396,7 +416,8 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
       child: Container(
         width: 8,
         height: 8,
-        decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.purple),
+        decoration: const BoxDecoration(
+            shape: BoxShape.circle, color: AppColors.purple),
       ),
     );
   }

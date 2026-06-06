@@ -1,4 +1,4 @@
-# ProductiveAI — Flutter Mobile App
+# Productivity Tracker — Flutter Mobile App
 
 A Flutter mobile app that connects to your existing Django backend.
 

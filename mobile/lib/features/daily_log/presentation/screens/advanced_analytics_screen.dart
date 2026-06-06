@@ -13,11 +13,13 @@ import '../../../routines/data/repositories/routine_repository.dart';
 import '../../../routines/presentation/providers/routines_provider.dart';
 import 'chart_edit_screen.dart';
 
-final analyticsRoutinesProvider = FutureProvider<List<RoutineModel>>((ref) async {
+final analyticsRoutinesProvider =
+    FutureProvider<List<RoutineModel>>((ref) async {
   return RoutineRepository().getRoutines();
 });
 
-final analyticsStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+final analyticsStatsProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
   final response = await apiClient.dio.get(ApiEndpoints.analyticsFull);
   return response.data as Map<String, dynamic>;
 });
@@ -26,10 +28,12 @@ class AdvancedAnalyticsScreen extends ConsumerStatefulWidget {
   const AdvancedAnalyticsScreen({super.key});
 
   @override
-  ConsumerState<AdvancedAnalyticsScreen> createState() => _AdvancedAnalyticsScreenState();
+  ConsumerState<AdvancedAnalyticsScreen> createState() =>
+      _AdvancedAnalyticsScreenState();
 }
 
-class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScreen> {
+class _AdvancedAnalyticsScreenState
+    extends ConsumerState<AdvancedAnalyticsScreen> {
   bool _showCharts = false;
   List<String> _selectedCharts = [];
   bool _chartsConfigured = false;
@@ -55,10 +59,14 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
   Future<void> _openChartEdit(List<String> availableMetrics) async {
     final result = await Navigator.push<List<String>>(
       context,
-      MaterialPageRoute(builder: (_) => ChartEditScreen(availableMetrics: availableMetrics)),
+      MaterialPageRoute(
+          builder: (_) => ChartEditScreen(availableMetrics: availableMetrics)),
     );
     if (result != null) {
-      setState(() { _selectedCharts = result; _chartsConfigured = true; });
+      setState(() {
+        _selectedCharts = result;
+        _chartsConfigured = true;
+      });
     }
   }
 
@@ -66,18 +74,24 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Export Data', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Export Data',
+                style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
             _exportTile(Icons.upload_rounded, 'Export as PDF', () {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PDF export coming soon')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('PDF export coming soon')));
             }),
             _exportTile(Icons.table_chart_outlined, 'Export as CSV', () {
               Navigator.pop(ctx);
@@ -85,7 +99,8 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
             }),
             _exportTile(Icons.description_outlined, 'Export as Word Table', () {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Word export coming soon')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Word export coming soon')));
             }),
             const SizedBox(height: 8),
           ],
@@ -109,7 +124,9 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
           children: [
             Icon(icon, color: AppColors.blue, size: 22),
             const SizedBox(width: 12),
-            Text(label, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15)),
+            Text(label,
+                style: GoogleFonts.inter(
+                    color: AppColors.textPrimary, fontSize: 15)),
           ],
         ),
       ),
@@ -120,9 +137,11 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
     final buf = StringBuffer();
     buf.writeln('Date,Score,Sleep,Wake');
     for (final r in routines) {
-      buf.writeln('${r.date},${r.productivityScore},${r.sleepTime},${r.wakeTime}');
+      buf.writeln(
+          '${r.date},${r.productivityScore},${r.sleepTime},${r.wakeTime}');
     }
-    await Share.share(buf.toString(), subject: 'ProductiveAI Data Export');
+    await Share.share(buf.toString(),
+        subject: 'Productivity Tracker Data Export');
   }
 
   @override
@@ -132,32 +151,41 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
     // Watch shared config provider so charts refresh when habits/metrics change
     final configAsync = ref.watch(customConfigProvider);
 
-    final configChecklists = (configAsync.asData?.value['coreChecklists'] as List<dynamic>? ?? [])
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
-    final configMetrics = (configAsync.asData?.value['coreMetrics'] as List<dynamic>? ?? [])
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
+    final configChecklists =
+        (configAsync.asData?.value['coreChecklists'] as List<dynamic>? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+    final configMetrics =
+        (configAsync.asData?.value['coreMetrics'] as List<dynamic>? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: Text('Analytics Dashboard', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 17)),
+        title: Text('Analytics Dashboard',
+            style: GoogleFonts.inter(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 17)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_rounded,
+              color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           routinesAsync.when(
             data: (r) => IconButton(
-              icon: const Icon(Icons.ios_share_rounded, color: AppColors.textSecondary, size: 22),
+              icon: const Icon(Icons.ios_share_rounded,
+                  color: AppColors.textSecondary, size: 22),
               onPressed: () => _showExportSheet(r),
             ),
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary, size: 22),
+            icon: const Icon(Icons.refresh_rounded,
+                color: AppColors.textSecondary, size: 22),
             onPressed: () {
               ref.invalidate(analyticsRoutinesProvider);
               ref.invalidate(analyticsStatsProvider);
@@ -167,9 +195,13 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
         ],
       ),
       body: routinesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.blue)),
-        error: (e, _) => Center(child: Text('$e', style: GoogleFonts.inter(color: AppColors.error))),
-        data: (routines) => _buildBody(routines, statsAsync, configChecklists, configMetrics),
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.blue)),
+        error: (e, _) => Center(
+            child:
+                Text('$e', style: GoogleFonts.inter(color: AppColors.error))),
+        data: (routines) =>
+            _buildBody(routines, statsAsync, configChecklists, configMetrics),
       ),
     );
   }
@@ -180,19 +212,34 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
     List<Map<String, dynamic>> configChecklists,
     List<Map<String, dynamic>> configMetrics,
   ) {
-    final stats = statsAsync.asData?.value['stats'] as Map<String, dynamic>? ?? {};
+    final stats =
+        statsAsync.asData?.value['stats'] as Map<String, dynamic>? ?? {};
     final totalDays = stats['totalLogs'] ?? routines.length;
     final streak = stats['currentStreak'] ?? 0;
     final avgScore = stats['avgScore'] ??
-        (routines.isEmpty ? 0 : (routines.map((r) => r.productivityScore).reduce((a, b) => a + b) / routines.length).round());
-    final bestScore = routines.isEmpty ? 0 : routines.map((r) => r.productivityScore).reduce((a, b) => a > b ? a : b);
+        (routines.isEmpty
+            ? 0
+            : (routines
+                        .map((r) => r.productivityScore)
+                        .reduce((a, b) => a + b) /
+                    routines.length)
+                .round());
+    final bestScore = routines.isEmpty
+        ? 0
+        : routines
+            .map((r) => r.productivityScore)
+            .reduce((a, b) => a > b ? a : b);
 
     // Build availableMetrics from user's config metric IDs so ChartEditScreen
     // can filter which chart options are relevant.
-    final availableMetrics = configMetrics.map((m) => m['id'] as String).toList();
+    final availableMetrics =
+        configMetrics.map((m) => m['id'] as String).toList();
     // Always include mobileUsage for the scatter chart if present
-    if (routines.any((r) => r.coreMetrics.containsKey('mobileUsage') && (r.coreMetrics['mobileUsage'] as num? ?? 0) > 0)) {
-      if (!availableMetrics.contains('mobileUsage')) availableMetrics.add('mobileUsage');
+    if (routines.any((r) =>
+        r.coreMetrics.containsKey('mobileUsage') &&
+        (r.coreMetrics['mobileUsage'] as num? ?? 0) > 0)) {
+      if (!availableMetrics.contains('mobileUsage'))
+        availableMetrics.add('mobileUsage');
     }
 
     return ListView(
@@ -200,7 +247,7 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
       children: [
         // Overview cards
         SizedBox(
-          height: 90,
+          height: 108,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
@@ -216,17 +263,26 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
         // View toggle
         Container(
           padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(14)),
+          decoration: BoxDecoration(
+              color: AppColors.card, borderRadius: BorderRadius.circular(14)),
           child: Row(
             children: [
-              Expanded(child: _ToggleBtn(label: 'Table View', selected: !_showCharts, onTap: () => setState(() => _showCharts = false))),
-              Expanded(child: _ToggleBtn(label: 'Charts View', selected: _showCharts, onTap: () {
-                if (!_chartsConfigured) {
-                  _openChartEdit(availableMetrics);
-                } else {
-                  setState(() => _showCharts = true);
-                }
-              })),
+              Expanded(
+                  child: _ToggleBtn(
+                      label: 'Table View',
+                      selected: !_showCharts,
+                      onTap: () => setState(() => _showCharts = false))),
+              Expanded(
+                  child: _ToggleBtn(
+                      label: 'Charts View',
+                      selected: _showCharts,
+                      onTap: () {
+                        if (!_chartsConfigured) {
+                          _openChartEdit(availableMetrics);
+                        } else {
+                          setState(() => _showCharts = true);
+                        }
+                      })),
             ],
           ),
         ),
@@ -235,7 +291,8 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
         if (!_showCharts)
           _buildTableView(routines, configChecklists, configMetrics)
         else
-          _buildChartsView(routines, availableMetrics, configChecklists, configMetrics),
+          _buildChartsView(
+              routines, availableMetrics, configChecklists, configMetrics),
       ],
     );
   }
@@ -248,27 +305,32 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
     List<Map<String, dynamic>> configMetrics,
   ) {
     if (routines.isEmpty) {
-      return Center(child: Text('No data yet', style: GoogleFonts.inter(color: AppColors.textMuted)));
+      return Center(
+          child: Text('No data yet',
+              style: GoogleFonts.inter(color: AppColors.textMuted)));
     }
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
         headingRowColor: WidgetStateProperty.all(AppColors.cardElevated),
         dataRowColor: WidgetStateProperty.all(AppColors.card),
-        border: TableBorder.all(color: AppColors.border, borderRadius: BorderRadius.circular(12)),
+        border: TableBorder.all(
+            color: AppColors.border, borderRadius: BorderRadius.circular(12)),
         columns: [
           _col('Date'),
           // Dynamic habit columns
           ...configChecklists.map((c) {
             final title = (c['title'] as String?) ?? 'Habit';
             // Shorten long titles for table header
-            final short = title.length > 14 ? '${title.substring(0, 14)}…' : title;
+            final short =
+                title.length > 14 ? '${title.substring(0, 14)}…' : title;
             return _col('$short ✓');
           }),
           // Dynamic metric columns
           ...configMetrics.map((m) {
             final title = (m['title'] as String?) ?? 'Metric';
-            final short = title.length > 12 ? '${title.substring(0, 12)}…' : title;
+            final short =
+                title.length > 12 ? '${title.substring(0, 12)}…' : title;
             return _col(short);
           }),
           _col('Score'),
@@ -282,7 +344,8 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
           return DataRow(cells: [
             DataCell(Text(
               r.date.length >= 10 ? r.date.substring(5) : r.date,
-              style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+              style:
+                  GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
             )),
             // Habit completion cells
             ...configChecklists.map((c) {
@@ -297,13 +360,13 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
             // Metric value cells
             ...configMetrics.map((m) {
               final id = m['id'] as String;
-              final metricsMap = r.coreMetrics.isNotEmpty
-                  ? r.coreMetrics
-                  : _legacyMetrics(r);
+              final metricsMap =
+                  r.coreMetrics.isNotEmpty ? r.coreMetrics : _legacyMetrics(r);
               final val = metricsMap[id] ?? 0;
               return DataCell(Text(
                 '$val',
-                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+                style: GoogleFonts.inter(
+                    color: AppColors.textPrimary, fontSize: 13),
               ));
             }),
             DataCell(_ScoreBadge(score: r.productivityScore)),
@@ -314,8 +377,12 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
   }
 
   DataColumn _col(String label) => DataColumn(
-    label: Text(label, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, letterSpacing: 0.3)),
-  );
+        label: Text(label,
+            style: GoogleFonts.inter(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                letterSpacing: 0.3)),
+      );
 
   // ── Charts View ───────────────────────────────────────────────────────────
 
@@ -330,20 +397,30 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
         child: Column(
           children: [
             const SizedBox(height: 32),
-            Text('No charts selected', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 16)),
+            Text('No charts selected',
+                style: GoogleFonts.inter(
+                    color: AppColors.textMuted, fontSize: 16)),
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: () => _openChartEdit(availableMetrics),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-              child: Text('Customise Charts', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.blue,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14))),
+              child: Text('Customise Charts',
+                  style: GoogleFonts.inter(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
       );
     }
 
-    final recent7 = routines.length > 7 ? routines.sublist(routines.length - 7) : routines;
-    final recent30 = routines.length > 30 ? routines.sublist(routines.length - 30) : routines;
+    final recent7 =
+        routines.length > 7 ? routines.sublist(routines.length - 7) : routines;
+    final recent30 = routines.length > 30
+        ? routines.sublist(routines.length - 30)
+        : routines;
 
     // First metric ID for the bar chart (falls back to 'studyHours')
     final firstMetricId = configMetrics.isNotEmpty
@@ -354,11 +431,10 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
         : 'Study Hours';
 
     // Find mobileUsage metric id in config (may differ from legacy 'mobileUsage')
-    final mobileMetricId = configMetrics
-        .firstWhere(
-          (m) => (m['id'] as String).toLowerCase().contains('mobile'),
-          orElse: () => {'id': 'mobileUsage'},
-        )['id'] as String;
+    final mobileMetricId = configMetrics.firstWhere(
+      (m) => (m['id'] as String).toLowerCase().contains('mobile'),
+      orElse: () => {'id': 'mobileUsage'},
+    )['id'] as String;
 
     return Column(
       children: [
@@ -368,7 +444,8 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
             GestureDetector(
               onTap: () => _openChartEdit(availableMetrics),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.cardElevated,
                   borderRadius: BorderRadius.circular(8),
@@ -376,9 +453,12 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.edit_outlined, color: AppColors.blue, size: 16),
+                    const Icon(Icons.edit_outlined,
+                        color: AppColors.blue, size: 16),
                     const SizedBox(width: 4),
-                    Text('Edit Charts', style: GoogleFonts.inter(color: AppColors.blue, fontSize: 13)),
+                    Text('Edit Charts',
+                        style: GoogleFonts.inter(
+                            color: AppColors.blue, fontSize: 13)),
                   ],
                 ),
               ),
@@ -388,16 +468,21 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
         const SizedBox(height: 12),
 
         if (_selectedCharts.contains('weekly_productivity'))
-          _ChartCard(title: 'Weekly Productivity', child: _WeeklyLineChart(routines: recent7)),
+          _ChartCard(
+              title: 'Weekly Productivity',
+              child: _WeeklyLineChart(routines: recent7)),
 
         if (_selectedCharts.contains('monthly_productivity'))
-          _ChartCard(title: 'Monthly Productivity', child: _WeeklyLineChart(routines: recent30)),
+          _ChartCard(
+              title: 'Monthly Productivity',
+              child: _WeeklyLineChart(routines: recent30)),
 
         // Dynamic habit completion — from user's config habits
         if (_selectedCharts.contains('habit_completion'))
           _ChartCard(
             title: 'Habit Completion',
-            child: _HabitBars(routines: routines, configChecklists: configChecklists),
+            child: _HabitBars(
+                routines: routines, configChecklists: configChecklists),
           ),
 
         // Scatter chart — check if mobile metric exists in data
@@ -407,8 +492,9 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
             title: 'Mobile Usage vs Productivity',
             child: _ScatterChart(
               routines: routines,
-              xGetter: (r) => (r.coreMetrics[mobileMetricId] as num?)?.toDouble()
-                  ?? r.mobileUsage,
+              xGetter: (r) =>
+                  (r.coreMetrics[mobileMetricId] as num?)?.toDouble() ??
+                  r.mobileUsage,
               xLabel: 'Mobile (hrs)',
             ),
           ),
@@ -455,7 +541,7 @@ class _OverviewCard extends StatelessWidget {
     return Container(
       width: 140,
       margin: const EdgeInsets.only(right: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
@@ -464,10 +550,28 @@ class _OverviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11)),
-          const SizedBox(height: 4),
-          Text(value, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: AppColors.textSecondary,
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -480,7 +584,8 @@ class _ToggleBtn extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _ToggleBtn({required this.label, required this.selected, required this.onTap});
+  const _ToggleBtn(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -493,11 +598,12 @@ class _ToggleBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Center(
-          child: Text(label, style: GoogleFonts.inter(
-            color: selected ? Colors.white : AppColors.textSecondary,
-            fontSize: 14,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-          )),
+          child: Text(label,
+              style: GoogleFonts.inter(
+                color: selected ? Colors.white : AppColors.textSecondary,
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              )),
         ),
       ),
     );
@@ -524,7 +630,9 @@ class _ScoreBadge extends StatelessWidget {
         color: _color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text('$score', style: GoogleFonts.inter(color: _color, fontSize: 12, fontWeight: FontWeight.w700)),
+      child: Text('$score',
+          style: GoogleFonts.inter(
+              color: _color, fontSize: 12, fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -549,7 +657,11 @@ class _ChartCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+          Text(title,
+              style: GoogleFonts.inter(
+                  color: AppColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
           child,
         ],
@@ -566,34 +678,79 @@ class _WeeklyLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (routines.isEmpty) return const SizedBox(height: 120, child: Center(child: Text('No data', style: TextStyle(color: AppColors.textMuted))));
-    final spots = routines.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.productivityScore.toDouble())).toList();
+    if (routines.isEmpty) {
+      return const SizedBox(
+        height: 120,
+        child: Center(
+          child: Text(
+            'No data',
+            style: TextStyle(color: AppColors.textMuted),
+          ),
+        ),
+      );
+    }
+
+    final spots = routines
+        .asMap()
+        .entries
+        .map(
+          (e) => FlSpot(
+            e.key.toDouble(),
+            e.value.productivityScore.toDouble(),
+          ),
+        )
+        .toList();
     return SizedBox(
       height: 160,
       child: LineChart(LineChartData(
-        gridData: FlGridData(show: true, drawVerticalLine: false,
-            getDrawingHorizontalLine: (_) => const FlLine(color: AppColors.border, strokeWidth: 1)),
+        gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) =>
+                const FlLine(color: AppColors.border, strokeWidth: 1)),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, _) {
-            final i = v.toInt();
-            if (i < 0 || i >= routines.length) return const SizedBox.shrink();
-            final d = routines[i].date;
-            return Text(d.length >= 10 ? d.substring(5) : d, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 9));
-          })),
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 28,
-              getTitlesWidget: (v, _) => Text('${v.toInt()}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10)))),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (v, _) {
+                    final i = v.toInt();
+                    if (i >= routines.length) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final d = routines[i].date;
+                    return Text(
+                      d.length >= 10 ? d.substring(5) : d,
+                      style: GoogleFonts.inter(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                      ),
+                    );
+                  })),
+          leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 28,
+                  getTitlesWidget: (v, _) => Text('${v.toInt()}',
+                      style: GoogleFonts.inter(
+                          color: AppColors.textMuted, fontSize: 10)))),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
-        lineBarsData: [LineChartBarData(
-          spots: spots,
-          color: AppColors.blue,
-          isCurved: true,
-          barWidth: 2.5,
-          dotData: const FlDotData(show: false),
-          belowBarData: BarAreaData(show: true, color: AppColors.blue.withValues(alpha: 0.08)),
-        )],
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            color: AppColors.blue,
+            isCurved: true,
+            barWidth: 2.5,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+                show: true, color: AppColors.blue.withValues(alpha: 0.08)),
+          )
+        ],
       )),
     );
   }
@@ -603,6 +760,7 @@ class _WeeklyLineChart extends StatelessWidget {
 
 class _HabitBars extends StatelessWidget {
   final List<RoutineModel> routines;
+
   /// The active habits from user's customisation config.
   final List<Map<String, dynamic>> configChecklists;
 
@@ -647,13 +805,13 @@ class _HabitBars extends StatelessWidget {
         final habit = entry.value;
         final id = habit['id'] as String;
         final title = (habit['title'] as String?) ?? id;
-        final shortTitle = title.length > 20 ? '${title.substring(0, 20)}…' : title;
+        final shortTitle =
+            title.length > 20 ? '${title.substring(0, 20)}…' : title;
         final color = colors[idx % colors.length];
 
-        final rate = routines
-                .where((r) => _resolveChecklists(r)[id] == true)
-                .length /
-            total;
+        final rate =
+            routines.where((r) => _resolveChecklists(r)[id] == true).length /
+                total;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -678,8 +836,12 @@ class _Bar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13)),
-            Text('${(value * 100).toInt()}%', style: GoogleFonts.inter(color: color, fontSize: 13, fontWeight: FontWeight.w700)),
+            Text(label,
+                style: GoogleFonts.inter(
+                    color: AppColors.textSecondary, fontSize: 13)),
+            Text('${(value * 100).toInt()}%',
+                style: GoogleFonts.inter(
+                    color: color, fontSize: 13, fontWeight: FontWeight.w700)),
           ],
         ),
         const SizedBox(height: 4),
@@ -703,27 +865,45 @@ class _ScatterChart extends StatelessWidget {
   final List<RoutineModel> routines;
   final double Function(RoutineModel) xGetter;
   final String xLabel;
-  const _ScatterChart({required this.routines, required this.xGetter, required this.xLabel});
+  const _ScatterChart(
+      {required this.routines, required this.xGetter, required this.xLabel});
 
   @override
   Widget build(BuildContext context) {
     if (routines.isEmpty) return const SizedBox(height: 120);
-    final spots = routines.map((r) => ScatterSpot(xGetter(r), r.productivityScore.toDouble())).toList();
+    final spots = routines
+        .map((r) => ScatterSpot(xGetter(r), r.productivityScore.toDouble()))
+        .toList();
     return SizedBox(
       height: 160,
       child: ScatterChart(ScatterChartData(
         scatterSpots: spots,
         scatterTouchData: ScatterTouchData(enabled: false),
-        gridData: FlGridData(show: true, drawVerticalLine: false,
-            getDrawingHorizontalLine: (_) => const FlLine(color: AppColors.border, strokeWidth: 1)),
+        gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) =>
+                const FlLine(color: AppColors.border, strokeWidth: 1)),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 20,
-              getTitlesWidget: (v, _) => Text('${v.toInt()}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 9)))),
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 28,
-              getTitlesWidget: (v, _) => Text('${v.toInt()}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10)))),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 20,
+                  getTitlesWidget: (v, _) => Text('${v.toInt()}',
+                      style: GoogleFonts.inter(
+                          color: AppColors.textMuted, fontSize: 9)))),
+          leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 28,
+                  getTitlesWidget: (v, _) => Text('${v.toInt()}',
+                      style: GoogleFonts.inter(
+                          color: AppColors.textMuted, fontSize: 10)))),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
       )),
     );
@@ -736,6 +916,7 @@ class _ScatterChart extends StatelessWidget {
 /// coreMetrics map, falling back to legacy scalar fields for old records.
 class _MetricBarsChart extends StatelessWidget {
   final List<RoutineModel> routines;
+
   /// The metric id to plot (e.g. 'studyHours', a UUID, 'waterIntake', etc.)
   final String metricId;
 
@@ -760,25 +941,41 @@ class _MetricBarsChart extends StatelessWidget {
         gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, _) {
-            final i = v.toInt();
-            if (i < 0 || i >= routines.length) return const SizedBox.shrink();
-            final d = routines[i].date;
-            return Text(d.length >= 10 ? d.substring(8) : d, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 9));
-          })),
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (v, _) {
+                    final i = v.toInt();
+                    if (i < 0 || i >= routines.length)
+                      return const SizedBox.shrink();
+                    final d = routines[i].date;
+                    return Text(d.length >= 10 ? d.substring(8) : d,
+                        style: GoogleFonts.inter(
+                            color: AppColors.textMuted, fontSize: 9));
+                  })),
+          leftTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
-        barGroups: routines.asMap().entries.map((e) => BarChartGroupData(
-          x: e.key,
-          barRods: [BarChartRodData(
-            toY: _getValue(e.value),
-            color: AppColors.blue,
-            width: 14,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-          )],
-        )).toList(),
+        barGroups: routines
+            .asMap()
+            .entries
+            .map((e) => BarChartGroupData(
+                  x: e.key,
+                  barRods: [
+                    BarChartRodData(
+                      toY: _getValue(e.value),
+                      color: AppColors.blue,
+                      width: 14,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(4)),
+                    )
+                  ],
+                ))
+            .toList(),
       )),
     );
   }

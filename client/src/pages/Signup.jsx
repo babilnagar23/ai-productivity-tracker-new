@@ -42,7 +42,7 @@ const Signup = () => {
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-xl text-white shadow-neon">
               <Zap className="h-5 w-5" />
             </div>
-            <span className="font-extrabold text-lg text-white">ProductiveAI</span>
+            <span className="font-extrabold text-lg text-white">Productivity Tracker</span>
           </Link>
           <h2 className="text-2xl font-bold text-white tracking-tight">Create Operator Profile</h2>
           <p className="text-sm text-gray-400">Initialize your email verification sequence</p>

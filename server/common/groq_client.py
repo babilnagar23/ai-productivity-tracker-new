@@ -1,5 +1,5 @@
 """
-Centralized Groq AI client for ProductiveAI.
+Centralized Groq AI client for Productivity Tracker.
 
 All AI features route through generate_ai_response().
 Model: llama-3.3-70b-versatile
