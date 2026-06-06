@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/routine_model.dart';
 import '../../data/repositories/routine_repository.dart';
+import '../providers/routines_provider.dart';
 
 class AddRoutineScreen extends ConsumerStatefulWidget {
   final int? routineId;
@@ -44,12 +45,15 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
   Future<void> _loadConfig() async {
     setState(() => _isLoading = true);
     try {
-      final config = await RoutineRepository().getCustomConfig();
+      final config = await ref.read(customConfigProvider.future);
       final cls = (config['coreChecklists'] as List<dynamic>? ?? [])
-          .map((e) => Map<String, dynamic>.from(e as Map))
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
           .toList();
+
       final mts = (config['coreMetrics'] as List<dynamic>? ?? [])
-          .map((e) => Map<String, dynamic>.from(e as Map))
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
           .toList();
 
       final checkState = <String, bool>{};
@@ -71,22 +75,12 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
       if (widget.routineId != null) {
         await _loadExisting();
       }
-    } catch (_) {
-      // Fallback to defaults if config fails
-      _checklists = [
-        {'id': 'study', 'title': 'Study / Learning'},
-        {'id': 'exercise', 'title': 'Exercise / Workout'},
-        {'id': 'ml', 'title': 'Deep Work / ML'},
-      ];
-      _metrics = [
-        {'id': 'studyHours', 'title': 'Study Hours'},
-        {'id': 'mobileUsage', 'title': 'Mobile Usage (h)'},
-      ];
-      _checklistState = {'study': false, 'exercise': false, 'ml': false};
-      _metricControllers = {
-        'studyHours': TextEditingController(text: '0'),
-        'mobileUsage': TextEditingController(text: '0'),
-      };
+    } catch (e) {
+      debugPrint("Error loading customization config: $e");
+      _checklists = [];
+      _metrics = [];
+      _checklistState = {};
+      _metricControllers = {};
       if (widget.routineId != null) {
         await _loadExisting();
       }
@@ -107,45 +101,46 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
   void _populate(RoutineModel r) {
     _selectedDate = DateTime.parse(r.date);
 
-    // Restore checklist state from coreChecklists JSON
-    final savedChecklists = r.coreChecklists;
     for (final c in _checklists) {
       final id = c['id'] as String;
-      final val = savedChecklists[id];
-      if (val is bool) {
-        _checklistState[id] = val;
-      } else if (val is Map) {
-        _checklistState[id] = val['completed'] as bool? ?? false;
-      } else {
-        // Legacy: check study/exercise/ml fields
-        if (id == 'study') _checklistState[id] = r.studyCompleted;
-        if (id == 'exercise') _checklistState[id] = r.exerciseCompleted;
-        if (id == 'ml') _checklistState[id] = r.mlCompleted;
-      }
+
+      _checklistState[id] = r.coreChecklists[id] ??
+          (id == 'study'
+              ? r.studyCompleted
+              : id == 'exercise'
+                  ? r.exerciseCompleted
+                  : id == 'ml'
+                      ? r.mlCompleted
+                      : false);
     }
 
-    // Restore metric values from coreMetrics JSON
     final savedMetrics = r.coreMetrics;
+
     for (final m in _metrics) {
       final id = m['id'] as String;
       final val = savedMetrics[id];
+
       if (val != null) {
         _metricControllers[id]?.text = val.toString();
-      } else {
-        // Legacy fallback
-        if (id == 'studyHours') _metricControllers[id]?.text = r.studyHours.toString();
-        if (id == 'mobileUsage') _metricControllers[id]?.text = r.mobileUsage.toString();
       }
     }
 
     _notesCtrl.text = r.notes;
+
     final sleep = r.sleepTime.split(':');
     final wake = r.wakeTime.split(':');
+
     if (sleep.length >= 2) {
-      _sleepTime = TimeOfDay(hour: int.tryParse(sleep[0]) ?? 23, minute: int.tryParse(sleep[1]) ?? 0);
+      _sleepTime = TimeOfDay(
+        hour: int.tryParse(sleep[0]) ?? 23,
+        minute: int.tryParse(sleep[1]) ?? 0,
+      );
     }
     if (wake.length >= 2) {
-      _wakeTime = TimeOfDay(hour: int.tryParse(wake[0]) ?? 7, minute: int.tryParse(wake[1]) ?? 0);
+      _wakeTime = TimeOfDay(
+        hour: int.tryParse(wake[0]) ?? 7,
+        minute: int.tryParse(wake[1]) ?? 0,
+      );
     }
   }
 
@@ -164,12 +159,14 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
     return ((completed / _checklists.length) * 100).round().clamp(0, 100);
   }
 
-  Map<String, dynamic> _buildCoreChecklists() {
-    final map = <String, dynamic>{};
+  Map<String, bool> _buildCoreChecklists() {
+    final map = <String, bool>{};
+
     for (final c in _checklists) {
       final id = c['id'] as String;
       map[id] = _checklistState[id] ?? false;
     }
+
     return map;
   }
 
@@ -186,15 +183,17 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    final coreChecklists = _buildCoreChecklists();
+    final Map<String, bool> coreChecklists = _buildCoreChecklists();
     final coreMetrics = _buildCoreMetrics();
 
     // Legacy fields for backward compat
     final studyCompleted = _checklistState['study'] ?? false;
     final exerciseCompleted = _checklistState['exercise'] ?? false;
     final mlCompleted = _checklistState['ml'] ?? false;
-    final studyHours = double.tryParse(_metricControllers['studyHours']?.text ?? '0') ?? 0.0;
-    final mobileUsage = double.tryParse(_metricControllers['mobileUsage']?.text ?? '0') ?? 0.0;
+    final studyHours =
+        double.tryParse(_metricControllers['studyHours']?.text ?? '0') ?? 0.0;
+    final mobileUsage =
+        double.tryParse(_metricControllers['mobileUsage']?.text ?? '0') ?? 0.0;
 
     final routine = RoutineModel(
       date: DateFormat('yyyy-MM-dd').format(_selectedDate),
@@ -202,8 +201,10 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
       exerciseCompleted: exerciseCompleted,
       mlCompleted: mlCompleted,
       studyHours: studyHours,
-      sleepTime: '${_sleepTime.hour.toString().padLeft(2, '0')}:${_sleepTime.minute.toString().padLeft(2, '0')}',
-      wakeTime: '${_wakeTime.hour.toString().padLeft(2, '0')}:${_wakeTime.minute.toString().padLeft(2, '0')}',
+      sleepTime:
+          '${_sleepTime.hour.toString().padLeft(2, '0')}:${_sleepTime.minute.toString().padLeft(2, '0')}',
+      wakeTime:
+          '${_wakeTime.hour.toString().padLeft(2, '0')}:${_wakeTime.minute.toString().padLeft(2, '0')}',
       mobileUsage: mobileUsage,
       notes: _notesCtrl.text,
       productivityScore: _calcScore(),
@@ -243,7 +244,9 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
     if (s.contains('already exists') || s.contains('409')) {
       return 'A log already exists for this date. Edit the existing entry.';
     }
-    if (s.contains('network') || s.contains('connection') || s.contains('socket')) {
+    if (s.contains('network') ||
+        s.contains('connection') ||
+        s.contains('socket')) {
       return 'Check your internet connection and try again.';
     }
     return 'Could not save. Please try again.';
@@ -303,15 +306,18 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
         backgroundColor: AppColors.bg,
         title: Text(
           _isEditing ? 'Edit Log' : 'Log Today',
-          style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+          style: GoogleFonts.inter(
+              color: AppColors.textPrimary, fontWeight: FontWeight.w700),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_rounded,
+              color: AppColors.textPrimary, size: 20),
           onPressed: () => context.pop(),
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.blue))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.blue))
           : Form(
               key: _formKey,
               child: ListView(
@@ -322,7 +328,10 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [AppColors.gradientStart, AppColors.gradientEnd],
+                        colors: [
+                          AppColors.gradientStart,
+                          AppColors.gradientEnd
+                        ],
                       ),
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -332,16 +341,20 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Projected Score',
-                                style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+                                style: GoogleFonts.inter(
+                                    color: Colors.white70, fontSize: 12)),
                             Text(
                               '${_calcScore()}/100',
                               style: GoogleFonts.inter(
-                                  color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900),
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w900),
                             ),
                           ],
                         ),
                         const Spacer(),
-                        const Icon(Icons.bolt_rounded, color: Colors.white38, size: 48),
+                        const Icon(Icons.bolt_rounded,
+                            color: Colors.white38, size: 48),
                       ],
                     ),
                   ),
@@ -360,15 +373,19 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today_rounded, color: AppColors.blue, size: 18),
+                          const Icon(Icons.calendar_today_rounded,
+                              color: AppColors.blue, size: 18),
                           const SizedBox(width: 10),
                           Text(
-                            DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
+                            DateFormat('EEEE, MMMM d, yyyy')
+                                .format(_selectedDate),
                             style: GoogleFonts.inter(
-                                color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600),
                           ),
                           const Spacer(),
-                          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                          const Icon(Icons.chevron_right_rounded,
+                              color: AppColors.textMuted),
                         ],
                       ),
                     ),
@@ -382,7 +399,8 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
                         'No habits configured. Add habits in Customisation.',
-                        style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 13),
+                        style: GoogleFonts.inter(
+                            color: AppColors.textMuted, fontSize: 13),
                       ),
                     )
                   else
@@ -407,7 +425,8 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
                         'No metrics configured. Add metrics in Customisation.',
-                        style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 13),
+                        style: GoogleFonts.inter(
+                            color: AppColors.textMuted, fontSize: 13),
                       ),
                     )
                   else
@@ -471,10 +490,12 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                       fillColor: AppColors.card,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.border)),
+                          borderSide:
+                              const BorderSide(color: AppColors.border)),
                       enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.border)),
+                          borderSide:
+                              const BorderSide(color: AppColors.border)),
                       focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: const BorderSide(color: AppColors.blue)),
@@ -550,7 +571,8 @@ class _HabitToggle extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: value ? AppColors.blue.withValues(alpha: 0.08) : AppColors.card,
+          color:
+              value ? AppColors.blue.withValues(alpha: 0.08) : AppColors.card,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
               color: value
@@ -566,7 +588,9 @@ class _HabitToggle extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                value ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                value
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
                 color: value ? AppColors.blue : AppColors.textMuted,
                 size: 18,
               ),
@@ -576,7 +600,8 @@ class _HabitToggle extends StatelessWidget {
               child: Text(
                 label,
                 style: GoogleFonts.inter(
-                  color: value ? AppColors.textPrimary : AppColors.textSecondary,
+                  color:
+                      value ? AppColors.textPrimary : AppColors.textSecondary,
                   fontWeight: value ? FontWeight.w700 : FontWeight.normal,
                 ),
               ),
@@ -606,10 +631,13 @@ class _MetricField extends StatelessWidget {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       onChanged: onChanged,
       style: GoogleFonts.inter(
-          color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 18),
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w700,
+          fontSize: 18),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+        labelStyle:
+            GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
         filled: true,
         fillColor: AppColors.card,
         border: OutlineInputBorder(
@@ -665,7 +693,8 @@ class _TimeTile extends StatelessWidget {
                 Icon(icon, color: color, size: 16),
                 const SizedBox(width: 6),
                 Text(label,
-                    style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                    style: GoogleFonts.inter(
+                        color: AppColors.textMuted, fontSize: 11)),
               ],
             ),
             const SizedBox(height: 6),

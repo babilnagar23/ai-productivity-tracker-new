@@ -10,6 +10,7 @@ import '../../../../core/api/api_endpoints.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../routines/data/models/routine_model.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
+import '../../../routines/presentation/providers/routines_provider.dart';
 import 'chart_edit_screen.dart';
 
 final analyticsRoutinesProvider = FutureProvider<List<RoutineModel>>((ref) async {
@@ -117,9 +118,9 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
 
   Future<void> _exportCsv(List<RoutineModel> routines) async {
     final buf = StringBuffer();
-    buf.writeln('Date,Study Completed,Exercise Completed,Deep Work,Study Hours,Mobile Usage,Sleep,Wake,Score');
+    buf.writeln('Date,Score,Sleep,Wake');
     for (final r in routines) {
-      buf.writeln('${r.date},${r.studyCompleted},${r.exerciseCompleted},${r.mlCompleted},${r.studyHours},${r.mobileUsage},${r.sleepTime},${r.wakeTime},${r.productivityScore}');
+      buf.writeln('${r.date},${r.productivityScore},${r.sleepTime},${r.wakeTime}');
     }
     await Share.share(buf.toString(), subject: 'ProductiveAI Data Export');
   }
@@ -128,6 +129,15 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
   Widget build(BuildContext context) {
     final routinesAsync = ref.watch(analyticsRoutinesProvider);
     final statsAsync = ref.watch(analyticsStatsProvider);
+    // Watch shared config provider so charts refresh when habits/metrics change
+    final configAsync = ref.watch(customConfigProvider);
+
+    final configChecklists = (configAsync.asData?.value['coreChecklists'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    final configMetrics = (configAsync.asData?.value['coreMetrics'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -151,6 +161,7 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
             onPressed: () {
               ref.invalidate(analyticsRoutinesProvider);
               ref.invalidate(analyticsStatsProvider);
+              ref.invalidate(customConfigProvider);
             },
           ),
         ],
@@ -158,23 +169,31 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
       body: routinesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.blue)),
         error: (e, _) => Center(child: Text('$e', style: GoogleFonts.inter(color: AppColors.error))),
-        data: (routines) => _buildBody(routines, statsAsync),
+        data: (routines) => _buildBody(routines, statsAsync, configChecklists, configMetrics),
       ),
     );
   }
 
-  Widget _buildBody(List<RoutineModel> routines, AsyncValue<Map<String, dynamic>> statsAsync) {
+  Widget _buildBody(
+    List<RoutineModel> routines,
+    AsyncValue<Map<String, dynamic>> statsAsync,
+    List<Map<String, dynamic>> configChecklists,
+    List<Map<String, dynamic>> configMetrics,
+  ) {
     final stats = statsAsync.asData?.value['stats'] as Map<String, dynamic>? ?? {};
     final totalDays = stats['totalLogs'] ?? routines.length;
     final streak = stats['currentStreak'] ?? 0;
-    final avgScore = stats['avgScore'] ?? (routines.isEmpty ? 0 : (routines.map((r) => r.productivityScore).reduce((a, b) => a + b) / routines.length).round());
+    final avgScore = stats['avgScore'] ??
+        (routines.isEmpty ? 0 : (routines.map((r) => r.productivityScore).reduce((a, b) => a + b) / routines.length).round());
     final bestScore = routines.isEmpty ? 0 : routines.map((r) => r.productivityScore).reduce((a, b) => a > b ? a : b);
 
-    // Determine available metrics from routines
-    final availableMetrics = <String>[];
-    if (routines.any((r) => r.studyHours > 0)) availableMetrics.add('sleepHours');
-    if (routines.any((r) => r.mobileUsage > 0)) availableMetrics.add('mobileUsage');
-    availableMetrics.add('exerciseTime');
+    // Build availableMetrics from user's config metric IDs so ChartEditScreen
+    // can filter which chart options are relevant.
+    final availableMetrics = configMetrics.map((m) => m['id'] as String).toList();
+    // Always include mobileUsage for the scatter chart if present
+    if (routines.any((r) => r.coreMetrics.containsKey('mobileUsage') && (r.coreMetrics['mobileUsage'] as num? ?? 0) > 0)) {
+      if (!availableMetrics.contains('mobileUsage')) availableMetrics.add('mobileUsage');
+    }
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -214,14 +233,20 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
         const SizedBox(height: 16),
 
         if (!_showCharts)
-          _buildTableView(routines)
+          _buildTableView(routines, configChecklists, configMetrics)
         else
-          _buildChartsView(routines, availableMetrics),
+          _buildChartsView(routines, availableMetrics, configChecklists, configMetrics),
       ],
     );
   }
 
-  Widget _buildTableView(List<RoutineModel> routines) {
+  // ── Table View ────────────────────────────────────────────────────────────
+
+  Widget _buildTableView(
+    List<RoutineModel> routines,
+    List<Map<String, dynamic>> configChecklists,
+    List<Map<String, dynamic>> configMetrics,
+  ) {
     if (routines.isEmpty) {
       return Center(child: Text('No data yet', style: GoogleFonts.inter(color: AppColors.textMuted)));
     }
@@ -232,22 +257,58 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
         dataRowColor: WidgetStateProperty.all(AppColors.card),
         border: TableBorder.all(color: AppColors.border, borderRadius: BorderRadius.circular(12)),
         columns: [
-          _col('Date'), _col('Study ✓'), _col('Exercise ✓'), _col('Deep Work ✓'),
-          _col('Study Hrs'), _col('Mobile Hrs'), _col('Score'),
+          _col('Date'),
+          // Dynamic habit columns
+          ...configChecklists.map((c) {
+            final title = (c['title'] as String?) ?? 'Habit';
+            // Shorten long titles for table header
+            final short = title.length > 14 ? '${title.substring(0, 14)}…' : title;
+            return _col('$short ✓');
+          }),
+          // Dynamic metric columns
+          ...configMetrics.map((m) {
+            final title = (m['title'] as String?) ?? 'Metric';
+            final short = title.length > 12 ? '${title.substring(0, 12)}…' : title;
+            return _col(short);
+          }),
+          _col('Score'),
         ],
-        rows: routines.map((r) => DataRow(cells: [
-          DataCell(Text(r.date.length >= 10 ? r.date.substring(5) : r.date,
-              style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13))),
-          DataCell(Icon(r.studyCompleted ? Icons.check_rounded : Icons.close_rounded,
-              color: r.studyCompleted ? AppColors.success : AppColors.error, size: 16)),
-          DataCell(Icon(r.exerciseCompleted ? Icons.check_rounded : Icons.close_rounded,
-              color: r.exerciseCompleted ? AppColors.success : AppColors.error, size: 16)),
-          DataCell(Icon(r.mlCompleted ? Icons.check_rounded : Icons.close_rounded,
-              color: r.mlCompleted ? AppColors.success : AppColors.error, size: 16)),
-          DataCell(Text('${r.studyHours}h', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13))),
-          DataCell(Text('${r.mobileUsage}h', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13))),
-          DataCell(_ScoreBadge(score: r.productivityScore)),
-        ])).toList(),
+        rows: routines.map((r) {
+          // For legacy records use synthesized checklists
+          final checklists = r.coreChecklists.isNotEmpty
+              ? r.coreChecklists
+              : _legacyChecklists(r);
+
+          return DataRow(cells: [
+            DataCell(Text(
+              r.date.length >= 10 ? r.date.substring(5) : r.date,
+              style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+            )),
+            // Habit completion cells
+            ...configChecklists.map((c) {
+              final id = c['id'] as String;
+              final done = checklists[id] ?? false;
+              return DataCell(Icon(
+                done ? Icons.check_rounded : Icons.close_rounded,
+                color: done ? AppColors.success : AppColors.error,
+                size: 16,
+              ));
+            }),
+            // Metric value cells
+            ...configMetrics.map((m) {
+              final id = m['id'] as String;
+              final metricsMap = r.coreMetrics.isNotEmpty
+                  ? r.coreMetrics
+                  : _legacyMetrics(r);
+              final val = metricsMap[id] ?? 0;
+              return DataCell(Text(
+                '$val',
+                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+              ));
+            }),
+            DataCell(_ScoreBadge(score: r.productivityScore)),
+          ]);
+        }).toList(),
       ),
     );
   }
@@ -256,7 +317,14 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
     label: Text(label, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, letterSpacing: 0.3)),
   );
 
-  Widget _buildChartsView(List<RoutineModel> routines, List<String> availableMetrics) {
+  // ── Charts View ───────────────────────────────────────────────────────────
+
+  Widget _buildChartsView(
+    List<RoutineModel> routines,
+    List<String> availableMetrics,
+    List<Map<String, dynamic>> configChecklists,
+    List<Map<String, dynamic>> configMetrics,
+  ) {
     if (!_chartsConfigured || _selectedCharts.isEmpty) {
       return Center(
         child: Column(
@@ -276,6 +344,21 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
 
     final recent7 = routines.length > 7 ? routines.sublist(routines.length - 7) : routines;
     final recent30 = routines.length > 30 ? routines.sublist(routines.length - 30) : routines;
+
+    // First metric ID for the bar chart (falls back to 'studyHours')
+    final firstMetricId = configMetrics.isNotEmpty
+        ? configMetrics.first['id'] as String
+        : 'studyHours';
+    final firstMetricTitle = configMetrics.isNotEmpty
+        ? (configMetrics.first['title'] as String? ?? firstMetricId)
+        : 'Study Hours';
+
+    // Find mobileUsage metric id in config (may differ from legacy 'mobileUsage')
+    final mobileMetricId = configMetrics
+        .firstWhere(
+          (m) => (m['id'] as String).toLowerCase().contains('mobile'),
+          orElse: () => {'id': 'mobileUsage'},
+        )['id'] as String;
 
     return Column(
       children: [
@@ -303,24 +386,64 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
           ],
         ),
         const SizedBox(height: 12),
+
         if (_selectedCharts.contains('weekly_productivity'))
           _ChartCard(title: 'Weekly Productivity', child: _WeeklyLineChart(routines: recent7)),
+
         if (_selectedCharts.contains('monthly_productivity'))
           _ChartCard(title: 'Monthly Productivity', child: _WeeklyLineChart(routines: recent30)),
+
+        // Dynamic habit completion — from user's config habits
         if (_selectedCharts.contains('habit_completion'))
-          _ChartCard(title: 'Habit Completion', child: _HabitBars(routines: routines)),
-        if (_selectedCharts.contains('mobile_vs_productivity') && availableMetrics.contains('mobileUsage'))
-          _ChartCard(title: 'Mobile Usage vs Productivity', child: _ScatterChart(
-            routines: routines,
-            xGetter: (r) => r.mobileUsage,
-            xLabel: 'Mobile (hrs)',
-          )),
+          _ChartCard(
+            title: 'Habit Completion',
+            child: _HabitBars(routines: routines, configChecklists: configChecklists),
+          ),
+
+        // Scatter chart — check if mobile metric exists in data
+        if (_selectedCharts.contains('mobile_vs_productivity') &&
+            availableMetrics.contains(mobileMetricId))
+          _ChartCard(
+            title: 'Mobile Usage vs Productivity',
+            child: _ScatterChart(
+              routines: routines,
+              xGetter: (r) => (r.coreMetrics[mobileMetricId] as num?)?.toDouble()
+                  ?? r.mobileUsage,
+              xLabel: 'Mobile (hrs)',
+            ),
+          ),
+
+        // First metric bar chart — dynamic metric id
         if (_selectedCharts.contains('study_hours_bar'))
-          _ChartCard(title: 'Study Hours', child: _StudyBarsChart(routines: recent7)),
+          _ChartCard(
+            title: firstMetricTitle,
+            child: _MetricBarsChart(routines: recent7, metricId: firstMetricId),
+          ),
       ],
     );
   }
+
+  // ── Legacy helpers ────────────────────────────────────────────────────────
+
+  /// Synthesise a coreChecklists-style map from legacy boolean fields.
+  static Map<String, bool> _legacyChecklists(RoutineModel r) {
+    final m = <String, bool>{};
+    if (r.studyCompleted) m['study'] = true;
+    if (r.exerciseCompleted) m['exercise'] = true;
+    if (r.mlCompleted) m['ml'] = true;
+    return m;
+  }
+
+  /// Synthesise a coreMetrics-style map from legacy scalar fields.
+  static Map<String, dynamic> _legacyMetrics(RoutineModel r) {
+    final m = <String, dynamic>{};
+    if (r.studyHours > 0) m['studyHours'] = r.studyHours;
+    if (r.mobileUsage > 0) m['mobileUsage'] = r.mobileUsage;
+    return m;
+  }
 }
+
+// ── Overview Card ─────────────────────────────────────────────────────────
 
 class _OverviewCard extends StatelessWidget {
   final String label;
@@ -351,6 +474,8 @@ class _OverviewCard extends StatelessWidget {
   }
 }
 
+// ── Toggle Button ─────────────────────────────────────────────────────────
+
 class _ToggleBtn extends StatelessWidget {
   final String label;
   final bool selected;
@@ -379,6 +504,8 @@ class _ToggleBtn extends StatelessWidget {
   }
 }
 
+// ── Score Badge ───────────────────────────────────────────────────────────
+
 class _ScoreBadge extends StatelessWidget {
   final int score;
   const _ScoreBadge({required this.score});
@@ -401,6 +528,8 @@ class _ScoreBadge extends StatelessWidget {
     );
   }
 }
+
+// ── Chart Card ────────────────────────────────────────────────────────────
 
 class _ChartCard extends StatelessWidget {
   final String title;
@@ -428,6 +557,8 @@ class _ChartCard extends StatelessWidget {
     );
   }
 }
+
+// ── Line Chart ────────────────────────────────────────────────────────────
 
 class _WeeklyLineChart extends StatelessWidget {
   final List<RoutineModel> routines;
@@ -468,26 +599,67 @@ class _WeeklyLineChart extends StatelessWidget {
   }
 }
 
+// ── Habit Completion Bars — DYNAMIC from config ───────────────────────────
+
 class _HabitBars extends StatelessWidget {
   final List<RoutineModel> routines;
-  const _HabitBars({required this.routines});
+  /// The active habits from user's customisation config.
+  final List<Map<String, dynamic>> configChecklists;
+
+  const _HabitBars({required this.routines, required this.configChecklists});
+
+  static Map<String, bool> _resolveChecklists(RoutineModel r) {
+    if (r.coreChecklists.isNotEmpty) return r.coreChecklists;
+    final m = <String, bool>{};
+    if (r.studyCompleted) m['study'] = true;
+    if (r.exerciseCompleted) m['exercise'] = true;
+    if (r.mlCompleted) m['ml'] = true;
+    return m;
+  }
 
   @override
   Widget build(BuildContext context) {
     if (routines.isEmpty) return const SizedBox.shrink();
+
+    // Fallback colours cycling through palette
+    const colors = [
+      AppColors.blue,
+      AppColors.success,
+      AppColors.purple,
+      AppColors.warning,
+      AppColors.cyan,
+    ];
+
     final total = routines.length;
-    final studyRate = routines.where((r) => r.studyCompleted).length / total;
-    final exerciseRate = routines.where((r) => r.exerciseCompleted).length / total;
-    final mlRate = routines.where((r) => r.mlCompleted).length / total;
+
+    // If no config habits, fall back to showing legacy study/exercise/ml
+    final habitsToShow = configChecklists.isNotEmpty
+        ? configChecklists
+        : [
+            {'id': 'study', 'title': 'Study'},
+            {'id': 'exercise', 'title': 'Exercise'},
+            {'id': 'ml', 'title': 'Deep Work'},
+          ];
 
     return Column(
-      children: [
-        _Bar(label: 'Study', value: studyRate, color: AppColors.blue),
-        const SizedBox(height: 8),
-        _Bar(label: 'Exercise', value: exerciseRate, color: AppColors.success),
-        const SizedBox(height: 8),
-        _Bar(label: 'Deep Work', value: mlRate, color: AppColors.purple),
-      ],
+      children: habitsToShow.asMap().entries.map((entry) {
+        final idx = entry.key;
+        final habit = entry.value;
+        final id = habit['id'] as String;
+        final title = (habit['title'] as String?) ?? id;
+        final shortTitle = title.length > 20 ? '${title.substring(0, 20)}…' : title;
+        final color = colors[idx % colors.length];
+
+        final rate = routines
+                .where((r) => _resolveChecklists(r)[id] == true)
+                .length /
+            total;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _Bar(label: shortTitle, value: rate, color: color),
+        );
+      }).toList(),
     );
   }
 }
@@ -525,6 +697,8 @@ class _Bar extends StatelessWidget {
   }
 }
 
+// ── Scatter Chart ─────────────────────────────────────────────────────────
+
 class _ScatterChart extends StatelessWidget {
   final List<RoutineModel> routines;
   final double Function(RoutineModel) xGetter;
@@ -556,9 +730,26 @@ class _ScatterChart extends StatelessWidget {
   }
 }
 
-class _StudyBarsChart extends StatelessWidget {
+// ── Metric Bar Chart — DYNAMIC metric id ─────────────────────────────────
+
+/// Replaces the old hardcoded _StudyBarsChart. Reads any metric by id from
+/// coreMetrics map, falling back to legacy scalar fields for old records.
+class _MetricBarsChart extends StatelessWidget {
   final List<RoutineModel> routines;
-  const _StudyBarsChart({required this.routines});
+  /// The metric id to plot (e.g. 'studyHours', a UUID, 'waterIntake', etc.)
+  final String metricId;
+
+  const _MetricBarsChart({required this.routines, required this.metricId});
+
+  double _getValue(RoutineModel r) {
+    if (r.coreMetrics.containsKey(metricId)) {
+      return (r.coreMetrics[metricId] as num?)?.toDouble() ?? 0;
+    }
+    // Legacy fallbacks
+    if (metricId == 'studyHours') return r.studyHours;
+    if (metricId == 'mobileUsage') return r.mobileUsage;
+    return 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -582,7 +773,7 @@ class _StudyBarsChart extends StatelessWidget {
         barGroups: routines.asMap().entries.map((e) => BarChartGroupData(
           x: e.key,
           barRods: [BarChartRodData(
-            toY: e.value.studyHours,
+            toY: _getValue(e.value),
             color: AppColors.blue,
             width: 14,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),

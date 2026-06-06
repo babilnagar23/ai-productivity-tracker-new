@@ -10,6 +10,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../routines/data/models/routine_model.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
+import '../../../routines/presentation/providers/routines_provider.dart';
 
 final dashboardRoutinesProvider = FutureProvider<List<RoutineModel>>((ref) async {
   return RoutineRepository().getRoutines();
@@ -45,6 +46,11 @@ class DashboardScreen extends ConsumerWidget {
     final routinesAsync = ref.watch(dashboardRoutinesProvider);
     ref.watch(dashboardAnalyticsProvider); // preload
     final eventsAsync = ref.watch(dashboardEventsProvider);
+    final configAsync = ref.watch(customConfigProvider);
+
+    final configMetrics = (configAsync.asData?.value['coreMetrics'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
 
     final xp = user?.xp ?? 0;
     final level = authNotifier.level;
@@ -202,7 +208,7 @@ class DashboardScreen extends ConsumerWidget {
                   routinesAsync.when(
                     loading: () => const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: AppColors.blue))),
                     error: (_, __) => const SizedBox.shrink(),
-                    data: (routines) => _ProductivityGrid(routines: routines),
+                    data: (routines) => _ProductivityGrid(routines: routines, configMetrics: configMetrics),
                   ),
                   const SizedBox(height: 16),
 
@@ -326,11 +332,21 @@ class _PresetChip extends StatelessWidget {
 
 class _ProductivityGrid extends StatelessWidget {
   final List<RoutineModel> routines;
-  const _ProductivityGrid({required this.routines});
+  final List<Map<String, dynamic>> configMetrics;
+  const _ProductivityGrid({required this.routines, required this.configMetrics});
 
   double _avg(List<RoutineModel> list) {
     if (list.isEmpty) return 0;
     return list.map((r) => r.productivityScore).reduce((a, b) => a + b) / list.length;
+  }
+
+  double _getMetricValue(RoutineModel r, String id) {
+    if (r.coreMetrics.containsKey(id)) {
+      return (r.coreMetrics[id] as num?)?.toDouble() ?? 0.0;
+    }
+    if (id == 'studyHours') return r.studyHours;
+    if (id == 'mobileUsage') return r.mobileUsage;
+    return 0.0;
   }
 
   @override
@@ -354,7 +370,24 @@ class _ProductivityGrid extends StatelessWidget {
     final monthlyAvg = _avg(last30).round();
     final prevWeekAvg = _avg(prevWeek);
     final weekDiff = prevWeekAvg > 0 ? ((weeklyAvg - prevWeekAvg) / prevWeekAvg * 100).round() : 0;
-    final deepWorkHours = last7.fold(0.0, (sum, r) => sum + r.studyHours);
+
+    // Determine primary metric ID and label dynamically
+    String primaryMetricId = 'studyHours';
+    String primaryMetricLabel = 'Deep Work Hours';
+
+    if (configMetrics.isNotEmpty) {
+      final hasStudyHours = configMetrics.any((m) => m['id'] == 'studyHours');
+      if (hasStudyHours) {
+        primaryMetricId = 'studyHours';
+        final metric = configMetrics.firstWhere((m) => m['id'] == 'studyHours');
+        primaryMetricLabel = (metric['title'] as String?) ?? 'Deep Work Hours';
+      } else {
+        primaryMetricId = configMetrics.first['id'] as String? ?? 'studyHours';
+        primaryMetricLabel = (configMetrics.first['title'] as String?) ?? 'Deep Work Hours';
+      }
+    }
+
+    final primaryMetricValue = last7.fold(0.0, (sum, r) => sum + _getMetricValue(r, primaryMetricId));
 
     final sparklineSpots = last7.asMap().entries
         .map((e) => FlSpot(e.key.toDouble(), e.value.productivityScore.toDouble()))
@@ -387,10 +420,12 @@ class _ProductivityGrid extends StatelessWidget {
               : null,
         ),
         _StatCard(
-          label: 'Deep Work Hours',
-          value: '${deepWorkHours.toInt()}h ${((deepWorkHours % 1) * 60).toInt()}m',
+          label: primaryMetricLabel,
+          value: primaryMetricLabel.toLowerCase().contains('hour') || primaryMetricLabel.toLowerCase().contains('hrs') || primaryMetricId == 'studyHours'
+              ? '${primaryMetricValue.toInt()}h ${((primaryMetricValue % 1) * 60).toInt()}m'
+              : primaryMetricValue.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), ''),
           chart: last7.length >= 2
-              ? _MiniBarChart(values: last7.map((r) => r.studyHours).toList())
+              ? _MiniBarChart(values: last7.map((r) => _getMetricValue(r, primaryMetricId)).toList())
               : null,
         ),
       ],

@@ -95,12 +95,20 @@ const Analytics = () => {
       if (fullRes.success) setFullData(fullRes);
 
       if (weeklyRes.success) {
-        setChartData(weeklyRes.data.map(item => ({
-          ...item,
-          formattedDate: fmt(item.date),
-          studyHours: item.coreMetrics?.studyHours || 0,
-          mobileUsage: item.coreMetrics?.mobileUsage || 0,
-        })));
+        setChartData(weeklyRes.data.map(item => {
+          const mapped = {
+            ...item,
+            formattedDate: fmt(item.date),
+            studyHours: item.studyHours || item.coreMetrics?.studyHours || 0,
+            mobileUsage: item.mobileUsage || item.coreMetrics?.mobileUsage || 0,
+          };
+          if (item.coreMetrics) {
+            Object.entries(item.coreMetrics).forEach(([key, val]) => {
+              mapped[key] = Number(val) || 0;
+            });
+          }
+          return mapped;
+        }));
       }
     } catch (err) {
       console.error(err);
@@ -357,26 +365,35 @@ const Analytics = () => {
 
                                 {/* Core Checklist cells — dynamic */}
                                 {config.coreChecklists.map((chk) => {
-                                  const done = row.coreChecklists?.[chk.id] || false;
-                                  return (
-                                    <td key={chk.id} className="px-4 py-3 text-center">
-                                      {done
-                                        ? <CheckCircle2 className="h-4 w-4 text-green-400 mx-auto" />
-                                        : <XCircle className="h-4 w-4 text-gray-600 mx-auto" />
-                                      }
-                                    </td>
-                                  );
-                                })}
+                                   let done = row.coreChecklists?.[chk.id];
+                                   if (done === undefined) {
+                                     if (chk.id === 'study') done = row.studyCompleted;
+                                     else if (chk.id === 'exercise') done = row.exerciseCompleted;
+                                     else if (chk.id === 'ml') done = row.mlCompleted;
+                                   }
+                                   return (
+                                     <td key={chk.id} className="px-4 py-3 text-center">
+                                       {done
+                                         ? <CheckCircle2 className="h-4 w-4 text-green-400 mx-auto" />
+                                         : <XCircle className="h-4 w-4 text-gray-600 mx-auto" />
+                                       }
+                                     </td>
+                                   );
+                                 })}
 
                                 {/* Core Metric cells — dynamic */}
                                 {config.coreMetrics.map((met) => {
-                                  const val = row.coreMetrics?.[met.id] ?? 0;
-                                  return (
-                                    <td key={met.id} className="px-4 py-3 text-center font-mono font-semibold text-gray-200">
-                                      {val}
-                                    </td>
-                                  );
-                                })}
+                                   let val = row.coreMetrics?.[met.id];
+                                   if (val === undefined) {
+                                     if (met.id === 'studyHours') val = row.studyHours;
+                                     else if (met.id === 'mobileUsage') val = row.mobileUsage;
+                                   }
+                                   return (
+                                     <td key={met.id} className="px-4 py-3 text-center font-mono font-semibold text-gray-200">
+                                       {val ?? 0}
+                                     </td>
+                                   );
+                                 })}
 
                                 {/* Sleep */}
                                 <td className="px-4 py-3 text-center text-gray-300 font-mono">
@@ -445,119 +462,130 @@ const Analytics = () => {
               )}
 
               {/* ══════════════ CHARTS TAB ══════════════ */}
-              {activeTab === 'charts' && (
-                <>
-                  {chartData.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400 bg-white/5 border border-white/5 rounded-2xl">
-                      No chart data. Log at least 3 daily entries to generate dynamic charts.
+              {activeTab === 'charts' && (() => {
+                const primaryMetric = config.coreMetrics?.find(m => m.id === 'studyHours') || config.coreMetrics?.[0] || { id: 'studyHours', title: 'Study Hrs' };
+                const comparedMetrics = config.coreMetrics?.slice(0, 3) || [];
+                const lineColors = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B'];
+
+                return chartData.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 bg-white/5 border border-white/5 rounded-2xl">
+                    No chart data. Log at least 3 daily entries to generate dynamic charts.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                    {/* Primary Metric Trend */}
+                    <div className="glass-card p-6 border border-white/5 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">{primaryMetric.title} Log</h3>
+                        <TrendingUp className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <div className="h-[250px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData}>
+                            <defs>
+                              <linearGradient id="studyGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                            <XAxis dataKey="formattedDate" stroke="#6B7280" fontSize={11} tickLine={false} />
+                            <YAxis stroke="#6B7280" fontSize={11} tickLine={false} />
+                            <Tooltip contentStyle={ChartTooltipStyle} />
+                            <Area type="monotone" dataKey={primaryMetric.id} stroke="#3B82F6" strokeWidth={2.5} fillOpacity={1} fill="url(#studyGrad)" name={primaryMetric.title} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-                      {/* Study Hours Trend */}
-                      <div className="glass-card p-6 border border-white/5 space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">Study Duration Log</h3>
-                          <TrendingUp className="h-4 w-4 text-blue-400" />
-                        </div>
-                        <div className="h-[250px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                              <defs>
-                                <linearGradient id="studyGrad" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.4} />
-                                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                              <XAxis dataKey="formattedDate" stroke="#6B7280" fontSize={11} tickLine={false} />
-                              <YAxis stroke="#6B7280" fontSize={11} tickLine={false} />
-                              <Tooltip contentStyle={ChartTooltipStyle} />
-                              <Area type="monotone" dataKey="studyHours" stroke="#3B82F6" strokeWidth={2.5} fillOpacity={1} fill="url(#studyGrad)" name="Study Hrs" />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
+                    {/* Productivity Score Trend */}
+                    <div className="glass-card p-6 border border-white/5 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">Productivity Score Index</h3>
+                        <BarChart3 className="h-4 w-4 text-green-400" />
                       </div>
-
-                      {/* Productivity Score Trend */}
-                      <div className="glass-card p-6 border border-white/5 space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">Productivity Score Index</h3>
-                          <BarChart3 className="h-4 w-4 text-green-400" />
-                        </div>
-                        <div className="h-[250px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                              <defs>
-                                <linearGradient id="prodGrad" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.4} />
-                                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                              <XAxis dataKey="formattedDate" stroke="#6B7280" fontSize={11} tickLine={false} />
-                              <YAxis stroke="#6B7280" fontSize={11} tickLine={false} domain={[0, 100]} />
-                              <Tooltip contentStyle={ChartTooltipStyle} formatter={(v) => `${v}%`} />
-                              <Area type="monotone" dataKey="productivityScore" stroke="#10B981" strokeWidth={2.5} fillOpacity={1} fill="url(#prodGrad)" name="Score %" />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
+                      <div className="h-[250px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData}>
+                            <defs>
+                              <linearGradient id="prodGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                            <XAxis dataKey="formattedDate" stroke="#6B7280" fontSize={11} tickLine={false} />
+                            <YAxis stroke="#6B7280" fontSize={11} tickLine={false} domain={[0, 100]} />
+                            <Tooltip contentStyle={ChartTooltipStyle} formatter={(v) => `${v}%`} />
+                            <Area type="monotone" dataKey="productivityScore" stroke="#10B981" strokeWidth={2.5} fillOpacity={1} fill="url(#prodGrad)" name="Score %" />
+                          </AreaChart>
+                        </ResponsiveContainer>
                       </div>
+                    </div>
 
-                      {/* Study vs Mobile Usage */}
+                    {/* Dynamic Metric Comparison */}
+                    <div className="glass-card p-6 border border-white/5 space-y-4 lg:col-span-2">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">Metrics Focus Comparison</h3>
+                        <Sparkles className="h-4 w-4 text-purple-400" />
+                      </div>
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                            <XAxis dataKey="formattedDate" stroke="#6B7280" fontSize={11} tickLine={false} />
+                            <YAxis stroke="#6B7280" fontSize={11} tickLine={false} />
+                            <Tooltip contentStyle={ChartTooltipStyle} />
+                            <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
+                            {comparedMetrics.map((met, idx) => (
+                              <Line
+                                key={met.id}
+                                type="monotone"
+                                dataKey={met.id}
+                                stroke={lineColors[idx % lineColors.length]}
+                                strokeWidth={2.5}
+                                name={met.title}
+                                dot={{ r: 3, fill: lineColors[idx % lineColors.length] }}
+                              />
+                            ))}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Checklist completion Bar Chart */}
+                    {config.coreChecklists.length > 0 && stats?.checklistRates && (
                       <div className="glass-card p-6 border border-white/5 space-y-4 lg:col-span-2">
                         <div className="flex justify-between items-center">
-                          <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">Study Focus vs Screen Time</h3>
-                          <Sparkles className="h-4 w-4 text-purple-400" />
+                          <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">Habit Completion Breakdown</h3>
+                          <Activity className="h-4 w-4 text-orange-400" />
                         </div>
-                        <div className="h-[300px] w-full">
+                        <div className="h-[250px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
+                            <BarChart
+                              data={config.coreChecklists.map(chk => ({
+                                      name: chk.title,
+                                      rate: stats.checklistRates[chk.id]?.rate ?? 0,
+                                      completed: stats.checklistRates[chk.id]?.completed ?? 0,
+                                      total: stats.checklistRates[chk.id]?.total ?? 0,
+                                    }))}
+                              barSize={36}
+                            >
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                              <XAxis dataKey="formattedDate" stroke="#6B7280" fontSize={11} tickLine={false} />
-                              <YAxis stroke="#6B7280" fontSize={11} tickLine={false} />
-                              <Tooltip contentStyle={ChartTooltipStyle} />
-                              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
-                              <Line type="monotone" dataKey="studyHours" stroke="#3B82F6" strokeWidth={2.5} name="Study duration" dot={{ r: 3, fill: '#3B82F6' }} />
-                              <Line type="monotone" dataKey="mobileUsage" stroke="#EF4444" strokeWidth={2.5} name="Mobile Screen Time" dot={{ r: 3, fill: '#EF4444' }} />
-                            </LineChart>
+                              <XAxis dataKey="name" stroke="#6B7280" fontSize={11} tickLine={false} />
+                              <YAxis stroke="#6B7280" fontSize={11} tickLine={false} domain={[0, 100]} unit="%" />
+                              <Tooltip contentStyle={ChartTooltipStyle} formatter={(v) => `${v}%`} />
+                              <Bar dataKey="rate" name="Completion Rate" fill="#8B5CF6" radius={[6, 6, 0, 0]} />
+                            </BarChart>
                           </ResponsiveContainer>
                         </div>
                       </div>
+                    )}
 
-                      {/* Checklist completion Bar Chart */}
-                      {config.coreChecklists.length > 0 && stats?.checklistRates && (
-                        <div className="glass-card p-6 border border-white/5 space-y-4 lg:col-span-2">
-                          <div className="flex justify-between items-center">
-                            <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">Habit Completion Breakdown</h3>
-                            <Activity className="h-4 w-4 text-orange-400" />
-                          </div>
-                          <div className="h-[250px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart
-                                data={config.coreChecklists.map(chk => ({
-                                  name: chk.title,
-                                  rate: stats.checklistRates[chk.id]?.rate ?? 0,
-                                  completed: stats.checklistRates[chk.id]?.completed ?? 0,
-                                  total: stats.checklistRates[chk.id]?.total ?? 0,
-                                }))}
-                                barSize={36}
-                              >
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                                <XAxis dataKey="name" stroke="#6B7280" fontSize={11} tickLine={false} />
-                                <YAxis stroke="#6B7280" fontSize={11} tickLine={false} domain={[0, 100]} unit="%" />
-                                <Tooltip contentStyle={ChartTooltipStyle} formatter={(v) => `${v}%`} />
-                                <Bar dataKey="rate" name="Completion Rate" fill="#8B5CF6" radius={[6, 6, 0, 0]} />
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </div>
-                        </div>
-                      )}
-
-                    </div>
-                  )}
-                </>
-              )}
+                  </div>
+                );
+              })()}
             </>
           )}
         </main>

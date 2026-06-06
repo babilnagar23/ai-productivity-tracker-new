@@ -4,10 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
-
-final customConfigProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  return RoutineRepository().getCustomConfig();
-});
+import '../../../routines/presentation/providers/routines_provider.dart';
 
 class CustomizationScreen extends ConsumerStatefulWidget {
   const CustomizationScreen({super.key});
