@@ -1,12 +1,10 @@
-import 'dart:convert';
-
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../shared/widgets/profile_avatar.dart';
 
 import '../../../../core/api/api_client.dart';
 import '../../../../core/api/api_endpoints.dart';
@@ -16,11 +14,13 @@ import '../../../routines/data/models/routine_model.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
 import '../../../routines/presentation/providers/routines_provider.dart';
 
-final dashboardRoutinesProvider = FutureProvider<List<RoutineModel>>((ref) async {
+final dashboardRoutinesProvider =
+    FutureProvider<List<RoutineModel>>((ref) async {
   return RoutineRepository().getRoutines();
 });
 
-final dashboardAnalyticsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+final dashboardAnalyticsProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
   try {
     final response = await apiClient.dio.get(ApiEndpoints.analyticsFull);
     return response.data as Map<String, dynamic>;
@@ -37,7 +37,9 @@ final dashboardEventsProvider = FutureProvider<List<dynamic>>((ref) async {
       queryParameters: {'date': today},
     );
     final body = response.data as Map<String, dynamic>;
-    return body['data'] as List<dynamic>? ?? body['events'] as List<dynamic>? ?? [];
+    return body['data'] as List<dynamic>? ??
+        body['events'] as List<dynamic>? ??
+        [];
   } catch (_) {
     return [];
   }
@@ -51,22 +53,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  String? _avatarBase64;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAvatar();
-  }
-
-  Future<void> _loadAvatar() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _avatarBase64 = prefs.getString('user_avatar');
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final authNotifier = ref.read(authStateProvider.notifier);
@@ -76,9 +62,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final eventsAsync = ref.watch(dashboardEventsProvider);
     final configAsync = ref.watch(customConfigProvider);
 
-    final configMetrics = (configAsync.asData?.value['coreMetrics'] as List<dynamic>? ?? [])
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
+    final configMetrics =
+        (configAsync.asData?.value['coreMetrics'] as List<dynamic>? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
 
     final xp = user?.xp ?? 0;
     final level = authNotifier.level;
@@ -93,7 +80,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ref.invalidate(dashboardRoutinesProvider);
           ref.invalidate(dashboardAnalyticsProvider);
           ref.invalidate(dashboardEventsProvider);
-          await _loadAvatar();
         },
         color: AppColors.blue,
         backgroundColor: AppColors.card,
@@ -109,60 +95,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   GestureDetector(
                     onTap: () async {
                       await context.push('/settings/profile');
-                      await _loadAvatar();
                     },
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                          ),
-                          child: ClipOval(
-                            child: _avatarBase64 != null
-                                ? Image.memory(
-                                    base64Decode(_avatarBase64!),
-                                    fit: BoxFit.cover,
-                                    width: 32,
-                                    height: 32,
-                                  )
-                                : Container(
-                                    decoration: const BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [AppColors.blue, AppColors.purple],
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        user?.initials ?? '?',
-                                        style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              color: AppColors.blue,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.edit_rounded, color: Colors.white, size: 7),
-                          ),
-                        ),
-                      ],
+                    child: ProfileAvatar(
+                      avatarKey: user?.avatar,
+                      initials: user?.initials ?? '?',
+                      size: 32,
+                      showEditBadge: true,
                     ),
                   ),
+                  
                   const SizedBox(width: 10),
                   Text(
                     'Welcome back, ${user?.displayName ?? 'User'}',
@@ -178,7 +119,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Stack(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+                      icon: const Icon(Icons.notifications_outlined,
+                          color: AppColors.textPrimary),
                       onPressed: () => context.push('/notifications'),
                     ),
                     Positioned(
@@ -264,7 +206,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             onPressed: () => context.push('/focus'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.blue,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
                             ),
                             child: Text(
                               'Start Focus',
@@ -307,7 +250,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   routinesAsync.when(
                     loading: () => const SizedBox(
                       height: 200,
-                      child: Center(child: CircularProgressIndicator(color: AppColors.blue)),
+                      child: Center(
+                          child:
+                              CircularProgressIndicator(color: AppColors.blue)),
                     ),
                     error: (_, __) => const SizedBox.shrink(),
                     data: (routines) => _ProductivityGrid(
@@ -355,11 +300,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         eventsAsync.when(
                           loading: () => const SizedBox(
                             height: 40,
-                            child: Center(child: CircularProgressIndicator(color: AppColors.blue)),
+                            child: Center(
+                                child: CircularProgressIndicator(
+                                    color: AppColors.blue)),
                           ),
                           error: (_, __) => Text(
                             'Could not load events',
-                            style: GoogleFonts.inter(color: AppColors.textMuted),
+                            style:
+                                GoogleFonts.inter(color: AppColors.textMuted),
                           ),
                           data: (events) {
                             if (events.isEmpty) {
@@ -508,7 +456,8 @@ class _ProductivityGrid extends StatelessWidget {
 
   double _avg(List<RoutineModel> list) {
     if (list.isEmpty) return 0;
-    return list.map((r) => r.productivityScore).reduce((a, b) => a + b) / list.length;
+    return list.map((r) => r.productivityScore).reduce((a, b) => a + b) /
+        list.length;
   }
 
   double _getMetricValue(RoutineModel r, String id) {
@@ -525,14 +474,16 @@ class _ProductivityGrid extends StatelessWidget {
     final now = DateTime.now();
     final last7 = routines.where((r) {
       try {
-        return DateTime.parse(r.date).isAfter(now.subtract(const Duration(days: 7)));
+        return DateTime.parse(r.date)
+            .isAfter(now.subtract(const Duration(days: 7)));
       } catch (_) {
         return false;
       }
     }).toList();
     final last30 = routines.where((r) {
       try {
-        return DateTime.parse(r.date).isAfter(now.subtract(const Duration(days: 30)));
+        return DateTime.parse(r.date)
+            .isAfter(now.subtract(const Duration(days: 30)));
       } catch (_) {
         return false;
       }
@@ -551,7 +502,9 @@ class _ProductivityGrid extends StatelessWidget {
     final weeklyAvg = _avg(last7).round();
     final monthlyAvg = _avg(last30).round();
     final prevWeekAvg = _avg(prevWeek);
-    final weekDiff = prevWeekAvg > 0 ? ((weeklyAvg - prevWeekAvg) / prevWeekAvg * 100).round() : 0;
+    final weekDiff = prevWeekAvg > 0
+        ? ((weeklyAvg - prevWeekAvg) / prevWeekAvg * 100).round()
+        : 0;
 
     // Determine primary metric ID and label dynamically
     String primaryMetricId = 'studyHours';
@@ -565,7 +518,8 @@ class _ProductivityGrid extends StatelessWidget {
         primaryMetricLabel = (metric['title'] as String?) ?? 'Deep Work Hours';
       } else {
         primaryMetricId = configMetrics.first['id'] as String? ?? 'studyHours';
-        primaryMetricLabel = (configMetrics.first['title'] as String?) ?? 'Deep Work Hours';
+        primaryMetricLabel =
+            (configMetrics.first['title'] as String?) ?? 'Deep Work Hours';
       }
     }
 
@@ -574,8 +528,11 @@ class _ProductivityGrid extends StatelessWidget {
       (sum, r) => sum + _getMetricValue(r, primaryMetricId),
     );
 
-    final sparklineSpots = last7.asMap().entries
-        .map((e) => FlSpot(e.key.toDouble(), e.value.productivityScore.toDouble()))
+    final sparklineSpots = last7
+        .asMap()
+        .entries
+        .map((e) =>
+            FlSpot(e.key.toDouble(), e.value.productivityScore.toDouble()))
         .toList();
 
     return GridView.count(
@@ -589,7 +546,9 @@ class _ProductivityGrid extends StatelessWidget {
         _StatCard(
           label: 'Daily Score',
           value: '$dailyScore',
-          chart: sparklineSpots.length >= 2 ? _MiniLineChart(spots: sparklineSpots) : null,
+          chart: sparklineSpots.length >= 2
+              ? _MiniLineChart(spots: sparklineSpots)
+              : null,
         ),
         _StatCard(
           label: 'Weekly Score',
@@ -605,7 +564,8 @@ class _ProductivityGrid extends StatelessWidget {
                   spots: last30
                       .asMap()
                       .entries
-                      .map((e) => FlSpot(e.key.toDouble(), e.value.productivityScore.toDouble()))
+                      .map((e) => FlSpot(e.key.toDouble(),
+                          e.value.productivityScore.toDouble()))
                       .toList(),
                 )
               : null,
@@ -616,9 +576,14 @@ class _ProductivityGrid extends StatelessWidget {
                   primaryMetricLabel.toLowerCase().contains('hrs') ||
                   primaryMetricId == 'studyHours'
               ? '${primaryMetricValue.toInt()}h ${((primaryMetricValue % 1) * 60).toInt()}m'
-              : primaryMetricValue.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), ''),
+              : primaryMetricValue
+                  .toStringAsFixed(1)
+                  .replaceAll(RegExp(r'\.0$'), ''),
           chart: last7.length >= 2
-              ? _MiniBarChart(values: last7.map((r) => _getMetricValue(r, primaryMetricId)).toList())
+              ? _MiniBarChart(
+                  values: last7
+                      .map((r) => _getMetricValue(r, primaryMetricId))
+                      .toList())
               : null,
         ),
       ],
@@ -748,7 +713,8 @@ class _MiniBarChart extends StatelessWidget {
                     toY: e.value,
                     color: AppColors.blue,
                     width: 8,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(3)),
                   ),
                 ],
               ),

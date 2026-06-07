@@ -30,18 +30,18 @@ void main() async {
     overrides: [
       firstLoginDoneProvider.overrideWith((ref) => firstLoginDone),
     ],
-    child: const ProductivityTrackerApp(),
+    child: const ProductivityAIApp(),
   ));
 }
 
-class ProductivityTrackerApp extends ConsumerWidget {
-  const ProductivityTrackerApp({super.key});
+class ProductivityAIApp extends ConsumerWidget {
+  const ProductivityAIApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
-      title: 'ProductivityTracker',
+      title: 'com.productivitytracker.productive_ai',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       routerConfig: router,

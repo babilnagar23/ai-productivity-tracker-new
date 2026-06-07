@@ -5,8 +5,9 @@ import 'package:productive_ai/main.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {
-    await tester
-        .pumpWidget(const ProviderScope(child: ProductivityTrackerApp()));
+    await tester.pumpWidget(const ProviderScope(
+      child: ProductivityAIApp(),
+    ));
     await tester.pump();
     // App should render without throwing
     expect(find.byType(ProviderScope), findsOneWidget);

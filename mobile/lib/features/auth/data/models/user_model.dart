@@ -11,6 +11,7 @@ class UserModel {
   final String id;
   final String email;
   final String? name;
+  final String? avatar;
   final int streak;
   final int xp;
   final Map<String, dynamic> customConfig;
@@ -19,6 +20,7 @@ class UserModel {
     required this.id,
     required this.email,
     this.name,
+    this.avatar,
     this.streak = 0,
     this.xp = 0,
     this.customConfig = const {},
@@ -26,14 +28,13 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      // Backend sends id as String ("1"), guard against int too
       id: json['id']?.toString() ?? '',
       email: json['email'] as String? ?? '',
       name: json['name'] as String?,
+      avatar: json['avatar'] as String?,
       streak: (json['streak'] as num?)?.toInt() ?? 0,
       xp: (json['xp'] as num?)?.toInt() ?? 0,
-      customConfig:
-          json['customConfig'] as Map<String, dynamic>? ?? const {},
+      customConfig: json['customConfig'] as Map<String, dynamic>? ?? const {},
     );
   }
 
@@ -47,5 +48,9 @@ class UserModel {
       return name![0].toUpperCase();
     }
     return email.isNotEmpty ? email[0].toUpperCase() : '?';
+  }
+
+  bool get hasAvatar {
+    return avatar != null && avatar!.trim().isNotEmpty;
   }
 }

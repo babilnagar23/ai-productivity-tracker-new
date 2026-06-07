@@ -1,11 +1,11 @@
 plugins {
     id("com.android.application")
-    // Flutter 3.44 Built-in Kotlin — do NOT apply org.jetbrains.kotlin.android here
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    namespace = "com.Productivity Tracker.productive_ai"
+    namespace = "com.productivitytracker.productive_ai"
     compileSdk = 36
     ndkVersion = "28.2.13676358"
 
@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.Productivity Tracker.productive_ai"
+        applicationId = "com.productivitytracker.productive_ai"
         minSdk = 24
         targetSdk = 36
         versionCode = flutter.versionCode

@@ -72,16 +72,21 @@ class CalendarEventItem {
       start: parseDate(json['start']),
       end: parseDate(json['end']),
       allDay: json['allDay'] as bool? ?? false,
-      colorKey: json['colorKey'] as String? ?? json['color'] as String? ?? 'blue',
+      colorKey:
+          json['colorKey'] as String? ?? json['color'] as String? ?? 'blue',
       category: json['category'] as String? ?? 'personal',
       location: json['location'] as String? ?? '',
-      attendees: attendeesRaw is List ? attendeesRaw.map((e) => e.toString()).toList() : const [],
+      attendees: attendeesRaw is List
+          ? attendeesRaw.map((e) => e.toString()).toList()
+          : const [],
       recurrence: recurrenceRaw is List ? recurrenceRaw : const [],
       reminders: remindersRaw is List ? remindersRaw : const [10],
       syncedToGoogle: json['syncedToGoogle'] as bool? ?? false,
       isAiGenerated: json['isAiGenerated'] as bool? ?? false,
       completed: json['completed'] as bool? ?? false,
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now() : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 
@@ -132,9 +137,12 @@ class CalendarDateRange {
 }
 
 DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
-DateTime _endOfDay(DateTime d) => DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
-DateTime _startOfWeek(DateTime d) => _startOfDay(d.subtract(Duration(days: d.weekday - 1)));
-DateTime _endOfWeek(DateTime d) => _endOfDay(_startOfWeek(d).add(const Duration(days: 6)));
+DateTime _endOfDay(DateTime d) =>
+    DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
+DateTime _startOfWeek(DateTime d) =>
+    _startOfDay(d.subtract(Duration(days: d.weekday - 1)));
+DateTime _endOfWeek(DateTime d) =>
+    _endOfDay(_startOfWeek(d).add(const Duration(days: 6)));
 DateTime _startOfMonth(DateTime d) => DateTime(d.year, d.month, 1);
 DateTime _endOfMonth(DateTime d) => _endOfDay(DateTime(d.year, d.month + 1, 0));
 
@@ -167,7 +175,8 @@ String _formatDate(DateTime dt) => DateFormat('EEE, MMM d, yyyy').format(dt);
 // Providers
 // -----------------------------------------------------------------------------
 
-final calendarStatusProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+final calendarStatusProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
   try {
     final response = await apiClient.dio.get(ApiEndpoints.calendarStatus);
     return response.data as Map<String, dynamic>;
@@ -176,7 +185,9 @@ final calendarStatusProvider = FutureProvider<Map<String, dynamic>>((ref) async 
   }
 });
 
-final calendarEventsRangeProvider = FutureProvider.family<List<CalendarEventItem>, String>((ref, rangeKey) async {
+final calendarEventsRangeProvider =
+    FutureProvider.family<List<CalendarEventItem>, String>(
+        (ref, rangeKey) async {
   try {
     final parts = rangeKey.split('|');
     final start = DateTime.parse(parts.first);
@@ -190,7 +201,9 @@ final calendarEventsRangeProvider = FutureProvider.family<List<CalendarEventItem
     );
 
     final body = response.data as Map<String, dynamic>;
-    final raw = (body['events'] as List<dynamic>?) ?? (body['data'] as List<dynamic>?) ?? const [];
+    final raw = (body['events'] as List<dynamic>?) ??
+        (body['data'] as List<dynamic>?) ??
+        const [];
     final events = raw
         .whereType<Map>()
         .map((e) => CalendarEventItem.fromJson(Map<String, dynamic>.from(e)))
@@ -223,22 +236,27 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   CalendarDateRange get _visibleRange {
     switch (_viewMode) {
       case CalendarViewMode.day:
-        return CalendarDateRange(_startOfDay(_selectedDay), _endOfDay(_selectedDay));
+        return CalendarDateRange(
+            _startOfDay(_selectedDay), _endOfDay(_selectedDay));
       case CalendarViewMode.week:
-        return CalendarDateRange(_startOfWeek(_focusedDay), _endOfWeek(_focusedDay));
+        return CalendarDateRange(
+            _startOfWeek(_focusedDay), _endOfWeek(_focusedDay));
       case CalendarViewMode.month:
-      default:
-        return CalendarDateRange(_startOfMonth(_focusedDay), _endOfMonth(_focusedDay));
+        return CalendarDateRange(
+            _startOfMonth(_focusedDay), _endOfMonth(_focusedDay));
     }
   }
 
-  CalendarDateRange get _selectedDayRange => CalendarDateRange(_startOfDay(_selectedDay), _endOfDay(_selectedDay));
+  CalendarDateRange get _selectedDayRange =>
+      CalendarDateRange(_startOfDay(_selectedDay), _endOfDay(_selectedDay));
 
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(calendarStatusProvider);
-    final rangeAsync = ref.watch(calendarEventsRangeProvider(_visibleRange.key));
-    final selectedDayAsync = ref.watch(calendarEventsRangeProvider(_selectedDayRange.key));
+    final rangeAsync =
+        ref.watch(calendarEventsRangeProvider(_visibleRange.key));
+    final selectedDayAsync =
+        ref.watch(calendarEventsRangeProvider(_selectedDayRange.key));
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -255,7 +273,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         actions: [
           _buildViewModeButton(),
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppColors.textMuted),
+            icon:
+                const Icon(Icons.settings_outlined, color: AppColors.textMuted),
             onPressed: _openCalendarSettings,
           ),
           const SizedBox(width: 4),
@@ -266,7 +285,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         backgroundColor: AppColors.card,
         onRefresh: _refreshAll,
         child: rangeAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.blue)),
+          loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.blue)),
           error: (e, _) => Center(
             child: Text('$e', style: GoogleFonts.inter(color: AppColors.error)),
           ),
@@ -335,15 +355,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         itemBuilder: (_) => [
           PopupMenuItem(
             value: CalendarViewMode.month,
-            child: Text('Month', style: GoogleFonts.inter(color: AppColors.textPrimary)),
+            child: Text('Month',
+                style: GoogleFonts.inter(color: AppColors.textPrimary)),
           ),
           PopupMenuItem(
             value: CalendarViewMode.week,
-            child: Text('Week', style: GoogleFonts.inter(color: AppColors.textPrimary)),
+            child: Text('Week',
+                style: GoogleFonts.inter(color: AppColors.textPrimary)),
           ),
           PopupMenuItem(
             value: CalendarViewMode.day,
-            child: Text('Day', style: GoogleFonts.inter(color: AppColors.textPrimary)),
+            child: Text('Day',
+                style: GoogleFonts.inter(color: AppColors.textPrimary)),
           ),
         ],
         child: Container(
@@ -356,9 +379,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
           child: Row(
             children: [
-              Text(label, style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+              Text(label,
+                  style: GoogleFonts.inter(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600)),
               const SizedBox(width: 4),
-              const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textMuted),
+              const Icon(Icons.arrow_drop_down_rounded,
+                  color: AppColors.textMuted),
             ],
           ),
         ),
@@ -380,14 +407,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+                  icon: const Icon(Icons.chevron_left_rounded,
+                      color: AppColors.textSecondary),
                   onPressed: () => setState(() {
                     _focusedDay = switch (_viewMode) {
-                      CalendarViewMode.month => DateTime(_focusedDay.year, _focusedDay.month - 1, 1),
-                      CalendarViewMode.week => _focusedDay.subtract(const Duration(days: 7)),
-                      CalendarViewMode.day => _selectedDay.subtract(const Duration(days: 1)),
+                      CalendarViewMode.month =>
+                        DateTime(_focusedDay.year, _focusedDay.month - 1, 1),
+                      CalendarViewMode.week =>
+                        _focusedDay.subtract(const Duration(days: 7)),
+                      CalendarViewMode.day =>
+                        _selectedDay.subtract(const Duration(days: 1)),
                     };
-                    if (_viewMode == CalendarViewMode.day) _selectedDay = _focusedDay;
+                    if (_viewMode == CalendarViewMode.day) {
+                      _selectedDay = _focusedDay;
+                    }
                   }),
                 ),
                 Expanded(
@@ -406,14 +439,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                  icon: const Icon(Icons.chevron_right_rounded,
+                      color: AppColors.textSecondary),
                   onPressed: () => setState(() {
                     _focusedDay = switch (_viewMode) {
-                      CalendarViewMode.month => DateTime(_focusedDay.year, _focusedDay.month + 1, 1),
-                      CalendarViewMode.week => _focusedDay.add(const Duration(days: 7)),
-                      CalendarViewMode.day => _selectedDay.add(const Duration(days: 1)),
+                      CalendarViewMode.month =>
+                        DateTime(_focusedDay.year, _focusedDay.month + 1, 1),
+                      CalendarViewMode.week =>
+                        _focusedDay.add(const Duration(days: 7)),
+                      CalendarViewMode.day =>
+                        _selectedDay.add(const Duration(days: 1)),
                     };
-                    if (_viewMode == CalendarViewMode.day) _selectedDay = _focusedDay;
+                    if (_viewMode == CalendarViewMode.day) {
+                      _selectedDay = _focusedDay;
+                    }
                   }),
                 ),
               ],
@@ -423,7 +462,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 firstDay: DateTime.utc(2024, 1, 1),
                 lastDay: DateTime.now().add(const Duration(days: 365)),
                 focusedDay: _focusedDay,
-                calendarFormat: _viewMode == CalendarViewMode.month ? CalendarFormat.month : CalendarFormat.week,
+                calendarFormat: _viewMode == CalendarViewMode.month
+                    ? CalendarFormat.month
+                    : CalendarFormat.week,
                 availableCalendarFormats: const {
                   CalendarFormat.month: 'Month',
                   CalendarFormat.week: 'Week',
@@ -437,38 +478,50 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     _viewMode = CalendarViewMode.day;
                   });
                 },
-                onPageChanged: (focused) => setState(() => _focusedDay = focused),
+                onPageChanged: (focused) =>
+                    setState(() => _focusedDay = focused),
                 calendarStyle: CalendarStyle(
                   outsideDaysVisible: false,
-                  defaultTextStyle: GoogleFonts.inter(color: AppColors.textPrimary),
-                  weekendTextStyle: GoogleFonts.inter(color: AppColors.textSecondary),
+                  defaultTextStyle:
+                      GoogleFonts.inter(color: AppColors.textPrimary),
+                  weekendTextStyle:
+                      GoogleFonts.inter(color: AppColors.textSecondary),
                   todayDecoration: BoxDecoration(
                     color: AppColors.blue.withValues(alpha: 0.26),
                     shape: BoxShape.circle,
                   ),
-                  todayTextStyle: GoogleFonts.inter(color: AppColors.blue, fontWeight: FontWeight.w700),
-                  selectedDecoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
-                  selectedTextStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700),
+                  todayTextStyle: GoogleFonts.inter(
+                      color: AppColors.blue, fontWeight: FontWeight.w700),
+                  selectedDecoration: const BoxDecoration(
+                      color: AppColors.blue, shape: BoxShape.circle),
+                  selectedTextStyle: GoogleFonts.inter(
+                      color: Colors.white, fontWeight: FontWeight.w700),
                   markerMargin: const EdgeInsets.only(top: 6),
                   markersMaxCount: 3,
                 ),
                 daysOfWeekStyle: DaysOfWeekStyle(
-                  weekdayStyle: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
-                  weekendStyle: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
+                  weekdayStyle: GoogleFonts.inter(
+                      color: AppColors.textMuted, fontSize: 12),
+                  weekendStyle: GoogleFonts.inter(
+                      color: AppColors.textMuted, fontSize: 12),
                 ),
                 eventLoader: (day) => eventsByDay[_dayKey(day)] ?? const [],
                 calendarBuilders: CalendarBuilders(
                   markerBuilder: (ctx, day, events) {
                     if (events.isEmpty) return null;
                     final count = events.length;
-                    final colors = events.take(3).map((e) => _eventColor(e.colorKey)).toList();
+                    final colors = events
+                        .take(3)
+                        .map((e) => _eventColor(e.colorKey))
+                        .toList();
                     if (count <= 1) {
                       return Positioned(
                         bottom: 4,
                         child: Container(
                           width: 6,
                           height: 6,
-                          decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                          decoration: const BoxDecoration(
+                              color: AppColors.success, shape: BoxShape.circle),
                         ),
                       );
                     }
@@ -478,10 +531,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: colors
                             .map((c) => Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 1),
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 1),
                                   width: 5,
                                   height: 5,
-                                  decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                                  decoration: BoxDecoration(
+                                      color: c, shape: BoxShape.circle),
                                 ))
                             .toList(),
                       ),
@@ -506,11 +561,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           children: [
             _miniChip('${dayEvents.length} events'),
             const SizedBox(width: 8),
-            _miniChip(_selectedDay.weekday == DateTime.saturday || _selectedDay.weekday == DateTime.sunday ? 'Weekend' : 'Workday'),
+            _miniChip(_selectedDay.weekday == DateTime.saturday ||
+                    _selectedDay.weekday == DateTime.sunday
+                ? 'Weekend'
+                : 'Workday'),
             const Spacer(),
             TextButton(
-              onPressed: () => setState(() => _viewMode = CalendarViewMode.week),
-              child: Text('Back to week', style: GoogleFonts.inter(color: AppColors.blue)),
+              onPressed: () =>
+                  setState(() => _viewMode = CalendarViewMode.week),
+              child: Text('Back to week',
+                  style: GoogleFonts.inter(color: AppColors.blue)),
             ),
           ],
         ),
@@ -528,7 +588,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(text, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+      child: Text(text,
+          style: GoogleFonts.inter(
+              color: AppColors.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w600)),
     );
   }
 
@@ -563,11 +627,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       );
     }
 
-    final sorted = [...selectedDayEvents]..sort((a, b) => a.start.compareTo(b.start));
+    final sorted = [...selectedDayEvents]
+      ..sort((a, b) => a.start.compareTo(b.start));
     const startHour = 6;
     const endHour = 22;
     const slotWidth = 84.0;
-    final totalWidth = (endHour - startHour + 1) * slotWidth;
+    const totalWidth = (endHour - startHour + 1) * slotWidth;
 
     return Container(
       height: 180,
@@ -593,7 +658,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           border: Border(
-                            left: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
+                            left: BorderSide(
+                                color: AppColors.border.withValues(alpha: 0.5)),
                           ),
                         ),
                         child: Align(
@@ -601,8 +667,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           child: Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(
-                              hour == 12 ? '12 PM' : hour < 12 ? '$hour AM' : '${hour - 12} PM',
-                              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10),
+                              hour == 12
+                                  ? '12 PM'
+                                  : hour < 12
+                                      ? '$hour AM'
+                                      : '${hour - 12} PM',
+                              style: GoogleFonts.inter(
+                                  color: AppColors.textMuted, fontSize: 10),
                             ),
                           ),
                         ),
@@ -636,7 +707,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border),
         ),
-        child: Text('No events on this day', style: GoogleFonts.inter(color: AppColors.textMuted)),
+        child: Text('No events on this day',
+            style: GoogleFonts.inter(color: AppColors.textMuted)),
       );
     }
 
@@ -654,7 +726,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  Widget _buildGoogleCalendarCard(bool connected, Map<String, dynamic>? status) {
+  Widget _buildGoogleCalendarCard(
+      bool connected, Map<String, dynamic>? status) {
     final googleEmail = status?['googleEmail'] as String? ?? '';
     final lastSynced = status?['lastSynced'] as String?;
 
@@ -676,7 +749,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   color: AppColors.blue.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.calendar_month_rounded, color: AppColors.blue, size: 22),
+                child: const Icon(Icons.calendar_month_rounded,
+                    color: AppColors.blue, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -694,16 +768,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     const SizedBox(height: 4),
                     Text(
                       connected
-                          ? (googleEmail.isNotEmpty ? googleEmail : 'Connected to Google Calendar')
+                          ? (googleEmail.isNotEmpty
+                              ? googleEmail
+                              : 'Connected to Google Calendar')
                           : 'Connect your Google Calendar account',
-                      style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
+                      style: GoogleFonts.inter(
+                          color: AppColors.textMuted, fontSize: 12),
                     ),
                     if (connected && lastSynced != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
                           'Last sync: $lastSynced',
-                          style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                          style: GoogleFonts.inter(
+                              color: AppColors.textMuted, fontSize: 11),
                         ),
                       ),
                   ],
@@ -711,7 +789,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               ),
               if (connected)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(999),
@@ -730,13 +809,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   onPressed: _connectGoogleCalendar,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.blue,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     minimumSize: Size.zero,
                   ),
                   child: Text(
                     'Connect',
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600),
                   ),
                 ),
             ],
@@ -752,14 +836,17 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         ? const SizedBox(
                             width: 14,
                             height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.blue),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.blue),
                           )
                         : const Icon(Icons.sync_rounded, size: 18),
-                    label: Text('Sync Now', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                    label: Text('Sync Now',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textPrimary,
                       side: const BorderSide(color: AppColors.border),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
@@ -768,10 +855,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _refreshAll,
                     icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: Text('Refresh', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                    label: Text('Refresh',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.blue,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
@@ -789,18 +878,27 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (_fabExpanded) ...[
-          _FabOption(icon: Icons.task_alt_rounded, label: 'New Task', onTap: () {
-            setState(() => _fabExpanded = false);
-            _openEventEditor();
-          }),
-          _FabOption(icon: Icons.event_rounded, label: 'New Event', onTap: () {
-            setState(() => _fabExpanded = false);
-            _openEventEditor(initialDate: _selectedDay);
-          }),
-          _FabOption(icon: Icons.notifications_active_rounded, label: 'Reminder', onTap: () {
-            setState(() => _fabExpanded = false);
-            _openEventEditor(initialCategory: 'reminder');
-          }),
+          _FabOption(
+              icon: Icons.task_alt_rounded,
+              label: 'New Task',
+              onTap: () {
+                setState(() => _fabExpanded = false);
+                _openEventEditor();
+              }),
+          _FabOption(
+              icon: Icons.event_rounded,
+              label: 'New Event',
+              onTap: () {
+                setState(() => _fabExpanded = false);
+                _openEventEditor(initialDate: _selectedDay);
+              }),
+          _FabOption(
+              icon: Icons.notifications_active_rounded,
+              label: 'Reminder',
+              onTap: () {
+                setState(() => _fabExpanded = false);
+                _openEventEditor(initialCategory: 'reminder');
+              }),
           const SizedBox(height: 8),
         ],
         GestureDetector(
@@ -808,8 +906,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           child: Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
-            child: Icon(_fabExpanded ? Icons.close_rounded : Icons.add_rounded, color: Colors.white, size: 28),
+            decoration: const BoxDecoration(
+                color: AppColors.blue, shape: BoxShape.circle),
+            child: Icon(_fabExpanded ? Icons.close_rounded : Icons.add_rounded,
+                color: Colors.white, size: 28),
           ),
         ),
       ],
@@ -820,7 +920,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     try {
       final response = await apiClient.dio.get(ApiEndpoints.calendarAuthUrl);
       final data = response.data as Map<String, dynamic>;
-      final url = data['authUrl'] as String? ?? data['auth_url'] as String? ?? data['url'] as String?;
+      final url = data['authUrl'] as String? ??
+          data['auth_url'] as String? ??
+          data['url'] as String?;
       if (url != null && url.isNotEmpty) {
         final uri = Uri.parse(url);
         if (await canLaunchUrl(uri)) {
@@ -830,7 +932,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Error: $e'), backgroundColor: AppColors.error),
         );
       }
     }
@@ -849,7 +952,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sync failed: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Sync failed: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -868,7 +973,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     ]);
   }
 
-  Map<String, List<CalendarEventItem>> _groupEventsByDay(List<CalendarEventItem> events) {
+  Map<String, List<CalendarEventItem>> _groupEventsByDay(
+      List<CalendarEventItem> events) {
     final map = <String, List<CalendarEventItem>>{};
     for (final e in events) {
       final key = _dayKey(e.start);
@@ -893,13 +999,19 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Calendar Options', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Calendar Options',
+                style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.sync_rounded, color: AppColors.blue),
-              title: Text('Fetch Google Calendar events', style: GoogleFonts.inter(color: AppColors.textPrimary)),
-              subtitle: Text('Pull the latest synced events into the app', style: GoogleFonts.inter(color: AppColors.textMuted)),
+              title: Text('Fetch Google Calendar events',
+                  style: GoogleFonts.inter(color: AppColors.textPrimary)),
+              subtitle: Text('Pull the latest synced events into the app',
+                  style: GoogleFonts.inter(color: AppColors.textMuted)),
               onTap: () {
                 Navigator.pop(ctx);
                 _fetchGoogleEvents();
@@ -908,8 +1020,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.refresh_rounded, color: AppColors.blue),
-              title: Text('Refresh current view', style: GoogleFonts.inter(color: AppColors.textPrimary)),
-              subtitle: Text('Reload calendar and timeline data', style: GoogleFonts.inter(color: AppColors.textMuted)),
+              title: Text('Refresh current view',
+                  style: GoogleFonts.inter(color: AppColors.textPrimary)),
+              subtitle: Text('Reload calendar and timeline data',
+                  style: GoogleFonts.inter(color: AppColors.textMuted)),
               onTap: () {
                 Navigator.pop(ctx);
                 _refreshAll();
@@ -955,17 +1069,34 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
+                    icon: const Icon(Icons.close_rounded,
+                        color: AppColors.textMuted),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              _detailRow('Description', event.description.isEmpty ? 'No description' : event.description),
-              _detailRow('Start Time', event.allDay ? 'All day' : '${_formatDate(event.start)} • ${_formatTime(event.start)}'),
-              _detailRow('End Time', event.allDay ? 'All day' : '${_formatDate(event.end)} • ${_formatTime(event.end)}'),
+              _detailRow(
+                  'Description',
+                  event.description.isEmpty
+                      ? 'No description'
+                      : event.description),
+              _detailRow(
+                  'Start Time',
+                  event.allDay
+                      ? 'All day'
+                      : '${_formatDate(event.start)} • ${_formatTime(event.start)}'),
+              _detailRow(
+                  'End Time',
+                  event.allDay
+                      ? 'All day'
+                      : '${_formatDate(event.end)} • ${_formatTime(event.end)}'),
               _detailRow('Category', event.category),
               _detailRow('Color', event.colorKey),
-              _detailRow('Reminder', event.reminders.isNotEmpty ? event.reminders.join(', ') : 'None'),
+              _detailRow(
+                  'Reminder',
+                  event.reminders.isNotEmpty
+                      ? event.reminders.join(', ')
+                      : 'None'),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -976,11 +1107,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         _openEventEditor(initialEvent: event);
                       },
                       icon: const Icon(Icons.edit_rounded),
-                      label: Text('Edit', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                      label: Text('Edit',
+                          style:
+                              GoogleFonts.inter(fontWeight: FontWeight.w600)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textPrimary,
                         side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
@@ -992,11 +1126,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         await _deleteEvent(event);
                       },
                       icon: const Icon(Icons.delete_outline_rounded),
-                      label: Text('Delete', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                      label: Text('Delete',
+                          style:
+                              GoogleFonts.inter(fontWeight: FontWeight.w600)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.error,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
@@ -1012,11 +1149,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       await _syncSingleEventToGoogle(event);
                     },
                     icon: const Icon(Icons.sync_rounded),
-                    label: Text('Sync to Google', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                    label: Text('Sync to Google',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.blue,
                       side: const BorderSide(color: AppColors.blue),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
@@ -1033,9 +1172,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+          Text(label,
+              style:
+                  GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
           const SizedBox(height: 4),
-          Text(value, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(value,
+              style: GoogleFonts.inter(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -1064,7 +1209,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sync failed: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Sync failed: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -1082,20 +1229,29 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Delete failed: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Delete failed: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     }
   }
 
-  Future<void> _openEventEditor({CalendarEventItem? initialEvent, DateTime? initialDate, String? initialCategory}) async {
+  Future<void> _openEventEditor(
+      {CalendarEventItem? initialEvent,
+      DateTime? initialDate,
+      String? initialCategory}) async {
     final titleCtrl = TextEditingController(text: initialEvent?.title ?? '');
-    final descCtrl = TextEditingController(text: initialEvent?.description ?? '');
-    final locationCtrl = TextEditingController(text: initialEvent?.location ?? '');
+    final descCtrl =
+        TextEditingController(text: initialEvent?.description ?? '');
+    final locationCtrl =
+        TextEditingController(text: initialEvent?.location ?? '');
 
     DateTime selectedDate = initialEvent?.start ?? initialDate ?? _selectedDay;
-    TimeOfDay startTime = TimeOfDay.fromDateTime(initialEvent?.start ?? DateTime.now().add(const Duration(hours: 1)));
-    TimeOfDay endTime = TimeOfDay.fromDateTime(initialEvent?.end ?? DateTime.now().add(const Duration(hours: 2)));
+    TimeOfDay startTime = TimeOfDay.fromDateTime(
+        initialEvent?.start ?? DateTime.now().add(const Duration(hours: 1)));
+    TimeOfDay endTime = TimeOfDay.fromDateTime(
+        initialEvent?.end ?? DateTime.now().add(const Duration(hours: 2)));
     bool allDay = initialEvent?.allDay ?? false;
     bool syncToGoogle = initialEvent?.syncedToGoogle ?? false;
     String category = initialEvent?.category ?? initialCategory ?? 'personal';
@@ -1179,7 +1335,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            initialEvent == null ? 'New Task / Event' : 'Edit Event',
+                            initialEvent == null
+                                ? 'New Task / Event'
+                                : 'Edit Event',
                             style: GoogleFonts.inter(
                               color: AppColors.textPrimary,
                               fontSize: 20,
@@ -1189,14 +1347,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(ctx),
-                          icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
+                          icon: const Icon(Icons.close_rounded,
+                              color: AppColors.textMuted),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     _editorField(titleCtrl, 'Title'),
                     const SizedBox(height: 10),
-                    _editorField(descCtrl, 'Description (optional)', maxLines: 3),
+                    _editorField(descCtrl, 'Description (optional)',
+                        maxLines: 3),
                     const SizedBox(height: 10),
                     _editorField(locationCtrl, 'Location (optional)'),
                     const SizedBox(height: 12),
@@ -1206,7 +1366,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           child: _ActionTile(
                             icon: Icons.calendar_month_rounded,
                             label: 'Date',
-                            value: DateFormat('MMM d, yyyy').format(selectedDate),
+                            value:
+                                DateFormat('MMM d, yyyy').format(selectedDate),
                             onTap: pickDate,
                           ),
                         ),
@@ -1242,16 +1403,27 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                               final chosen = await _showChoiceSheet<String>(
                                 ctx,
                                 title: 'Category',
-                                choices: const ['study', 'work', 'exercise', 'break', 'personal', 'reminder'],
+                                choices: const [
+                                  'study',
+                                  'work',
+                                  'exercise',
+                                  'break',
+                                  'personal',
+                                  'reminder'
+                                ],
                               );
-                              if (chosen != null) setModalState(() => category = chosen);
+                              if (chosen != null) {
+                                setModalState(() => category = chosen);
+                              } 
                             },
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Text('Color', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+                    Text('Color',
+                        style: GoogleFonts.inter(
+                            color: AppColors.textMuted, fontSize: 12)),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 10,
@@ -1266,7 +1438,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             decoration: BoxDecoration(
                               color: _eventColor(c),
                               shape: BoxShape.circle,
-                              border: Border.all(color: selected ? Colors.white : Colors.transparent, width: 2),
+                              border: Border.all(
+                                  color: selected
+                                      ? Colors.white
+                                      : Colors.transparent,
+                                  width: 2),
                               boxShadow: [
                                 BoxShadow(
                                   color: _eventColor(c).withValues(alpha: 0.35),
@@ -1287,21 +1463,28 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             value: allDay,
                             onChanged: (v) => setModalState(() => allDay = v),
                             contentPadding: EdgeInsets.zero,
-                            title: Text('All day', style: GoogleFonts.inter(color: AppColors.textPrimary)),
+                            title: Text('All day',
+                                style: GoogleFonts.inter(
+                                    color: AppColors.textPrimary)),
                           ),
                         ),
                         Expanded(
                           child: SwitchListTile.adaptive(
                             value: syncToGoogle,
-                            onChanged: (v) => setModalState(() => syncToGoogle = v),
+                            onChanged: (v) =>
+                                setModalState(() => syncToGoogle = v),
                             contentPadding: EdgeInsets.zero,
-                            title: Text('Sync to Google', style: GoogleFonts.inter(color: AppColors.textPrimary)),
+                            title: Text('Sync to Google',
+                                style: GoogleFonts.inter(
+                                    color: AppColors.textPrimary)),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text('Reminder', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+                    Text('Reminder',
+                        style: GoogleFonts.inter(
+                            color: AppColors.textMuted, fontSize: 12)),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -1312,12 +1495,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           selected: selected,
                           label: Text(m == 0 ? 'No reminder' : '$m min'),
                           labelStyle: GoogleFonts.inter(
-                            color: selected ? Colors.white : AppColors.textPrimary,
+                            color:
+                                selected ? Colors.white : AppColors.textPrimary,
                             fontWeight: FontWeight.w600,
                           ),
                           selectedColor: AppColors.blue,
                           backgroundColor: AppColors.cardElevated,
-                          onSelected: (_) => setModalState(() => reminderMinutes = m),
+                          onSelected: (_) =>
+                              setModalState(() => reminderMinutes = m),
                         );
                       }).toList(),
                     ),
@@ -1330,7 +1515,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           if (titleCtrl.text.trim().isEmpty) return;
 
                           final startDateTime = allDay
-                              ? DateTime(selectedDate.year, selectedDate.month, selectedDate.day)
+                              ? DateTime(selectedDate.year, selectedDate.month,
+                                  selectedDate.day)
                               : DateTime(
                                   selectedDate.year,
                                   selectedDate.month,
@@ -1339,7 +1525,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   startTime.minute,
                                 );
                           final endDateTime = allDay
-                              ? DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 23, 59, 59)
+                              ? DateTime(selectedDate.year, selectedDate.month,
+                                  selectedDate.day, 23, 59, 59)
                               : DateTime(
                                   selectedDate.year,
                                   selectedDate.month,
@@ -1366,29 +1553,37 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
                           try {
                             if (initialEvent == null) {
-                              await apiClient.dio.post(ApiEndpoints.calendarEvents, data: payload);
+                              await apiClient.dio.post(
+                                  ApiEndpoints.calendarEvents,
+                                  data: payload);
                             } else {
-                              await apiClient.dio.put('${ApiEndpoints.calendarEvents}/${initialEvent.id}', data: payload);
+                              await apiClient.dio.put(
+                                  '${ApiEndpoints.calendarEvents}/${initialEvent.id}',
+                                  data: payload);
                             }
-                            if (mounted) {
-                              Navigator.pop(ctx);
-                              await _refreshAll();
-                            }
+                            if (!mounted) return;
+
+                            Navigator.pop(context);
+                            await _refreshAll();
                           } catch (e) {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Save failed: $e'), backgroundColor: AppColors.error),
+                                SnackBar(
+                                    content: Text('Save failed: $e'),
+                                    backgroundColor: AppColors.error),
                               );
                             }
                           }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.blue,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
                         ),
                         child: Text(
                           initialEvent == null ? 'Save Event' : 'Update Event',
-                          style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.inter(
+                              color: Colors.white, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -1402,7 +1597,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  Widget _editorField(TextEditingController ctrl, String hint, {int maxLines = 1}) {
+  Widget _editorField(TextEditingController ctrl, String hint,
+      {int maxLines = 1}) {
     return TextField(
       controller: ctrl,
       maxLines: maxLines,
@@ -1428,7 +1624,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  Future<T?> _showChoiceSheet<T>(BuildContext context, {required String title, required List<T> choices}) {
+  Future<T?> _showChoiceSheet<T>(BuildContext context,
+      {required String title, required List<T> choices}) {
     return showModalBottomSheet<T>(
       context: context,
       backgroundColor: AppColors.card,
@@ -1443,11 +1640,17 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                Text(title,
+                    style: GoogleFonts.inter(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
                 ...choices.map((item) => ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(item.toString(), style: GoogleFonts.inter(color: AppColors.textPrimary)),
+                      title: Text(item.toString(),
+                          style:
+                              GoogleFonts.inter(color: AppColors.textPrimary)),
                       onTap: () => Navigator.pop(ctx, item),
                     )),
               ],
@@ -1476,8 +1679,10 @@ class _TimelineBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dayStart = DateTime(event.start.year, event.start.month, event.start.day, startHour);
-    final dayEnd = DateTime(event.start.year, event.start.month, event.start.day, endHour);
+    final dayStart = DateTime(
+        event.start.year, event.start.month, event.start.day, startHour);
+    final dayEnd =
+        DateTime(event.start.year, event.start.month, event.start.day, endHour);
     final start = event.start.isBefore(dayStart) ? dayStart : event.start;
     final end = event.end.isAfter(dayEnd) ? dayEnd : event.end;
     final totalMinutes = (end.difference(start)).inMinutes.clamp(30, 9999);
@@ -1499,7 +1704,8 @@ class _TimelineBlock extends StatelessWidget {
           decoration: BoxDecoration(
             color: _eventColor(event.colorKey).withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _eventColor(event.colorKey).withValues(alpha: 0.35)),
+            border: Border.all(
+                color: _eventColor(event.colorKey).withValues(alpha: 0.35)),
             boxShadow: [
               BoxShadow(
                 color: _eventColor(event.colorKey).withValues(alpha: 0.18),
@@ -1524,15 +1730,21 @@ class _TimelineBlock extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                event.allDay ? 'All day' : '${_formatTime(event.start)} • ${_formatTime(event.end)}',
-                style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10),
+                event.allDay
+                    ? 'All day'
+                    : '${_formatTime(event.start)} • ${_formatTime(event.end)}',
+                style:
+                    GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10),
               ),
               const SizedBox(height: 4),
               Text(
                 event.category,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(color: _eventColor(event.colorKey), fontSize: 10, fontWeight: FontWeight.w700),
+                style: GoogleFonts.inter(
+                    color: _eventColor(event.colorKey),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -1587,13 +1799,17 @@ class _EventCard extends StatelessWidget {
                         ),
                       ),
                       if (event.syncedToGoogle)
-                        const Icon(Icons.cloud_done_rounded, color: AppColors.success, size: 18),
+                        const Icon(Icons.cloud_done_rounded,
+                            color: AppColors.success, size: 18),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    event.allDay ? 'All day' : '${_formatTime(event.start)} – ${_formatTime(event.end)}',
-                    style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
+                    event.allDay
+                        ? 'All day'
+                        : '${_formatTime(event.start)} – ${_formatTime(event.end)}',
+                    style: GoogleFonts.inter(
+                        color: AppColors.textMuted, fontSize: 12),
                   ),
                   if (event.description.isNotEmpty) ...[
                     const SizedBox(height: 6),
@@ -1601,7 +1817,8 @@ class _EventCard extends StatelessWidget {
                       event.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+                      style: GoogleFonts.inter(
+                          color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ],
                 ],
@@ -1620,7 +1837,11 @@ class _ActionTile extends StatelessWidget {
   final String value;
   final VoidCallback? onTap;
 
-  const _ActionTile({required this.icon, required this.label, required this.value, this.onTap});
+  const _ActionTile(
+      {required this.icon,
+      required this.label,
+      required this.value,
+      this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1638,11 +1859,17 @@ class _ActionTile extends StatelessWidget {
             children: [
               Icon(icon, color: AppColors.blue, size: 18),
               const SizedBox(width: 8),
-              Text(label, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+              Text(label,
+                  style: GoogleFonts.inter(
+                      color: AppColors.textMuted, fontSize: 11)),
             ],
           ),
           const SizedBox(height: 6),
-          Text(value, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(value,
+              style: GoogleFonts.inter(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -1657,7 +1884,8 @@ class _FabOption extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _FabOption({required this.icon, required this.label, required this.onTap});
+  const _FabOption(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1674,7 +1902,9 @@ class _FabOption extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14)),
+            Text(label,
+                style: GoogleFonts.inter(
+                    color: AppColors.textPrimary, fontSize: 14)),
             const SizedBox(width: 10),
             Icon(icon, color: AppColors.blue, size: 20),
           ],

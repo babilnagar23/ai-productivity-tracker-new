@@ -136,7 +136,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isAuthenticated: true,
           isLoading: false,
         );
-        debugPrint('[AUTH] Registration complete — auto-logged in as ${user.email}');
+        debugPrint(
+            '[AUTH] Registration complete — auto-logged in as ${user.email}');
       } else {
         state = state.copyWith(isLoading: false);
       }
@@ -163,17 +164,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // ── Update Profile ─────────────────────────────────────────────────────────
 
-  Future<bool> updateProfile({String? firstName, String? lastName, String? email}) async {
+  Future<bool> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? avatar,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final data = <String, dynamic>{};
+
       if (firstName != null || lastName != null) {
-        final fullName = [firstName ?? '', lastName ?? ''].where((s) => s.isNotEmpty).join(' ');
+        final fullName = [firstName ?? '', lastName ?? '']
+            .where((s) => s.isNotEmpty)
+            .join(' ');
         if (fullName.isNotEmpty) data['name'] = fullName;
       }
+
       if (email != null) data['email'] = email;
+      if (avatar != null) data['avatar'] = avatar;
+
       await _repository.updateProfile(data);
       final user = await _repository.getMe();
+
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
@@ -250,7 +263,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
             }
             return 'Network error. Check your internet connection.';
           default:
-            return backendMsg ?? 'Something went wrong (error $statusCode). Please try again.';
+            return backendMsg ??
+                'Something went wrong (error $statusCode). Please try again.';
         }
       } catch (_) {
         return 'Network error. Check your internet connection.';
@@ -268,7 +282,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (msg.contains('not found') || msg.contains('does not exist')) {
         return 'Account not found. Please register first.';
       }
-      if (msg.contains('already exists') || msg.contains('already registered')) {
+      if (msg.contains('already exists') ||
+          msg.contains('already registered')) {
         return 'This email is already registered. Try logging in instead.';
       }
       if (msg.contains('not verified')) {
@@ -277,8 +292,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (msg.contains('tokens') || msg.contains('token')) {
         return 'Authentication failed. Please try again.';
       }
-      if (msg.contains('internet') || msg.contains('network') ||
-          msg.contains('connection') || msg.contains('socket')) {
+      if (msg.contains('internet') ||
+          msg.contains('network') ||
+          msg.contains('connection') ||
+          msg.contains('socket')) {
         return 'Check your internet connection and try again.';
       }
       // Return the message but strip technical prefixes
@@ -290,7 +307,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authStateProvider =
-    StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(ref.watch(authRepositoryProvider));
 });

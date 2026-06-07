@@ -1,5 +1,0 @@
-package com.Productivity Tracker.productive_ai
-
-import io.flutter.embedding.android.FlutterActivity
-
-class MainActivity : FlutterActivity()

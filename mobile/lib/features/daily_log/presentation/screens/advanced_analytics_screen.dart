@@ -140,8 +140,12 @@ class _AdvancedAnalyticsScreenState
       buf.writeln(
           '${r.date},${r.productivityScore},${r.sleepTime},${r.wakeTime}');
     }
-    await Share.share(buf.toString(),
-        subject: 'Productivity Tracker Data Export');
+    await SharePlus.instance.share(
+      ShareParams(
+        text: buf.toString(),
+        subject: 'Productivity Tracker Data Export',
+      ),
+    );
   }
 
   @override
@@ -238,8 +242,9 @@ class _AdvancedAnalyticsScreenState
     if (routines.any((r) =>
         r.coreMetrics.containsKey('mobileUsage') &&
         (r.coreMetrics['mobileUsage'] as num? ?? 0) > 0)) {
-      if (!availableMetrics.contains('mobileUsage'))
+      if (!availableMetrics.contains('mobileUsage')) {
         availableMetrics.add('mobileUsage');
+      }
     }
 
     return ListView(
@@ -946,8 +951,9 @@ class _MetricBarsChart extends StatelessWidget {
                   showTitles: true,
                   getTitlesWidget: (v, _) {
                     final i = v.toInt();
-                    if (i < 0 || i >= routines.length)
+                    if (i < 0 || i >= routines.length) {
                       return const SizedBox.shrink();
+                    }
                     final d = routines[i].date;
                     return Text(d.length >= 10 ? d.substring(8) : d,
                         style: GoogleFonts.inter(

@@ -1,13 +1,12 @@
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
+import '../../../../shared/widgets/avatar_picker_sheet.dart';
+import '../../../../shared/widgets/profile_avatar.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -20,9 +19,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final bool showAvatarUpload = false;
+
   bool _isLoading = false;
-  String? _avatarBase64;
+  String? _selectedAvatarKey;
   int _totalTasks = 0;
   double _focusHours = 0;
 
@@ -31,23 +30,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.initState();
     final user = ref.read(authStateProvider).user;
     if (user != null) {
-      final parts = (user.name ?? '').split(' ');
+      final parts = (user.name ?? '').trim().split(' ');
       _firstNameCtrl.text = parts.isNotEmpty ? parts[0] : '';
       _lastNameCtrl.text = parts.length > 1 ? parts.sublist(1).join(' ') : '';
       _emailCtrl.text = user.email;
+      _selectedAvatarKey = user.avatar;
     }
-    _loadAvatar();
     _loadStats();
-  }
-
-  Future<void> _loadAvatar() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => _avatarBase64 = prefs.getString('user_avatar'));
   }
 
   Future<void> _loadStats() async {
     try {
       final routines = await RoutineRepository().getRoutines();
+      if (!mounted) return;
       setState(() {
         _totalTasks = routines.length;
         _focusHours = routines.fold(0.0, (sum, r) => sum + r.studyHours);
@@ -64,54 +59,47 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _pickAvatar() async {
-    final picker = ImagePicker();
-
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 400,
-      maxHeight: 400,
-      imageQuality: 80,
+    final picked = await showAvatarPickerSheet(
+      context,
+      selectedKey: _selectedAvatarKey,
     );
 
-    if (picked == null) return;
-
-    final Uint8List bytes = await picked.readAsBytes();
-
-    final String base64 = base64Encode(bytes);
-
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString('user_avatar', base64);
+    if (picked == null || !mounted) return;
 
     setState(() {
-      _avatarBase64 = base64;
+      _selectedAvatarKey = picked;
     });
   }
 
   Future<void> _save() async {
     setState(() => _isLoading = true);
+
     final success = await ref.read(authStateProvider.notifier).updateProfile(
           firstName: _firstNameCtrl.text.trim(),
           lastName: _lastNameCtrl.text.trim(),
           email: _emailCtrl.text.trim(),
+          avatar: _selectedAvatarKey,
         );
+
+    if (!mounted) return;
     setState(() => _isLoading = false);
-    if (mounted) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Profile updated!'),
-              backgroundColor: AppColors.success),
-        );
-        Navigator.pop(context);
-      } else {
-        final error = ref.read(authStateProvider).error;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(error ?? 'Update failed'),
-              backgroundColor: AppColors.error),
-        );
-      }
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated!'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.pop(context);
+    } else {
+      final error = ref.read(authStateProvider).error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'Update failed'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -122,9 +110,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: Text('Edit Profile',
-            style: GoogleFonts.inter(
-                color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+        title: Text(
+          'Edit Profile',
+          style: GoogleFonts.inter(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded,
               color: AppColors.textPrimary, size: 20),
@@ -134,80 +126,67 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Avatar
           Center(
-            child: Stack(
+            child: Column(
               children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: [AppColors.blue, AppColors.purple]),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      user?.initials ?? '?',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                ProfileAvatar(
+                  avatarKey: _selectedAvatarKey,
+                  initials: user?.initials ?? '?',
+                  size: 80,
+                  showEditBadge: true,
+                  onTap: _pickAvatar,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Tap to choose from 8 avatars',
+                  style: GoogleFonts.inter(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
                   ),
                 ),
-                if (showAvatarUpload)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: _pickAvatar,
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: const BoxDecoration(
-                          color: AppColors.blue,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.camera_alt_rounded,
-                            color: Colors.white, size: 14),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
           const SizedBox(height: 24),
 
-          // Stats row
           Row(
             children: [
               Expanded(
-                  child: _StatBox(label: 'Total Tasks', value: '$_totalTasks')),
+                child: _StatBox(
+                  label: 'Total Tasks',
+                  value: '$_totalTasks',
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(
-                  child: _StatBox(
-                      label: 'Focus Hours',
-                      value: '${_focusHours.toStringAsFixed(1)}h')),
+                child: _StatBox(
+                  label: 'Focus Hours',
+                  value: '${_focusHours.toStringAsFixed(1)}h',
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(
-                  child:
-                      _StatBox(label: 'Streak', value: '${user?.streak ?? 0}')),
+                child: _StatBox(
+                  label: 'Streak',
+                  value: '${user?.streak ?? 0}',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
 
-          // Form
           _label('First Name'),
           _field(_firstNameCtrl, 'First name'),
           const SizedBox(height: 12),
+
           _label('Last Name'),
           _field(_lastNameCtrl, 'Last name'),
           const SizedBox(height: 12),
+
           _label('Email'),
           _field(_emailCtrl, 'Email address',
               keyboardType: TextInputType.emailAddress),
+
           const SizedBox(height: 32),
 
           SizedBox(
@@ -218,19 +197,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.blue,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               child: _isLoading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : Text('Save Changes',
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      'Save Changes',
                       style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700)),
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -241,11 +227,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget _label(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(text,
-          style: GoogleFonts.inter(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w500)),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          color: AppColors.textSecondary,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 
@@ -261,14 +250,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         filled: true,
         fillColor: AppColors.card,
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.border)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
         enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.border)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.blue)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.blue),
+        ),
       ),
     );
   }
@@ -277,6 +269,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 class _StatBox extends StatelessWidget {
   final String label;
   final String value;
+
   const _StatBox({required this.label, required this.value});
 
   @override
@@ -290,15 +283,23 @@ class _StatBox extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(value,
-              style: GoogleFonts.inter(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800)),
-          Text(label,
-              style:
-                  GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
-              textAlign: TextAlign.center),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: AppColors.textMuted,
+              fontSize: 11,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
