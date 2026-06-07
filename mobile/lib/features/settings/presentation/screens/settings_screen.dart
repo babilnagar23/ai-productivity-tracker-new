@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +9,7 @@ import '../../../../core/api/api_endpoints.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
+import '../../../../shared/widgets/profile_avatar.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -22,14 +21,12 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _calendarConnected = false;
-  String? _avatarBase64;
 
   @override
   void initState() {
     super.initState();
     _loadPrefs();
     _loadCalendarStatus();
-    _loadAvatar();
   }
 
   Future<void> _loadPrefs() async {
@@ -50,14 +47,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } catch (_) {}
   }
 
-  Future<void> _loadAvatar() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _avatarBase64 = prefs.getString('user_avatar');
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).user;
@@ -76,11 +65,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // User header
           GestureDetector(
             onTap: () async {
               await context.push('/settings/profile');
-              await _loadAvatar();
+              if (mounted) setState(() {});
             },
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -91,39 +79,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                    ),
-                    child: ClipOval(
-                      child: _avatarBase64 != null
-                          ? Image.memory(
-                              base64Decode(_avatarBase64!),
-                              fit: BoxFit.cover,
-                              width: 64,
-                              height: 64,
-                            )
-                          : Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [AppColors.blue, AppColors.purple],
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  user?.initials ?? '?',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                    ),
+                  ProfileAvatar(
+                    avatarKey: user?.avatar,
+                    initials: user?.initials ?? '?',
+                    size: 64,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -261,7 +220,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         final response =
                             await apiClient.dio.get(ApiEndpoints.calendarAuthUrl);
 
-                        // Backend returns { authUrl: "..." }
                         final url = response.data['authUrl'] as String? ??
                             response.data['auth_url'] as String? ??
                             response.data['url'] as String?;
@@ -269,8 +227,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         if (url != null) {
                           scaffoldMessenger.showSnackBar(
                             const SnackBar(
-                              content:
-                                  Text('Opening Google Calendar auth...'),
+                              content: Text('Opening Google Calendar auth...'),
                             ),
                           );
                         }

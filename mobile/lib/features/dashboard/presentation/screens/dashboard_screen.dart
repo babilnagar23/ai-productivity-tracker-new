@@ -1,45 +1,89 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import '../../../../shared/widgets/profile_avatar.dart';
 
 import '../../../../core/api/api_client.dart';
 import '../../../../core/api/api_endpoints.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/profile_avatar.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../routines/data/models/routine_model.dart';
-import '../../../routines/data/repositories/routine_repository.dart';
-import '../../../routines/presentation/providers/routines_provider.dart';
 
-final dashboardRoutinesProvider =
-    FutureProvider<List<RoutineModel>>((ref) async {
-  return RoutineRepository().getRoutines();
-});
+DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
+DateTime _endOfDay(DateTime d) =>
+    DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
+DateTime _startOfWeek(DateTime d) =>
+    _startOfDay(d.subtract(Duration(days: d.weekday - 1)));
+DateTime _endOfWeek(DateTime d) =>
+    _endOfDay(_startOfWeek(d).add(const Duration(days: 6)));
+DateTime _startOfMonth(DateTime d) => DateTime(d.year, d.month, 1);
+DateTime _endOfMonth(DateTime d) => _endOfDay(DateTime(d.year, d.month + 1, 0));
 
-final dashboardAnalyticsProvider =
-    FutureProvider<Map<String, dynamic>>((ref) async {
+DateTime _parseDateTime(dynamic value) {
+  if (value is DateTime) {
+    return value.isUtc ? value.toLocal() : value;
+  }
+  if (value is String && value.isNotEmpty) {
+    final dt = DateTime.tryParse(value);
+    if (dt != null) {
+      return dt.isUtc ? dt.toLocal() : dt;
+    }
+  }
+  return DateTime.now();
+}
+
+List<Map<String, dynamic>> _extractEvents(dynamic data) {
+  if (data is! Map<String, dynamic>) return [];
+  final raw = (data['data'] as List<dynamic>?) ??
+      (data['events'] as List<dynamic>?) ??
+      const [];
+  return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+    ..sort((a, b) => _parseDateTime(a['start'] ?? a['start_time'])
+        .compareTo(_parseDateTime(b['start'] ?? b['start_time'])));
+}
+
+String _formatDashboardEventTime(Map<String, dynamic> event) {
+  final dt = _parseDateTime(event['start'] ?? event['start_time']).toLocal();
+  return DateFormat('hh:mm a').format(dt);
+}
+
+String _formatDashboardEventDateTime(Map<String, dynamic> event) {
+  final dt = _parseDateTime(event['start'] ?? event['start_time']).toLocal();
+  return DateFormat('dd MMM • hh:mm a').format(dt);
+}
+
+final dashboardTodayEventsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
-    final response = await apiClient.dio.get(ApiEndpoints.analyticsFull);
-    return response.data as Map<String, dynamic>;
+    final now = DateTime.now();
+    final response = await apiClient.dio.get(
+      ApiEndpoints.calendarEvents,
+      queryParameters: {
+        'start': _startOfDay(now).toIso8601String(),
+        'end': _endOfDay(now).toIso8601String(),
+      },
+    );
+    return _extractEvents(response.data);
   } catch (_) {
-    return {};
+    return [];
   }
 });
 
-final dashboardEventsProvider = FutureProvider<List<dynamic>>((ref) async {
+final dashboardUpcomingEventsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final now = DateTime.now();
     final response = await apiClient.dio.get(
       ApiEndpoints.calendarEvents,
-      queryParameters: {'date': today},
+      queryParameters: {
+        'start': _endOfDay(now)
+            .add(const Duration(milliseconds: 1))
+            .toIso8601String(),
+        'end': _endOfDay(now.add(const Duration(days: 7))).toIso8601String(),
+      },
     );
-    final body = response.data as Map<String, dynamic>;
-    return body['data'] as List<dynamic>? ??
-        body['events'] as List<dynamic>? ??
-        [];
+    return _extractEvents(response.data);
   } catch (_) {
     return [];
   }
@@ -57,15 +101,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final authNotifier = ref.read(authStateProvider.notifier);
     final user = ref.watch(authStateProvider).user;
-    final routinesAsync = ref.watch(dashboardRoutinesProvider);
-    ref.watch(dashboardAnalyticsProvider); // preload
-    final eventsAsync = ref.watch(dashboardEventsProvider);
-    final configAsync = ref.watch(customConfigProvider);
-
-    final configMetrics =
-        (configAsync.asData?.value['coreMetrics'] as List<dynamic>? ?? [])
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
+    final todayEventsAsync = ref.watch(dashboardTodayEventsProvider);
+    final upcomingEventsAsync = ref.watch(dashboardUpcomingEventsProvider);
 
     final xp = user?.xp ?? 0;
     final level = authNotifier.level;
@@ -77,15 +114,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       backgroundColor: AppColors.bg,
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(dashboardRoutinesProvider);
-          ref.invalidate(dashboardAnalyticsProvider);
-          ref.invalidate(dashboardEventsProvider);
+          ref.invalidate(dashboardTodayEventsProvider);
+          ref.invalidate(dashboardUpcomingEventsProvider);
         },
         color: AppColors.blue,
         backgroundColor: AppColors.card,
         child: CustomScrollView(
           slivers: [
-            // App Bar
             SliverAppBar(
               backgroundColor: AppColors.bg,
               pinned: true,
@@ -93,8 +128,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               title: Row(
                 children: [
                   GestureDetector(
-                    onTap: () async {
-                      await context.push('/settings/profile');
+                    onTap: () {
+                      context.push('/settings/profile');
                     },
                     child: ProfileAvatar(
                       avatarKey: user?.avatar,
@@ -103,14 +138,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       showEditBadge: true,
                     ),
                   ),
-                  
                   const SizedBox(width: 10),
-                  Text(
-                    'Welcome back, ${user?.displayName ?? 'User'}',
-                    style: GoogleFonts.inter(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Text(
+                      'Welcome back, ${user?.displayName ?? 'User'}',
+                      style: GoogleFonts.inter(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -139,12 +176,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ],
             ),
-
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // Streak + XP bar
                   Row(
                     children: [
                       const Text('🔥', style: TextStyle(fontSize: 16)),
@@ -178,8 +213,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Focus Mode Command Center
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -207,7 +240,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.blue,
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                             ),
                             child: Text(
                               'Start Focus',
@@ -245,24 +279,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Productivity Overview 2x2 grid
-                  routinesAsync.when(
-                    loading: () => const SizedBox(
-                      height: 200,
-                      child: Center(
-                          child:
-                              CircularProgressIndicator(color: AppColors.blue)),
-                    ),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (routines) => _ProductivityGrid(
-                      routines: routines,
-                      configMetrics: configMetrics,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Today's Schedule
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -297,17 +313,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        eventsAsync.when(
+                        todayEventsAsync.when(
                           loading: () => const SizedBox(
                             height: 40,
                             child: Center(
-                                child: CircularProgressIndicator(
-                                    color: AppColors.blue)),
+                              child: CircularProgressIndicator(
+                                color: AppColors.blue,
+                              ),
+                            ),
                           ),
                           error: (_, __) => Text(
-                            'Could not load events',
-                            style:
-                                GoogleFonts.inter(color: AppColors.textMuted),
+                            'Could not load today’s events',
+                            style: GoogleFonts.inter(
+                              color: AppColors.textMuted,
+                            ),
                           ),
                           data: (events) {
                             if (events.isEmpty) {
@@ -322,30 +341,157 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                               );
                             }
+
                             final shown = events.take(5).toList();
+
                             return Column(
                               children: [
-                                ...shown.map((e) {
-                                  final ev = e as Map<String, dynamic>;
+                                ...shown.map((event) {
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
-                                    child: Text(
-                                      '${ev['start_time'] ?? ''} - ${ev['end_time'] ?? ''}: ${ev['title'] ?? ''}',
-                                      style: GoogleFonts.inter(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 14,
-                                      ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          margin: const EdgeInsets.only(top: 6),
+                                          decoration: const BoxDecoration(
+                                            color: AppColors.blue,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            '${_formatDashboardEventTime(event)}: ${event['title'] ?? ''}',
+                                            style: GoogleFonts.inter(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   );
                                 }),
                                 if (events.length > 5)
                                   GestureDetector(
                                     onTap: () => context.go('/calendar'),
-                                    child: Text(
-                                      '+ ${events.length - 5} more',
-                                      style: GoogleFonts.inter(
-                                        color: AppColors.blue,
-                                        fontSize: 13,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        '+ ${events.length - 5} more',
+                                        style: GoogleFonts.inter(
+                                          color: AppColors.blue,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(color: AppColors.border, height: 1),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Upcoming Schedules',
+                              style: GoogleFonts.inter(
+                                color: AppColors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => context.go('/calendar'),
+                              child: Text(
+                                'View All',
+                                style: GoogleFonts.inter(
+                                  color: AppColors.blue,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        upcomingEventsAsync.when(
+                          loading: () => const SizedBox(
+                            height: 40,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: AppColors.blue,
+                              ),
+                            ),
+                          ),
+                          error: (_, __) => Text(
+                            'Could not load upcoming events',
+                            style: GoogleFonts.inter(
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          data: (events) {
+                            if (events.isEmpty) {
+                              return Text(
+                                'No upcoming schedules for the next 7 days.',
+                                style: GoogleFonts.inter(
+                                  color: AppColors.textMuted,
+                                  fontSize: 14,
+                                ),
+                              );
+                            }
+
+                            final shown = events.take(5).toList();
+
+                            return Column(
+                              children: [
+                                ...shown.map((event) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          margin: const EdgeInsets.only(top: 6),
+                                          decoration: const BoxDecoration(
+                                            color: AppColors.success,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            '${_formatDashboardEventDateTime(event)}: ${event['title'] ?? ''}',
+                                            style: GoogleFonts.inter(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                                if (events.length > 5)
+                                  GestureDetector(
+                                    onTap: () => context.go('/calendar'),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        '+ ${events.length - 5} more upcoming',
+                                        style: GoogleFonts.inter(
+                                          color: AppColors.blue,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -357,8 +503,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Quick Actions
                   Text(
                     'Quick Actions',
                     style: GoogleFonts.inter(
@@ -446,290 +590,12 @@ class _PresetChip extends StatelessWidget {
   }
 }
 
-class _ProductivityGrid extends StatelessWidget {
-  final List<RoutineModel> routines;
-  final List<Map<String, dynamic>> configMetrics;
-  const _ProductivityGrid({
-    required this.routines,
-    required this.configMetrics,
-  });
-
-  double _avg(List<RoutineModel> list) {
-    if (list.isEmpty) return 0;
-    return list.map((r) => r.productivityScore).reduce((a, b) => a + b) /
-        list.length;
-  }
-
-  double _getMetricValue(RoutineModel r, String id) {
-    if (r.coreMetrics.containsKey(id)) {
-      return (r.coreMetrics[id] as num?)?.toDouble() ?? 0.0;
-    }
-    if (id == 'studyHours') return r.studyHours;
-    if (id == 'mobileUsage') return r.mobileUsage;
-    return 0.0;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final last7 = routines.where((r) {
-      try {
-        return DateTime.parse(r.date)
-            .isAfter(now.subtract(const Duration(days: 7)));
-      } catch (_) {
-        return false;
-      }
-    }).toList();
-    final last30 = routines.where((r) {
-      try {
-        return DateTime.parse(r.date)
-            .isAfter(now.subtract(const Duration(days: 30)));
-      } catch (_) {
-        return false;
-      }
-    }).toList();
-    final prevWeek = routines.where((r) {
-      try {
-        final d = DateTime.parse(r.date);
-        return d.isAfter(now.subtract(const Duration(days: 14))) &&
-            d.isBefore(now.subtract(const Duration(days: 7)));
-      } catch (_) {
-        return false;
-      }
-    }).toList();
-
-    final dailyScore = last7.isNotEmpty ? last7.last.productivityScore : 0;
-    final weeklyAvg = _avg(last7).round();
-    final monthlyAvg = _avg(last30).round();
-    final prevWeekAvg = _avg(prevWeek);
-    final weekDiff = prevWeekAvg > 0
-        ? ((weeklyAvg - prevWeekAvg) / prevWeekAvg * 100).round()
-        : 0;
-
-    // Determine primary metric ID and label dynamically
-    String primaryMetricId = 'studyHours';
-    String primaryMetricLabel = 'Deep Work Hours';
-
-    if (configMetrics.isNotEmpty) {
-      final hasStudyHours = configMetrics.any((m) => m['id'] == 'studyHours');
-      if (hasStudyHours) {
-        primaryMetricId = 'studyHours';
-        final metric = configMetrics.firstWhere((m) => m['id'] == 'studyHours');
-        primaryMetricLabel = (metric['title'] as String?) ?? 'Deep Work Hours';
-      } else {
-        primaryMetricId = configMetrics.first['id'] as String? ?? 'studyHours';
-        primaryMetricLabel =
-            (configMetrics.first['title'] as String?) ?? 'Deep Work Hours';
-      }
-    }
-
-    final primaryMetricValue = last7.fold(
-      0.0,
-      (sum, r) => sum + _getMetricValue(r, primaryMetricId),
-    );
-
-    final sparklineSpots = last7
-        .asMap()
-        .entries
-        .map((e) =>
-            FlSpot(e.key.toDouble(), e.value.productivityScore.toDouble()))
-        .toList();
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 1.1,
-      children: [
-        _StatCard(
-          label: 'Daily Score',
-          value: '$dailyScore',
-          chart: sparklineSpots.length >= 2
-              ? _MiniLineChart(spots: sparklineSpots)
-              : null,
-        ),
-        _StatCard(
-          label: 'Weekly Score',
-          value: '$weeklyAvg',
-          sub: weekDiff >= 0 ? '+$weekDiff%' : '$weekDiff%',
-          subColor: weekDiff >= 0 ? AppColors.success : AppColors.error,
-        ),
-        _StatCard(
-          label: 'Monthly Trend',
-          value: '$monthlyAvg',
-          chart: last30.length >= 2
-              ? _MiniLineChart(
-                  spots: last30
-                      .asMap()
-                      .entries
-                      .map((e) => FlSpot(e.key.toDouble(),
-                          e.value.productivityScore.toDouble()))
-                      .toList(),
-                )
-              : null,
-        ),
-        _StatCard(
-          label: primaryMetricLabel,
-          value: primaryMetricLabel.toLowerCase().contains('hour') ||
-                  primaryMetricLabel.toLowerCase().contains('hrs') ||
-                  primaryMetricId == 'studyHours'
-              ? '${primaryMetricValue.toInt()}h ${((primaryMetricValue % 1) * 60).toInt()}m'
-              : primaryMetricValue
-                  .toStringAsFixed(1)
-                  .replaceAll(RegExp(r'\.0$'), ''),
-          chart: last7.length >= 2
-              ? _MiniBarChart(
-                  values: last7
-                      .map((r) => _getMetricValue(r, primaryMetricId))
-                      .toList())
-              : null,
-        ),
-      ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final String? sub;
-  final Color? subColor;
-  final Widget? chart;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    this.sub,
-    this.subColor,
-    this.chart,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: AppColors.textPrimary,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          if (sub != null)
-            Text(
-              sub!,
-              style: GoogleFonts.inter(
-                color: subColor ?? AppColors.textMuted,
-                fontSize: 11,
-              ),
-            ),
-          if (chart != null) ...[
-            const Spacer(),
-            SizedBox(height: 36, child: chart!),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniLineChart extends StatelessWidget {
-  final List<FlSpot> spots;
-  const _MiniLineChart({required this.spots});
-
-  @override
-  Widget build(BuildContext context) {
-    return LineChart(
-      LineChartData(
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        titlesData: const FlTitlesData(
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            color: AppColors.blue,
-            isCurved: true,
-            barWidth: 2,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: AppColors.blue.withValues(alpha: 0.1),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniBarChart extends StatelessWidget {
-  final List<double> values;
-  const _MiniBarChart({required this.values});
-
-  @override
-  Widget build(BuildContext context) {
-    return BarChart(
-      BarChartData(
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        titlesData: const FlTitlesData(
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        barGroups: values
-            .asMap()
-            .entries
-            .map(
-              (e) => BarChartGroupData(
-                x: e.key,
-                barRods: [
-                  BarChartRodData(
-                    toY: e.value,
-                    color: AppColors.blue,
-                    width: 8,
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(3)),
-                  ),
-                ],
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-
 class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
+
   const _QuickAction({
     required this.icon,
     required this.label,
