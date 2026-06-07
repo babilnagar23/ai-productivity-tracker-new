@@ -20,6 +20,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final bool showAvatarUpload = false;
   bool _isLoading = false;
   String? _avatarBase64;
   int _totalTasks = 0;
@@ -145,33 +146,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         colors: [AppColors.blue, AppColors.purple]),
                     shape: BoxShape.circle,
                   ),
-                  child: _avatarBase64 != null
-                      ? ClipOval(
-                          child: Image.memory(base64Decode(_avatarBase64!),
-                              fit: BoxFit.cover))
-                      : Center(
-                          child: Text(user?.initials ?? '?',
-                              style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w700)),
-                        ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: _pickAvatar,
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: const BoxDecoration(
-                          color: AppColors.blue, shape: BoxShape.circle),
-                      child: const Icon(Icons.camera_alt_rounded,
-                          color: Colors.white, size: 14),
+                  child: Center(
+                    child: Text(
+                      user?.initials ?? '?',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
+                if (showAvatarUpload)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: _pickAvatar,
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: const BoxDecoration(
+                          color: AppColors.blue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded,
+                            color: Colors.white, size: 14),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

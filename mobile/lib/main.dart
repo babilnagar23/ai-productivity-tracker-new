@@ -5,10 +5,14 @@ import 'core/api/api_client.dart';
 import 'core/routes/app_router.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/theme/app_theme.dart';
+import 'core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   apiClient.init();
+
+  await NotificationService.initialize();
 
   // Load first-login flag synchronously before the router starts
   final firstLoginDone =

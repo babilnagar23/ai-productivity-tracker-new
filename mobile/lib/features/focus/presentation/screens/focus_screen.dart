@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/focus_alarm_service.dart';
 
 // ── Focus Session Model ───────────────────────────────────────────────────────
 
@@ -26,22 +28,24 @@ class FocusSession {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'startTime': startTime.toIso8601String(),
-    'endTime': endTime?.toIso8601String(),
-    'durationMinutes': durationMinutes,
-    'label': label,
-    'completed': completed,
-  };
+        'id': id,
+        'startTime': startTime.toIso8601String(),
+        'endTime': endTime?.toIso8601String(),
+        'durationMinutes': durationMinutes,
+        'label': label,
+        'completed': completed,
+      };
 
   factory FocusSession.fromJson(Map<String, dynamic> j) => FocusSession(
-    id: j['id'] as String,
-    startTime: DateTime.parse(j['startTime'] as String),
-    endTime: j['endTime'] != null ? DateTime.parse(j['endTime'] as String) : null,
-    durationMinutes: j['durationMinutes'] as int,
-    label: j['label'] as String,
-    completed: j['completed'] as bool,
-  );
+        id: j['id'] as String,
+        startTime: DateTime.parse(j['startTime'] as String),
+        endTime: j['endTime'] != null
+            ? DateTime.parse(j['endTime'] as String)
+            : null,
+        durationMinutes: j['durationMinutes'] as int,
+        label: j['label'] as String,
+        completed: j['completed'] as bool,
+      );
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -54,7 +58,8 @@ class FocusScreen extends StatefulWidget {
   State<FocusScreen> createState() => _FocusScreenState();
 }
 
-class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin {
+class _FocusScreenState extends State<FocusScreen>
+    with TickerProviderStateMixin {
   late TabController _tabCtrl;
 
   // Timer state
@@ -64,6 +69,7 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
   bool _timerPaused = false;
   Timer? _timer;
   DateTime? _sessionStart;
+  DateTime? _sessionEndTime;
   final String _sessionLabel = 'Focus Session';
 
   // Stopwatch state
@@ -99,33 +105,69 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
     if (raw != null) {
       final list = jsonDecode(raw) as List<dynamic>;
       setState(() {
-        _sessions = list.map((e) => FocusSession.fromJson(e as Map<String, dynamic>)).toList();
+        _sessions = list
+            .map((e) => FocusSession.fromJson(e as Map<String, dynamic>))
+            .toList();
       });
     }
   }
 
   Future<void> _saveSessions() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('focus_sessions', jsonEncode(_sessions.map((s) => s.toJson()).toList()));
+    await prefs.setString('focus_sessions',
+        jsonEncode(_sessions.map((s) => s.toJson()).toList()));
   }
 
   void _startTimer() {
-    _sessionStart = DateTime.now();
-    setState(() { _timerRunning = true; _timerPaused = false; });
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_remainingSeconds > 0) {
-        setState(() => _remainingSeconds--);
-      } else {
-        _timer?.cancel();
-        setState(() => _timerRunning = false);
-        _onTimerComplete();
-      }
+    _sessionStart ??= DateTime.now();
+
+    _sessionEndTime = DateTime.now().add(
+      Duration(seconds: _remainingSeconds),
+    );
+
+    setState(() {
+      _timerRunning = true;
+      _timerPaused = false;
     });
+
+    _timer?.cancel();
+
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) {
+        if (_sessionEndTime == null) return;
+
+        final remaining = _sessionEndTime!.difference(DateTime.now()).inSeconds;
+
+        if (remaining <= 0) {
+          _timer?.cancel();
+
+          setState(() {
+            _remainingSeconds = 0;
+            _timerRunning = false;
+          });
+
+          _onTimerComplete();
+        } else {
+          setState(() {
+            _remainingSeconds = remaining;
+          });
+        }
+      },
+    );
   }
 
   void _pauseTimer() {
     _timer?.cancel();
-    setState(() { _timerRunning = false; _timerPaused = true; });
+
+    if (_sessionEndTime != null) {
+      _remainingSeconds = _sessionEndTime!.difference(DateTime.now()).inSeconds;
+    }
+
+    setState(() {
+      _timerRunning = false;
+      _timerPaused = true;
+    });
   }
 
   void _endTimer() {
@@ -140,6 +182,7 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
     );
     _sessions.insert(0, session);
     _saveSessions();
+    _sessionEndTime = null;
     setState(() {
       _timerRunning = false;
       _timerPaused = false;
@@ -147,7 +190,7 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
     });
   }
 
-  void _onTimerComplete() {
+  Future<void> _onTimerComplete() async {
     final session = FocusSession(
       id: const Uuid().v4(),
       startTime: _sessionStart ?? DateTime.now(),
@@ -156,24 +199,61 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
       label: _sessionLabel,
       completed: true,
     );
+
     _sessions.insert(0, session);
-    _saveSessions();
-    setState(() => _remainingSeconds = _selectedMinutes * 60);
-    _showCompletionDialog();
+
+    await _saveSessions();
+
+    setState(() {
+      _remainingSeconds = _selectedMinutes * 60;
+    });
+
+    // Play alarm sound + vibration
+    await FocusAlarmService.playAlarm();
+
+    // Show notification
+    await NotificationService.showFocusCompleted();
+
+    if (mounted) {
+      _showCompletionDialog();
+    }
   }
 
   void _showCompletionDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
-        title: Text('Session Complete!', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
-        content: Text('Great work! You completed a $_selectedMinutes minute focus session.',
-            style: GoogleFonts.inter(color: AppColors.textSecondary)),
+        title: Text(
+          'Session Complete 🎉',
+          style: GoogleFonts.inter(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          'Great work! You completed a $_selectedMinutes minute focus session.',
+          style: GoogleFonts.inter(
+            color: AppColors.textSecondary,
+          ),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Done', style: GoogleFonts.inter(color: AppColors.blue, fontWeight: FontWeight.w600)),
+            onPressed: () async {
+              await FocusAlarmService.stopAlarm();
+
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+              }
+            },
+            child: Text(
+              'Stop Alarm',
+              style: GoogleFonts.inter(
+                color: AppColors.blue,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -183,7 +263,8 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
   // Stopwatch methods
   void _startStopwatch() {
     _stopwatch.start();
-    _swTimer = Timer.periodic(const Duration(milliseconds: 100), (_) => setState(() {}));
+    _swTimer = Timer.periodic(
+        const Duration(milliseconds: 100), (_) => setState(() {}));
   }
 
   void _stopStopwatch() {
@@ -203,7 +284,10 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
 
   void _resetStopwatch() {
     _stopwatch.reset();
-    setState(() { _laps.clear(); _lastLapTime = Duration.zero; });
+    setState(() {
+      _laps.clear();
+      _lastLapTime = Duration.zero;
+    });
   }
 
   void _saveStopwatchSession(String label) {
@@ -237,7 +321,8 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
   int get _todayFocusMinutes {
     final today = DateTime.now();
     return _sessions
-        .where((s) => s.completed &&
+        .where((s) =>
+            s.completed &&
             s.startTime.year == today.year &&
             s.startTime.month == today.month &&
             s.startTime.day == today.day)
@@ -257,9 +342,14 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: Text('Focus Command Center', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 17)),
+        title: Text('Focus Command Center',
+            style: GoogleFonts.inter(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 17)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_rounded,
+              color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         // Settings icon removed — not needed here
@@ -301,10 +391,17 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('$pct%', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 14)),
+                    Text('$pct%',
+                        style: GoogleFonts.inter(
+                            color: AppColors.textSecondary, fontSize: 14)),
                     Text(_formatTimer(_remainingSeconds),
-                        style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 48, fontWeight: FontWeight.w800)),
-                    Text(_sessionLabel, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13)),
+                        style: GoogleFonts.inter(
+                            color: AppColors.textPrimary,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w800)),
+                    Text(_sessionLabel,
+                        style: GoogleFonts.inter(
+                            color: AppColors.textSecondary, fontSize: 13)),
                   ],
                 ),
               ],
@@ -328,13 +425,17 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                     }),
                     child: Container(
                       margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: sel ? AppColors.blue : AppColors.cardElevated,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text('${m}m', style: GoogleFonts.inter(
-                        color: sel ? Colors.white : AppColors.textSecondary, fontSize: 13)),
+                      child: Text('${m}m',
+                          style: GoogleFonts.inter(
+                              color:
+                                  sel ? Colors.white : AppColors.textSecondary,
+                              fontSize: 13)),
                     ),
                   );
                 }),
@@ -343,7 +444,8 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                   onTap: _showCustomDurationSheet,
                   child: Container(
                     margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: ![25, 45, 60, 90].contains(_selectedMinutes)
                           ? AppColors.blue
@@ -392,9 +494,14 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
               onPressed: _startTimer,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.blue,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
-              child: Text('Start Session', style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+              child: Text('Start Session',
+                  style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -407,11 +514,14 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                   onPressed: _timerRunning ? _pauseTimer : _startTimer,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: Text(_timerRunning ? 'Pause' : 'Resume',
-                      style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                      style: GoogleFonts.inter(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -420,10 +530,13 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                   onPressed: _endTimer,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.error),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text('End Session', style: GoogleFonts.inter(color: AppColors.error, fontWeight: FontWeight.w600)),
+                  child: Text('End Session',
+                      style: GoogleFonts.inter(
+                          color: AppColors.error, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
@@ -434,12 +547,14 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
         // Stats row
         Row(
           children: [
-            Expanded(child: _StatMiniCard(
+            Expanded(
+                child: _StatMiniCard(
               label: "Today's Focus Time",
               value: '${_todayFocusMinutes ~/ 60}h ${_todayFocusMinutes % 60}m',
             )),
             const SizedBox(width: 12),
-            Expanded(child: _StatMiniCard(
+            Expanded(
+                child: _StatMiniCard(
               label: 'Weekly Focus Hours',
               value: '${_weekFocusMinutes ~/ 60}h ${_weekFocusMinutes % 60}m',
             )),
@@ -448,10 +563,16 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
         const SizedBox(height: 20),
 
         // Session history
-        Text('Session History', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+        Text('Session History',
+            style: GoogleFonts.inter(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),
         if (_sessions.isEmpty)
-          Center(child: Text('No sessions yet', style: GoogleFonts.inter(color: AppColors.textMuted))),
+          Center(
+              child: Text('No sessions yet',
+                  style: GoogleFonts.inter(color: AppColors.textMuted))),
         ..._sessions.take(10).map((s) => _SessionTile(session: s)),
       ],
     );
@@ -480,11 +601,11 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
           Center(
             child: Text(
               'Last lap: ${_formatDuration(_laps.first)}',
-              style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13),
+              style: GoogleFonts.inter(
+                  color: AppColors.textSecondary, fontSize: 13),
             ),
           ),
         const SizedBox(height: 32),
-
         if (!isRunning && !hasStopped)
           SizedBox(
             width: double.infinity,
@@ -493,12 +614,16 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
               onPressed: _startStopwatch,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.blue,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
-              child: Text('Start', style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+              child: Text('Start',
+                  style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700)),
             ),
           ),
-
         if (isRunning)
           Row(
             children: [
@@ -507,10 +632,14 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                   onPressed: _addLap,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text('Lap', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                  child: Text('Lap',
+                      style: GoogleFonts.inter(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -519,15 +648,17 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                   onPressed: _stopStopwatch,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.error),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text('Stop', style: GoogleFonts.inter(color: AppColors.error, fontWeight: FontWeight.w600)),
+                  child: Text('Stop',
+                      style: GoogleFonts.inter(
+                          color: AppColors.error, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
           ),
-
         if (hasStopped)
           Row(
             children: [
@@ -536,10 +667,14 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                   onPressed: _resetStopwatch,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text('Reset', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                  child: Text('Reset',
+                      style: GoogleFonts.inter(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -548,18 +683,24 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                   onPressed: () => _showSaveSessionSheet(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.blue,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text('Save Session', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
+                  child: Text('Save Session',
+                      style: GoogleFonts.inter(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
           ),
-
         const SizedBox(height: 24),
         if (_laps.isNotEmpty) ...[
-          Text('Laps', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text('Laps',
+              style: GoogleFonts.inter(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           ..._laps.asMap().entries.map((e) {
             final lapNum = _laps.length - e.key;
@@ -568,15 +709,26 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: isLatest ? AppColors.blue.withValues(alpha: 0.1) : AppColors.card,
+                color: isLatest
+                    ? AppColors.blue.withValues(alpha: 0.1)
+                    : AppColors.card,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isLatest ? AppColors.blue.withValues(alpha: 0.3) : AppColors.border),
+                border: Border.all(
+                    color: isLatest
+                        ? AppColors.blue.withValues(alpha: 0.3)
+                        : AppColors.border),
               ),
               child: Row(
                 children: [
-                  Text('Lap $lapNum', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 14)),
+                  Text('Lap $lapNum',
+                      style: GoogleFonts.inter(
+                          color: AppColors.textSecondary, fontSize: 14)),
                   const Spacer(),
-                  Text(_formatDuration(e.value), style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(_formatDuration(e.value),
+                      style: GoogleFonts.inter(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600)),
                 ],
               ),
             );
@@ -720,14 +872,20 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
+        padding: EdgeInsets.fromLTRB(
+            16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Save this session', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Save this session',
+                style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
             TextField(
               controller: ctrl,
@@ -737,8 +895,12 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                 hintStyle: GoogleFonts.inter(color: AppColors.textMuted),
                 filled: true,
                 fillColor: AppColors.cardElevated,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.border)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.border)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.border)),
               ),
             ),
             const SizedBox(height: 16),
@@ -750,14 +912,23 @@ class _FocusScreenState extends State<FocusScreen> with TickerProviderStateMixin
                       _saveStopwatchSession(ctrl.text);
                       Navigator.pop(ctx);
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                    child: Text('Save', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.blue,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14))),
+                    child: Text('Save',
+                        style: GoogleFonts.inter(
+                            color: Colors.white, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 TextButton(
-                  onPressed: () { _resetStopwatch(); Navigator.pop(ctx); },
-                  child: Text('Skip', style: GoogleFonts.inter(color: AppColors.textSecondary)),
+                  onPressed: () {
+                    _resetStopwatch();
+                    Navigator.pop(ctx);
+                  },
+                  child: Text('Skip',
+                      style: GoogleFonts.inter(color: AppColors.textSecondary)),
                 ),
               ],
             ),
@@ -827,9 +998,15 @@ class _StatMiniCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+          Text(label,
+              style: GoogleFonts.inter(
+                  color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 4),
-          Text(value, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(value,
+              style: GoogleFonts.inter(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800)),
         ],
       ),
     );
@@ -842,7 +1019,8 @@ class _SessionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final time = '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')} AM';
+    final time =
+        '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')} AM';
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -860,17 +1038,21 @@ class _SessionTile extends StatelessWidget {
               color: AppColors.blue.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.timer_outlined, color: AppColors.blue, size: 18),
+            child: const Icon(Icons.timer_outlined,
+                color: AppColors.blue, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               '$time - ${session.label} (${session.durationMinutes}m)',
-              style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14),
+              style:
+                  GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14),
             ),
           ),
           Icon(
-            session.completed ? Icons.check_circle_rounded : Icons.cancel_outlined,
+            session.completed
+                ? Icons.check_circle_rounded
+                : Icons.cancel_outlined,
             color: session.completed ? AppColors.success : AppColors.textMuted,
             size: 18,
           ),
