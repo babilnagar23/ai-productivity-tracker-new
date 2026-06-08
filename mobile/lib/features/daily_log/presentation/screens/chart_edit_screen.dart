@@ -205,7 +205,7 @@ class _ChartEditScreenState extends State<ChartEditScreen> {
               child: ElevatedButton(
                 onPressed: _apply,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.blue,
+                  backgroundColor: const Color.fromARGB(255, 23, 144, 149),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

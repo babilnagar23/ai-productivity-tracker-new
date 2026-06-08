@@ -232,7 +232,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: ElevatedButton(
                             onPressed: () => context.push('/focus'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color.fromARGB(255, 237, 227, 149),
+                              backgroundColor: const Color.fromARGB(255, 19, 154, 159),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -240,7 +240,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             child: Text(
                               'Start Focus',
                               style: GoogleFonts.inter(
-                                color: const Color.fromARGB(255, 0, 0, 0),
+                                color: const Color.fromARGB(255, 255, 255, 255),
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),

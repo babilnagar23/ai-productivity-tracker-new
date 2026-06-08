@@ -248,7 +248,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ],
       ),
       body: RefreshIndicator(
-        color: AppColors.blue,
+        color: const Color.fromARGB(255, 23, 144, 149),
         backgroundColor: AppColors.card,
         onRefresh: _refresh,
         child: rangeAsync.when(
@@ -682,7 +682,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               label: Text('Refresh',
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.blue,
+                  backgroundColor: const Color.fromARGB(255, 23, 144, 149),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12))),
             )),

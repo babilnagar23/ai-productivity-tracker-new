@@ -195,7 +195,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _save,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.blue,
+                backgroundColor: const Color.fromARGB(255, 23, 144, 149),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),

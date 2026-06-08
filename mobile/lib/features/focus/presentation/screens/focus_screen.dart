@@ -356,7 +356,7 @@ class _FocusScreenState extends State<FocusScreen>
         bottom: TabBar(
           controller: _tabCtrl,
           tabs: const [Tab(text: 'Focus Timer'), Tab(text: 'Stopwatch')],
-          indicatorColor: AppColors.blue,
+          indicatorColor: const Color.fromARGB(255, 23, 144, 149),
           labelColor: AppColors.blue,
           unselectedLabelColor: AppColors.textMuted,
         ),
@@ -493,7 +493,7 @@ class _FocusScreenState extends State<FocusScreen>
             child: ElevatedButton(
               onPressed: _startTimer,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.blue,
+                backgroundColor: const Color.fromARGB(255, 23, 144, 149),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
               ),
@@ -613,7 +613,7 @@ class _FocusScreenState extends State<FocusScreen>
             child: ElevatedButton(
               onPressed: _startStopwatch,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.blue,
+                backgroundColor: const Color.fromARGB(255, 23, 144, 149),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
               ),
@@ -682,7 +682,7 @@ class _FocusScreenState extends State<FocusScreen>
                 child: ElevatedButton(
                   onPressed: () => _showSaveSessionSheet(),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue,
+                    backgroundColor: const Color.fromARGB(255, 23, 144, 149),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -853,7 +853,7 @@ class _FocusScreenState extends State<FocusScreen>
                   Navigator.pop(ctx);
                 },
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue,
+                    backgroundColor: const Color.fromARGB(255, 23, 144, 149),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14))),
                 child: Text('Set Duration',
@@ -913,7 +913,8 @@ class _FocusScreenState extends State<FocusScreen>
                       Navigator.pop(ctx);
                     },
                     style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.blue,
+                        backgroundColor:
+                            const Color.fromARGB(255, 23, 144, 149),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14))),
                     child: Text('Save',
@@ -1035,11 +1036,12 @@ class _SessionTile extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.blue.withValues(alpha: 0.12),
+              color: const Color.fromARGB(255, 23, 144, 149)
+                  .withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.timer_outlined,
-                color: AppColors.blue, size: 18),
+                color: Color.fromARGB(255, 23, 144, 149), size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
