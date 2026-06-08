@@ -13,13 +13,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
 DateTime _endOfDay(DateTime d) =>
     DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
-DateTime _startOfWeek(DateTime d) =>
-    _startOfDay(d.subtract(Duration(days: d.weekday - 1)));
-DateTime _endOfWeek(DateTime d) =>
-    _endOfDay(_startOfWeek(d).add(const Duration(days: 6)));
-DateTime _startOfMonth(DateTime d) => DateTime(d.year, d.month, 1);
-DateTime _endOfMonth(DateTime d) => _endOfDay(DateTime(d.year, d.month + 1, 0));
-
+    
 DateTime _parseDateTime(dynamic value) {
   if (value is DateTime) {
     return value.isUtc ? value.toLocal() : value;
@@ -238,7 +232,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: ElevatedButton(
                             onPressed: () => context.push('/focus'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.blue,
+                              backgroundColor: const Color.fromARGB(255, 237, 227, 149),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -246,7 +240,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             child: Text(
                               'Start Focus',
                               style: GoogleFonts.inter(
-                                color: Colors.white,
+                                color: const Color.fromARGB(255, 0, 0, 0),
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
