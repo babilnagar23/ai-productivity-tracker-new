@@ -23,6 +23,12 @@ import '../../features/settings/presentation/screens/achievements_screen.dart';
 import '../../features/settings/presentation/screens/notification_prefs_screen.dart';
 import '../../features/focus/presentation/screens/focus_screen.dart';
 import '../../features/notifications/presentation/screens/notification_center_screen.dart';
+import '../../features/todos/presentation/screens/todo_screen.dart';
+
+import '../../features/todos/models/todo_model.dart';
+import '../../features/todos/presentation/screens/todo_customization_screen.dart';
+import '../../features/todos/presentation/screens/todo_form_screen.dart';
+import '../../features/todos/presentation/screens/todo_history_screen.dart';
 
 class _AuthChangeNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -126,7 +132,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               );
             },
           ),
-          
+
           GoRoute(
               path: '/daily-log/customize',
               builder: (c, s) => const CustomizationScreen()),
@@ -167,6 +173,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
               path: '/notifications',
               builder: (c, s) => const NotificationCenterScreen()),
+          GoRoute(
+            path: '/todos',
+            builder: (context, state) => const TodoScreen(),
+          ),
         ],
       ),
 
@@ -176,6 +186,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/ai', redirect: (_, __) => '/ai-coach'),
       GoRoute(path: '/analytics', redirect: (_, __) => '/daily-log/analytics'),
       GoRoute(path: '/profile', redirect: (_, __) => '/settings'),
+
+      GoRoute(
+        path: '/todos',
+        builder: (context, state) => const TodoScreen(),
+      ),
+      GoRoute(
+        path: '/todos/add',
+        builder: (context, state) => const TodoFormScreen(),
+      ),
+      GoRoute(
+        path: '/todos/edit',
+        builder: (context, state) {
+          final todo = state.extra as TodoModel?;
+          return TodoFormScreen(todo: todo);
+        },
+      ),
+      GoRoute(
+        path: '/todos/history',
+        builder: (context, state) => const TodoHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/todos/settings',
+        builder: (context, state) => const TodoCustomizationScreen(),
+      ),
     ],
   );
 });

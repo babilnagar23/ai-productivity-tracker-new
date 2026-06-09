@@ -9,11 +9,12 @@ import '../../../../core/api/api_endpoints.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/profile_avatar.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../todos/widgets/todo_preview_card.dart';
 
 DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
 DateTime _endOfDay(DateTime d) =>
     DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
-    
+
 DateTime _parseDateTime(dynamic value) {
   if (value is DateTime) {
     return value.isUtc ? value.toLocal() : value;
@@ -232,7 +233,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: ElevatedButton(
                             onPressed: () => context.push('/focus'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color.fromARGB(255, 19, 154, 159),
+                              backgroundColor:
+                                  const Color.fromARGB(255, 19, 154, 159),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -273,6 +275,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  const TodoPreviewCard(),
+                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -306,7 +310,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         todayEventsAsync.when(
                           loading: () => SizedBox(
                             height: 40,
@@ -519,6 +523,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         label: 'Log Today',
                         color: AppColors.blue,
                         onTap: () => context.push('/daily-log/add'),
+                      ),
+                      _QuickAction(
+                        icon: Icons.add_task_rounded,
+                        label: 'To do List',
+                        color: AppColors.success,
+                        onTap: () => context.go('/todos'),
                       ),
                       _QuickAction(
                         icon: Icons.psychology_outlined,

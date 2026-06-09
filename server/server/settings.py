@@ -30,6 +30,8 @@ INSTALLED_APPS = [
     'calendar_integration',
     'productivity_ai',
     'common',
+
+    'todos', 
 ]
 
 # CorsMiddleware MUST be before CommonMiddleware and SessionMiddleware.

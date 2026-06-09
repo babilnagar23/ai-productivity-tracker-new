@@ -35,4 +35,8 @@ class ApiEndpoints {
   static const calendarInsights = '/calendar/insights';
   static const calendarHeatmap = '/calendar/heatmap';
   static const calendarNotificationSettings = '/calendar/notification-settings';
+
+  static const todos = '/todos/';
+  static String todoDetail(int id) =>
+    '/todos/$id/';
 }
