@@ -62,10 +62,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
 
-      if (isLoggedIn && (location.startsWith('/login') ||
-          location.startsWith('/register') ||
-          location.startsWith('/otp') ||
-          location.startsWith('/create-password'))) {
+      if (isLoggedIn &&
+          (location.startsWith('/login') ||
+              location.startsWith('/register') ||
+              location.startsWith('/otp') ||
+              location.startsWith('/create-password'))) {
         // Check first login flag synchronously via the provider
         final done = ref.read(firstLoginDoneProvider);
         if (!done) {
@@ -94,27 +95,47 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return CreatePasswordScreen(email: email);
         },
       ),
-      GoRoute(path: '/forgot-password', builder: (c, s) => const ForgotPasswordScreen()),
-      GoRoute(path: '/template-select', builder: (c, s) => const TemplateSelectScreen()),
+      GoRoute(
+          path: '/forgot-password',
+          builder: (c, s) => const ForgotPasswordScreen()),
+      GoRoute(
+          path: '/template-select',
+          builder: (c, s) => const TemplateSelectScreen()),
 
       // ── Main shell with bottom nav ────────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
         routes: [
-          GoRoute(path: '/dashboard', builder: (c, s) => const DashboardScreen()),
+          GoRoute(
+              path: '/dashboard', builder: (c, s) => const DashboardScreen()),
 
           // Daily Log tab
-          GoRoute(path: '/daily-log', builder: (c, s) => const DailyLogScreen()),
-          GoRoute(path: '/daily-log/add', builder: (c, s) => const AddRoutineScreen()),
+          GoRoute(
+              path: '/daily-log', builder: (c, s) => const DailyLogScreen()),
+          GoRoute(
+            path: '/daily-log/add',
+            builder: (c, s) => const AddRoutineScreen(),
+          ),
           GoRoute(
             path: '/daily-log/edit/:id',
-            builder: (c, s) => AddRoutineScreen(
-              routineId: int.tryParse(s.pathParameters['id'] ?? ''),
-            ),
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+
+              return AddRoutineScreen(
+                routineId: id,
+              );
+            },
           ),
-          GoRoute(path: '/daily-log/customize', builder: (c, s) => const CustomizationScreen()),
-          GoRoute(path: '/daily-log/analytics', builder: (c, s) => const AdvancedAnalyticsScreen()),
-          GoRoute(path: '/daily-log/analytics/charts/edit', builder: (c, s) => const ChartEditScreen()),
+          
+          GoRoute(
+              path: '/daily-log/customize',
+              builder: (c, s) => const CustomizationScreen()),
+          GoRoute(
+              path: '/daily-log/analytics',
+              builder: (c, s) => const AdvancedAnalyticsScreen()),
+          GoRoute(
+              path: '/daily-log/analytics/charts/edit',
+              builder: (c, s) => const ChartEditScreen()),
 
           // AI Coach tab
           GoRoute(path: '/ai-coach', builder: (c, s) => const AiCoachScreen()),
@@ -124,19 +145,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
           // Settings tab
           GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),
-          GoRoute(path: '/settings/profile', builder: (c, s) => const EditProfileScreen()),
-          GoRoute(path: '/settings/achievements', builder: (c, s) => const AchievementsScreen()),
-          GoRoute(path: '/settings/notifications', builder: (c, s) => const NotificationPrefsScreen()),
+          GoRoute(
+              path: '/settings/profile',
+              builder: (c, s) => const EditProfileScreen()),
+          GoRoute(
+              path: '/settings/achievements',
+              builder: (c, s) => const AchievementsScreen()),
+          GoRoute(
+              path: '/settings/notifications',
+              builder: (c, s) => const NotificationPrefsScreen()),
 
           // Focus + Notifications (pushed from dashboard, still within shell)
           GoRoute(
             path: '/focus',
             builder: (c, s) {
-              final duration = int.tryParse(s.uri.queryParameters['duration'] ?? '');
+              final duration =
+                  int.tryParse(s.uri.queryParameters['duration'] ?? '');
               return FocusScreen(presetDuration: duration);
             },
           ),
-          GoRoute(path: '/notifications', builder: (c, s) => const NotificationCenterScreen()),
+          GoRoute(
+              path: '/notifications',
+              builder: (c, s) => const NotificationCenterScreen()),
         ],
       ),
 

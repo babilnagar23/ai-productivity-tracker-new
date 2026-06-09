@@ -436,6 +436,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                       children: _metrics.map((m) {
                         final id = m['id'] as String;
                         final title = m['title'] as String? ?? id;
+                        final unit = m['unit'] as String? ?? '';
                         final ctrl = _metricControllers[id] ??
                             TextEditingController(text: '0');
                         return SizedBox(
@@ -443,6 +444,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                           child: _MetricField(
                             controller: ctrl,
                             label: title,
+                            unit: unit,
                             onChanged: (_) => setState(() {}),
                           ),
                         );
@@ -616,11 +618,13 @@ class _HabitToggle extends StatelessWidget {
 class _MetricField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
+  final String unit;
   final ValueChanged<String> onChanged;
 
   const _MetricField({
     required this.controller,
     required this.label,
+    required this.unit,
     required this.onChanged,
   });
 
@@ -636,6 +640,13 @@ class _MetricField extends StatelessWidget {
           fontSize: 18),
       decoration: InputDecoration(
         labelText: label,
+        suffix: Text(
+          unit,
+          style: GoogleFonts.inter(
+            color: AppColors.success,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         labelStyle:
             GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
         filled: true,

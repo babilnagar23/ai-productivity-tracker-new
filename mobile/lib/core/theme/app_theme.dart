@@ -35,8 +35,8 @@ class AppColors {
   static const cyan = Color(0xFF06B6D4);
 
   // Gradient
-  static const gradientStart = Color(0xFFC6A5FF);
-  static const gradientEnd = Color(0xFF7DA6FF);
+  static const gradientStart = Color(0xFF179095);
+  static const gradientEnd = Color(0xFF1FB5BC);
 
   // Legacy aliases (keep for backward compatibility)
   static const surface = card;

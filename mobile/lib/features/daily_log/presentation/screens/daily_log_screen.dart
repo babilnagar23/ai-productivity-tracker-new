@@ -3,474 +3,1001 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../routines/data/models/routine_model.dart';
-import '../../../routines/data/repositories/routine_repository.dart';
 import '../../../routines/presentation/providers/routines_provider.dart';
 
-class DailyLogScreen extends ConsumerWidget {
+class DailyLogScreen extends ConsumerStatefulWidget {
   const DailyLogScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DailyLogScreen> createState() => _DailyLogScreenState();
+}
+
+class _DailyLogScreenState extends ConsumerState<DailyLogScreen> {
+  static final DateTime _minMonth = DateTime(2015, 1, 1);
+  static final DateTime _maxMonth = DateTime(2035, 12, 1);
+
+  late final PageController _monthController;
+  late DateTime _selectedDate;
+  late DateTime _focusedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = DateTime.now();
+    _focusedMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+    _monthController =
+        PageController(initialPage: _monthIndexForDate(_focusedMonth));
+  }
+
+  @override
+  void dispose() {
+    _monthController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final routinesAsync = ref.watch(routinesProvider);
     final configAsync = ref.watch(customConfigProvider);
 
-    // Extract config lists for label resolution — available even while routines load
-    final configChecklists = (configAsync.asData?.value['coreChecklists'] as List<dynamic>? ?? [])
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
-    final configMetrics = (configAsync.asData?.value['coreMetrics'] as List<dynamic>? ?? [])
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
+    final routines = routinesAsync.asData?.value ?? const <RoutineModel>[];
+    final config = configAsync.asData?.value ?? <String, dynamic>{};
+
+    final configChecklists = _readConfigList(config['coreChecklists']);
+    final configMetrics = _readConfigList(config['coreMetrics']);
+    final selectedRoutine = _routineForDate(routines, _selectedDate);
+    final selectedChecklists = _resolvedChecklists(selectedRoutine);
+
+    final selectedCompletedCount =
+        selectedChecklists.values.where((v) => v).length;
+    final selectedTotalCount = configChecklists.length;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        title: Text('Daily Log',
-            style: GoogleFonts.inter(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-                fontSize: 17)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bar_chart_rounded,
-                color: AppColors.textSecondary, size: 22),
-            onPressed: () => context.push('/daily-log/analytics'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.tune_rounded,
-                color: AppColors.textSecondary, size: 22),
-            onPressed: () => context.push('/daily-log/customize'),
-          ),
-          IconButton(
-            icon:
-                const Icon(Icons.add_rounded, color: AppColors.blue, size: 24),
-            onPressed: () async {
-              await context.push('/daily-log/add');
-              ref.invalidate(routinesProvider);
-            },
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await context.push('/daily-log/add');
+          ref.invalidate(routinesProvider);
+        },
+        backgroundColor: AppColors.blue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        child: const Icon(Icons.add_rounded),
       ),
-      body: routinesAsync.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.blue)),
-        error: (e, _) => _ErrorView(
-            message: '$e', onRetry: () => ref.invalidate(routinesProvider)),
-        data: (routines) {
-          if (routines.isEmpty) {
-            return _EmptyState(onAdd: () async {
-              await context.push('/daily-log/add');
-              ref.invalidate(routinesProvider);
-            });
-          }
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(routinesProvider);
-              ref.invalidate(customConfigProvider);
-            },
-            color: AppColors.blue,
-            backgroundColor: AppColors.card,
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: routines.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, i) => _LogCard(
-                routine: routines[i],
-                configChecklists: configChecklists,
-                configMetrics: configMetrics,
-                onEdit: () async {
-                  await context.push('/daily-log/edit/${routines[i].id}');
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(routinesProvider);
+            ref.invalidate(customConfigProvider);
+          },
+          color: AppColors.blue,
+          backgroundColor: AppColors.card,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+            children: [
+              _TopBar(
+                onCustomize: () => context.push('/daily-log/customize'),
+                onStats: () => context.push('/daily-log/analytics'),
+                onAdd: () async {
+                  await context.push('/daily-log/add');
                   ref.invalidate(routinesProvider);
                 },
-                onDelete: () async {
-                  final confirmed = await _confirmDelete(context);
-                  if (confirmed == true && routines[i].id != null) {
-                    await RoutineRepository().deleteRoutine(routines[i].id!);
-                    ref.invalidate(routinesProvider);
-                  }
-                },
               ),
-            ),
-          );
-        },
+              const SizedBox(height: 18),
+              _MonthHeader(
+                monthLabel: DateFormat('MMMM yyyy').format(_focusedMonth),
+                onPrevious: () => _jumpMonth(-1),
+                onNext: () => _jumpMonth(1),
+                onToday: _jumpToToday,
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 414,
+                child: PageView.builder(
+                  controller: _monthController,
+                  itemCount: _monthCount,
+                  onPageChanged: (page) {
+                    final month = _monthForIndex(page);
+                    setState(() {
+                      _focusedMonth = month;
+                      _selectedDate = _clampDateToMonth(_selectedDate, month);
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final month = _monthForIndex(index);
+                    return _MonthCalendar(
+                      month: month,
+                      selectedDate: _selectedDate,
+                      routines: routines,
+                      onDaySelected: (date) {
+                        setState(() {
+                          _selectedDate = date;
+                          _focusedMonth = DateTime(date.year, date.month, 1);
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              _SelectedDaySummary(
+                selectedDate: _selectedDate,
+                selectedRoutine: selectedRoutine,
+                completedCount: selectedCompletedCount,
+                totalCount: selectedTotalCount,
+                hasConfig: configChecklists.isNotEmpty,
+              ),
+              const SizedBox(height: 18),
+              if (configChecklists.isEmpty)
+                _EmptyConfigState(
+                  onCustomize: () => context.push('/daily-log/customize'),
+                )
+              else
+                _HabitSection(
+                  checklists: configChecklists,
+                  selectedRoutine: selectedRoutine,
+                  selectedChecklists: selectedChecklists,
+                  onTapHabit: () async {
+                    if (selectedRoutine != null) {
+                      await context.push(
+                        '/daily-log/edit/${selectedRoutine.id}',
+                      );
+                    } else {
+                      await context.push('/daily-log/add');
+                    }
+
+                    ref.invalidate(routinesProvider);
+                  },
+                ),
+              const SizedBox(height: 22),
+              _MetricsSection(
+                routine: selectedRoutine,
+                metrics: configMetrics,
+              ),
+              const SizedBox(height: 22),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Future<bool?> _confirmDelete(BuildContext context) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: Text('Delete Entry',
+  // ───────────────────────────────────────────────────────────────────────────
+  // Month navigation
+  // ───────────────────────────────────────────────────────────────────────────
+
+  int get _monthCount {
+    final startIndex = _monthIndexForDate(_minMonth);
+    final endIndex = _monthIndexForDate(_maxMonth);
+    return endIndex - startIndex + 1;
+  }
+
+  int _monthIndexForDate(DateTime date) {
+    return (date.year - _minMonth.year) * 12 + (date.month - _minMonth.month);
+  }
+
+  DateTime _monthForIndex(int index) {
+    return DateTime(_minMonth.year, _minMonth.month + index, 1);
+  }
+
+  void _jumpMonth(int delta) {
+    final target = DateTime(_focusedMonth.year, _focusedMonth.month + delta, 1);
+    final page = _monthIndexForDate(target);
+    if (page < 0 || page >= _monthCount) return;
+
+    _monthController.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _jumpToToday() {
+    final todayMonth = DateTime.now();
+    final month = DateTime(todayMonth.year, todayMonth.month, 1);
+    final page = _monthIndexForDate(month);
+    if (page < 0 || page >= _monthCount) return;
+
+    _monthController.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+
+    setState(() {
+      _focusedMonth = month;
+      _selectedDate =
+          DateTime(todayMonth.year, todayMonth.month, todayMonth.day);
+    });
+  }
+
+  DateTime _clampDateToMonth(DateTime date, DateTime month) {
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    final safeDay = date.day > lastDay ? lastDay : date.day;
+    return DateTime(month.year, month.month, safeDay);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Data helpers
+  // ───────────────────────────────────────────────────────────────────────────
+
+  List<Map<String, dynamic>> _readConfigList(dynamic raw) {
+    final list = (raw as List<dynamic>?) ?? const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  RoutineModel? _routineForDate(List<RoutineModel> routines, DateTime day) {
+    for (final routine in routines) {
+      final date = _safeParseDate(routine.date);
+      if (_sameDay(date, day)) return routine;
+    }
+    return null;
+  }
+
+  DateTime _safeParseDate(String value) {
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  Map<String, bool> _resolvedChecklists(RoutineModel? routine) {
+    if (routine == null) return {};
+    if (routine.coreChecklists.isNotEmpty) return routine.coreChecklists;
+
+    final legacy = <String, bool>{};
+    if (routine.studyCompleted) legacy['study'] = true;
+    if (routine.exerciseCompleted) legacy['exercise'] = true;
+    if (routine.mlCompleted) legacy['ml'] = true;
+    return legacy;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Top bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TopBar extends StatelessWidget {
+  final VoidCallback onCustomize;
+  final VoidCallback onStats;
+  final VoidCallback onAdd;
+
+  const _TopBar({
+    required this.onCustomize,
+    required this.onStats,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.success.withValues(alpha: 0.6)),
+          ),
+          child: const Icon(
+            Icons.calendar_month_rounded,
+            color: AppColors.success,
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          'Daily Log',
+          style: GoogleFonts.inter(
+            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const Spacer(),
+        IconButton(
+          onPressed: onStats,
+          icon: const Icon(
+            Icons.bar_chart_rounded,
+            color: AppColors.textSecondary,
+            size: 22,
+          ),
+        ),
+        IconButton(
+          onPressed: onCustomize,
+          icon: const Icon(
+            Icons.tune_rounded,
+            color: AppColors.success,
+            size: 22,
+          ),
+        ),
+        IconButton(
+          onPressed: onAdd,
+          icon: const Icon(
+            Icons.add_rounded,
+            color: AppColors.blue,
+            size: 24,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Month header + picker
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MonthHeader extends StatelessWidget {
+  final String monthLabel;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final VoidCallback onToday;
+
+  const _MonthHeader({
+    required this.monthLabel,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onToday,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const _SectionTitle(text: 'Routine'),
+        const Spacer(),
+        TextButton(
+          onPressed: onToday,
+          child: Text(
+            'Today',
             style: GoogleFonts.inter(
-                color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
-        content: Text('Are you sure you want to delete this log?',
-            style: GoogleFonts.inter(color: AppColors.textSecondary)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel',
-                  style: GoogleFonts.inter(color: AppColors.textSecondary))),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Delete',
-                  style: GoogleFonts.inter(color: AppColors.error))),
+              color: AppColors.success,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: onPrevious,
+          icon: const Icon(
+            Icons.chevron_left_rounded,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        Text(
+          monthLabel,
+          style: GoogleFonts.inter(
+            color: AppColors.success,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        IconButton(
+          onPressed: onNext,
+          icon: const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MonthCalendar extends StatelessWidget {
+  final DateTime month;
+  final DateTime selectedDate;
+  final List<RoutineModel> routines;
+  final ValueChanged<DateTime> onDaySelected;
+
+  const _MonthCalendar({
+    required this.month,
+    required this.selectedDate,
+    required this.routines,
+    required this.onDaySelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final firstDay = DateTime(month.year, month.month, 1);
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final leadingEmpty = firstDay.weekday - 1;
+    final totalCells = ((leadingEmpty + daysInMonth + 6) ~/ 7) * 7;
+    final today = DateTime.now();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: const [
+              Expanded(child: _WeekdayLabel(text: 'MO')),
+              Expanded(child: _WeekdayLabel(text: 'TU')),
+              Expanded(child: _WeekdayLabel(text: 'WE')),
+              Expanded(child: _WeekdayLabel(text: 'TH')),
+              Expanded(child: _WeekdayLabel(text: 'FR')),
+              Expanded(child: _WeekdayLabel(text: 'SA')),
+              Expanded(child: _WeekdayLabel(text: 'SU')),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: totalCells,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+              ),
+              itemBuilder: (context, index) {
+                if (index < leadingEmpty ||
+                    index >= leadingEmpty + daysInMonth) {
+                  return const SizedBox.shrink();
+                }
+
+                final day = index - leadingEmpty + 1;
+                final date = DateTime(month.year, month.month, day);
+
+                final selected = _sameDay(date, selectedDate);
+                final hasLog = _hasRoutineForDate(date);
+                final isToday = _sameDay(date, today);
+
+                final enabledOpacity = hasLog ? 1.0 : 0.42;
+                final backgroundColor = selected
+                    ? AppColors.cardElevated
+                    : AppColors.card.withValues(alpha: hasLog ? 1.0 : 0.55);
+
+                final borderColor = selected
+                    ? AppColors.success
+                    : hasLog
+                        ? AppColors.border
+                        : AppColors.border.withValues(alpha: 0.5);
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => onDaySelected(date),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    decoration: BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Opacity(
+                      opacity: enabledOpacity,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$day',
+                            style: GoogleFonts.inter(
+                              color: selected
+                                  ? AppColors.success
+                                  : AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          if (hasLog)
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.success,
+                              ),
+                            )
+                          else if (isToday)
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.blue,
+                              ),
+                            )
+                          else
+                            const SizedBox(height: 7),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  bool _hasRoutineForDate(DateTime day) {
+    for (final routine in routines) {
+      try {
+        final date = DateTime.parse(routine.date);
+        if (_sameDay(date, day)) return true;
+      } catch (_) {
+        // ignore invalid dates
+      }
+    }
+    return false;
+  }
+
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+}
+
+class _WeekdayLabel extends StatelessWidget {
+  final String text;
+
+  const _WeekdayLabel({
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          color: AppColors.textMuted,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.1,
+        ),
       ),
     );
   }
 }
 
-/// --------------------------------------------------------------------------
-/// _LogCard
-/// --------------------------------------------------------------------------
-class _LogCard extends StatelessWidget {
-  final RoutineModel routine;
+// ─────────────────────────────────────────────────────────────────────────────
+// Selected day summary
+// ─────────────────────────────────────────────────────────────────────────────
 
-  /// Active habits from user's customisation config.
-  /// Used to resolve habit titles from their stored IDs.
-  final List<Map<String, dynamic>> configChecklists;
+class _SelectedDaySummary extends StatelessWidget {
+  final DateTime selectedDate;
+  final RoutineModel? selectedRoutine;
+  final int completedCount;
+  final int totalCount;
+  final bool hasConfig;
 
-  /// Active metrics from user's customisation config.
-  /// Used to resolve metric labels from their stored IDs.
-  final List<Map<String, dynamic>> configMetrics;
-
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _LogCard({
-    required this.routine,
-    required this.configChecklists,
-    required this.configMetrics,
-    required this.onEdit,
-    required this.onDelete,
+  const _SelectedDaySummary({
+    required this.selectedDate,
+    required this.selectedRoutine,
+    required this.completedCount,
+    required this.totalCount,
+    required this.hasConfig,
   });
-
-  Color _scoreColor(int score) {
-    if (score >= 80) return AppColors.success;
-    if (score >= 50) return AppColors.warning;
-    return AppColors.error;
-  }
-
-  String _formatDate(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      final now = DateTime.now();
-      if (date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.day) {
-        return 'Today';
-      }
-      if (date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.day - 1) {
-        return 'Yesterday';
-      }
-      return DateFormat('EEEE, MMM d').format(date);
-    } catch (_) {
-      return dateStr;
-    }
-  }
-
-  /// Resolve a habit title from config by its stored key/id.
-  /// Falls back to prettified generic names for legacy built-in IDs.
-  String _habitTitle(String id) {
-    for (final c in configChecklists) {
-      if ((c['id'] as String?) == id) {
-        return (c['title'] as String?) ?? id;
-      }
-    }
-    // Legacy / built-in id fallback
-    const legacy = {'study': 'Study', 'exercise': 'Exercise', 'ml': 'Deep Work', 'reading': 'Reading'};
-    return legacy[id] ?? id;
-  }
-
-  /// Resolve a metric label from config by its stored key/id.
-  String _metricLabel(String id) {
-    for (final m in configMetrics) {
-      if ((m['id'] as String?) == id) {
-        return (m['title'] as String?) ?? id;
-      }
-    }
-    const legacy = {'studyHours': 'Study Hrs', 'mobileUsage': 'Mobile Hrs'};
-    return legacy[id] ?? id;
-  }
-
-  /// For new logs: returns coreChecklists directly.
-  /// For legacy logs (empty coreChecklists): synthesises from boolean fields
-  /// so old entries still display meaningful chips without crashing.
-  Map<String, bool> _resolvedChecklists() {
-    if (routine.coreChecklists.isNotEmpty) {
-      return routine.coreChecklists;
-    }
-    // Legacy synthesis — Option A
-    final synth = <String, bool>{};
-    if (routine.studyCompleted) synth['study'] = true;
-    if (routine.exerciseCompleted) synth['exercise'] = true;
-    if (routine.mlCompleted) synth['ml'] = true;
-    return synth;
-  }
-
-  /// For new logs: returns coreMetrics directly.
-  /// For legacy logs (empty coreMetrics): synthesises from scalar fields.
-  Map<String, dynamic> _resolvedMetrics() {
-    if (routine.coreMetrics.isNotEmpty) return routine.coreMetrics;
-    final synth = <String, dynamic>{};
-    if (routine.studyHours > 0) synth['studyHours'] = routine.studyHours;
-    if (routine.mobileUsage > 0) synth['mobileUsage'] = routine.mobileUsage;
-    return synth;
-  }
 
   @override
   Widget build(BuildContext context) {
-    final scoreColor = _scoreColor(routine.productivityScore);
-    final checklists = _resolvedChecklists();
-    final metrics = _resolvedMetrics();
+    final hasLog = selectedRoutine != null;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        color: hasLog ? AppColors.card : AppColors.card.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: hasLog
+              ? AppColors.border
+              : AppColors.border.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: hasLog
+                  ? AppColors.success.withValues(alpha: 0.14)
+                  : AppColors.textMuted.withValues(alpha: 0.12),
+            ),
+            child: Icon(
+              hasLog
+                  ? Icons.check_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: hasLog ? AppColors.success : AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  DateFormat('EEEE, MMM d, yyyy').format(selectedDate),
+                  style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  !hasConfig
+                      ? 'Open customization to add active habits.'
+                      : hasLog
+                          ? '$completedCount of ${totalCount == 0 ? 0 : totalCount} habits completed'
+                          : 'No log saved for this day yet.',
+                  style: GoogleFonts.inter(
+                    color: hasLog ? AppColors.success : AppColors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dynamic habit section
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _HabitSection extends StatelessWidget {
+  final List<Map<String, dynamic>> checklists;
+  final RoutineModel? selectedRoutine;
+  final Map<String, bool> selectedChecklists;
+  final VoidCallback onTapHabit;
+
+  const _HabitSection({
+    required this.checklists,
+    required this.selectedRoutine,
+    required this.selectedChecklists,
+    required this.onTapHabit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLog = selectedRoutine != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle(text: 'Active Habits'),
+        const SizedBox(height: 12),
+        ...checklists.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+
+          final id = (item['id'] as String?) ?? 'habit_$index';
+          final title = (item['title'] as String?) ?? id;
+          final done = selectedChecklists[id] ?? false;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _HabitCard(
+              title: title,
+              done: done,
+              hasLog: hasLog,
+              index: index,
+              onTap: onTapHabit,
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _HabitCard extends StatelessWidget {
+  final String title;
+  final bool done;
+  final bool hasLog;
+  final int index;
+  final VoidCallback onTap;
+
+  const _HabitCard({
+    required this.title,
+    required this.done,
+    required this.hasLog,
+    required this.index,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final faded = !hasLog || !done;
+    final accent = _accentForIndex(index);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 180),
+          opacity: hasLog ? (done ? 1.0 : 0.48) : 0.36,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: faded
+                  ? AppColors.card.withValues(alpha: 0.65)
+                  : AppColors.card,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: done
+                    ? AppColors.success.withValues(alpha: 0.25)
+                    : AppColors.border.withValues(alpha: 0.65),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: done
+                        ? AppColors.success
+                        : accent.withValues(alpha: 0.45),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: done ? AppColors.textPrimary : AppColors.textMuted,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                if (done)
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.success.withValues(alpha: 0.12),
+                    ),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      color: AppColors.success,
+                      size: 22,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _accentForIndex(int index) {
+    const palette = [
+      Color(0xFF1D4ED8),
+      Color(0xFFF59E0B),
+      Color(0xFF7C3AED),
+      Color(0xFF06B6D4),
+      Color(0xFFEF4444),
+      Color(0xFF10B981),
+    ];
+    return palette[index % palette.length];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Empty state
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _EmptyConfigState extends StatelessWidget {
+  final VoidCallback onCustomize;
+
+  const _EmptyConfigState({required this.onCustomize});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [AppColors.cardShadow],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ────────────────────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: Text(_formatDate(routine.date),
-                    style: GoogleFonts.inter(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700)),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: scoreColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text('${routine.productivityScore}',
-                    style: GoogleFonts.inter(
-                        color: scoreColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // ── Progress bar ──────────────────────────────────────────
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: routine.productivityScore / 100,
-              backgroundColor: AppColors.border,
-              valueColor: AlwaysStoppedAnimation(scoreColor),
-              minHeight: 4,
+          Text(
+            'No active habits configured',
+            style: GoogleFonts.inter(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
+          Text(
+            'Add or restore habits from the customization screen and they will appear here automatically.',
+            style: GoogleFonts.inter(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton(
+            onPressed: onCustomize,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              elevation: 0,
+            ),
+            child: Text(
+              'Open Customization',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-          // ── Habit chips — fully dynamic, config-label resolved ────
-          if (checklists.isNotEmpty)
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: checklists.entries.map((e) {
-                final done = e.value;
+class _SectionTitle extends StatelessWidget {
+  final String text;
 
-                final title = _habitTitle(e.key);
-                // Truncate very long titles to fit chip neatly
-                final short =
-                    title.length > 16 ? '${title.substring(0, 16)}…' : title;
+  const _SectionTitle({required this.text});
 
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: done
-                        ? AppColors.success.withValues(alpha: 0.12)
-                        : AppColors.border.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: done
-                          ? AppColors.success.withValues(alpha: 0.3)
-                          : AppColors.border,
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: GoogleFonts.inter(
+        color: AppColors.textPrimary,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+class _MetricsSection extends StatelessWidget {
+  final RoutineModel? routine;
+  final List<Map<String, dynamic>> metrics;
+
+  const _MetricsSection({
+    required this.routine,
+    required this.metrics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (metrics.isEmpty) {
+      return const SizedBox();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle(text: 'Metrics'),
+        const SizedBox(height: 12),
+        ...metrics.map((metric) {
+          final id = metric['id']?.toString() ?? '';
+
+          final title = metric['title']?.toString() ?? 'Metric';
+
+          final value = routine?.coreMetrics[id]?.toString() ?? '0';
+
+          final unit = metric['unit']?.toString() ?? '';
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _MetricCard(
+              title: title,
+              value: value,
+              unit: unit,
+              onTap: () {
+                if (routine != null) {
+                  context.push('/daily-log/edit/${routine!.id}');
+                }
+              },
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String unit;
+  final VoidCallback? onTap;
+
+  const _MetricCard({
+    required this.title,
+    required this.value,
+    required this.unit,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.border,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (unit.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    unit,
+                    style: GoogleFonts.inter(
+                      color: AppColors.success,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        done
-                            ? Icons.check_circle_rounded
-                            : Icons.radio_button_unchecked_rounded,
-                        color:
-                            done ? AppColors.success : AppColors.textMuted,
-                        size: 12,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        short,
-                        style: GoogleFonts.inter(
-                          color: done
-                              ? AppColors.success
-                              : AppColors.textMuted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-
-          const SizedBox(height: 10),
-
-          // ── Metrics row — dynamic from coreMetrics ────────────────
-          if (metrics.isNotEmpty)
-            Wrap(
-              spacing: 10,
-              runSpacing: 4,
-              children: metrics.entries
-                  .where((e) {
-                    final v = e.value;
-                    return (v is num && v > 0);
-                  })
-                  .map((e) {
-                    final label = _metricLabel(e.key);
-                    final shortLabel =
-                        label.length > 12 ? '${label.substring(0, 12)}…' : label;
-                    final val = e.value;
-                    return Text('$val $shortLabel',
-                        style: GoogleFonts.inter(
-                            color: AppColors.textSecondary, fontSize: 12));
-                  })
-                  .toList(),
-            ),
-
-          if (routine.notes.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(routine.notes,
-                style: GoogleFonts.inter(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-          ],
-
-          const SizedBox(height: 10),
-          const Divider(color: AppColors.divider, height: 1),
-          const SizedBox(height: 10),
-
-          // ── Footer ────────────────────────────────────────────────
-          Row(
-            children: [
-              const Icon(Icons.bedtime_outlined,
-                  color: AppColors.textMuted, size: 14),
-              const SizedBox(width: 4),
-              Text('${routine.sleepTime} → ${routine.wakeTime}',
-                  style: GoogleFonts.inter(
-                      color: AppColors.textMuted, fontSize: 12)),
-              const Spacer(),
-              GestureDetector(
-                onTap: onEdit,
-                child: const Icon(Icons.edit_outlined,
-                    color: AppColors.textMuted, size: 18),
-              ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: onDelete,
-                child: const Icon(Icons.delete_outline_rounded,
-                    color: AppColors.textMuted, size: 18),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Supporting Widgets ──────────────────────────────────────────────────────
-
-class _EmptyState extends StatelessWidget {
-  final VoidCallback onAdd;
-  const _EmptyState({required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.assignment_outlined,
-              size: 56, color: AppColors.textMuted),
-          const SizedBox(height: 16),
-          Text('No logs yet',
-              style: GoogleFonts.inter(
-                  color: AppColors.textSecondary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Text('Start tracking your daily habits',
-              style:
-                  GoogleFonts.inter(color: AppColors.textMuted, fontSize: 14)),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: onAdd,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.blue,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            ),
-            icon: const Icon(Icons.add_rounded, color: Colors.white),
-            label: Text('Log Today',
-                style: GoogleFonts.inter(
-                    color: Colors.white, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorView({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: AppColors.error, size: 48),
-            const SizedBox(height: 12),
-            Text(message,
-                style: GoogleFonts.inter(color: AppColors.textSecondary),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: onRetry,
-              child: Text('Retry',
-                  style: GoogleFonts.inter(color: AppColors.blue)),
+                ],
+              ],
             ),
           ],
         ),

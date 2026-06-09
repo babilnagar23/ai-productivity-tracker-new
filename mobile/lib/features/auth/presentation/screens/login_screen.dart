@@ -65,13 +65,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 40),
-                const Center(child: AppLogo(size: 56)),
+                const Center(child: AppLogo(size: 120)),
                 const SizedBox(height: 24),
                 const Center(
                   child: Text(
                     'Productivity Tracker',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: Color.fromARGB(255, 82, 178, 199),
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
                     ),
@@ -89,7 +89,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const Text(
                   'Welcome back',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: Color.fromARGB(255, 255, 255, 255),
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),

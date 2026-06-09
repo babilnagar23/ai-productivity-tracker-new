@@ -37,7 +37,8 @@ class GradientButton extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: isLoading
               ? const SizedBox(
@@ -104,32 +105,19 @@ class AuthTextField extends StatelessWidget {
 
 class AppLogo extends StatelessWidget {
   final double size;
-  const AppLogo({super.key, this.size = 48});
+
+  const AppLogo({
+    super.key,
+    this.size = 48,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Image.asset(
+      'assets/images/logo.png',
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.gradientStart, AppColors.gradientEnd],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(size * 0.25),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.purple.withValues(alpha: 0.4),
-            blurRadius: 20,
-          ),
-        ],
-      ),
-      child: Icon(
-        Icons.bolt_rounded,
-        color: Colors.white,
-        size: size * 0.55,
-      ),
+      fit: BoxFit.contain,
     );
   }
 }

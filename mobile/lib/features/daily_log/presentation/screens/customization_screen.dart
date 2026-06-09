@@ -40,10 +40,10 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
         'deletedHistory': _deletedHistory,
       });
       ref.invalidate(customConfigProvider);
+      ref.invalidate(routinesProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Saved!'), backgroundColor: AppColors.success),
+          const SnackBar(content: Text('Saved!'), backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
@@ -137,8 +137,14 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
   }
 
   void _showMetricSheet({Map<String, dynamic>? existing, int? index}) {
-    final titleCtrl =
-        TextEditingController(text: existing?['title'] as String? ?? '');
+    final titleCtrl = TextEditingController(
+      text: existing?['title'] as String? ?? '',
+    );
+
+    final unitCtrl = TextEditingController(
+      text: existing?['unit'] as String? ?? '',
+    );
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -159,6 +165,8 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
                     fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
             _inputField(titleCtrl, 'Title (e.g. Study Duration (Hrs))'),
+            const SizedBox(height: 12),
+            _inputField(unitCtrl, 'Unit (hrs, mins, pages, L)'),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -169,7 +177,8 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
                   setState(() {
                     final item = {
                       'id': existing?['id'] ?? const Uuid().v4(),
-                      'title': titleCtrl.text
+                      'title': titleCtrl.text,
+                      'unit': unitCtrl.text,
                     };
                     if (index != null) {
                       _metrics[index] = item;

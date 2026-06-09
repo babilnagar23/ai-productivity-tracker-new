@@ -8,8 +8,8 @@ import '../storage/secure_storage.dart';
 /// Android Emulator     → http://10.0.2.2:8000/api
 /// Physical Device      → change _emulatorUrl below to your machine's LAN IP
 ///                        e.g. http://192.168.1.5:8000/api
-const String _mobileUrl = 'http://10.119.30.176:8000/api';
-const String _webUrl = 'http://10.119.30.176:8000/api';
+const String _mobileUrl = 'http://192.168.31.102:8000/api';
+const String _webUrl = 'http://192.168.31.102:8000/api';
 
 String get kBaseUrl {
   if (kIsWeb) {
@@ -67,13 +67,15 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    debugPrint('[API] Response: ${response.statusCode} ${response.requestOptions.path}');
+    debugPrint(
+        '[API] Response: ${response.statusCode} ${response.requestOptions.path}');
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    debugPrint('[API] Error: ${err.response?.statusCode} ${err.requestOptions.path}');
+    debugPrint(
+        '[API] Error: ${err.response?.statusCode} ${err.requestOptions.path}');
     if (err.response?.statusCode == 401 && !_isRefreshing) {
       _isRefreshing = true;
       try {
