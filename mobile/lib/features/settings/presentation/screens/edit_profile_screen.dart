@@ -86,8 +86,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile updated!'),
+        SnackBar(
+          content: const Text('Profile updated!'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -118,7 +118,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded,
+          icon: Icon(Icons.arrow_back_ios_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -251,15 +251,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         fillColor: AppColors.card,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.blue),
+          borderSide: BorderSide(color: AppColors.blue),
         ),
       ),
     );

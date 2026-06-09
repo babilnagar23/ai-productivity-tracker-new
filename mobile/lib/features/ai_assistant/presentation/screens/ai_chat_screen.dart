@@ -109,14 +109,14 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            _AiAvatar(),
-            SizedBox(width: 10),
+            const _AiAvatar(),
+            const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Productivity Tracker',
+                const Text('Productivity Tracker',
                     style:
                         TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 Text('AI Productivity Mentor',
@@ -165,7 +165,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     ),
                     child: Text(
                       _quickPrompts[i],
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ),
@@ -191,7 +191,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           // Input bar
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.surface,
               border: Border(top: BorderSide(color: AppColors.border)),
             ),
@@ -200,27 +200,27 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 Expanded(
                   child: TextField(
                     controller: _textCtrl,
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(color: AppColors.textPrimary),
                     maxLines: null,
                     textInputAction: TextInputAction.send,
                     onSubmitted: _send,
                     decoration: InputDecoration(
                       hintText: 'Ask about your productivity...',
-                      hintStyle: const TextStyle(
+                      hintStyle: TextStyle(
                           color: AppColors.textMuted, fontSize: 14),
                       filled: true,
                       fillColor: AppColors.bg,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderSide: BorderSide(color: AppColors.border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderSide: BorderSide(color: AppColors.border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(color: AppColors.purple),
+                        borderSide: BorderSide(color: AppColors.purple),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 10),
@@ -234,7 +234,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [
                           AppColors.gradientStart,
                           AppColors.gradientEnd
@@ -264,7 +264,7 @@ class _AiAvatar extends StatelessWidget {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
             colors: [AppColors.gradientStart, AppColors.gradientEnd]),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -324,7 +324,7 @@ class _MessageBubble extends StatelessWidget {
                 Text(
                   DateFormat('HH:mm').format(message.time),
                   style:
-                      const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                      TextStyle(color: AppColors.textMuted, fontSize: 10),
                 ),
               ],
             ),
@@ -416,7 +416,7 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
       child: Container(
         width: 8,
         height: 8,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
             shape: BoxShape.circle, color: AppColors.purple),
       ),
     );

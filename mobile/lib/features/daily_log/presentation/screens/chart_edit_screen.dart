@@ -96,7 +96,7 @@ class _ChartEditScreenState extends State<ChartEditScreen> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_rounded,
             color: AppColors.textPrimary,
             size: 20,

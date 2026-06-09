@@ -86,12 +86,12 @@ class _FormView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Forgot Password',
             style: TextStyle(color: AppColors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Enter your email and we\'ll send a reset link',
             style: TextStyle(color: AppColors.textSecondary),
           ),
@@ -133,10 +133,10 @@ class _SuccessView extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
           ),
-          child: const Icon(Icons.mark_email_read_outlined, color: AppColors.success, size: 36),
+          child: Icon(Icons.mark_email_read_outlined, color: AppColors.success, size: 36),
         ),
         const SizedBox(height: 24),
-        const Text(
+        Text(
           'Email Sent!',
           style: TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w700),
         ),
@@ -144,7 +144,7 @@ class _SuccessView extends StatelessWidget {
         Text(
           'A password reset link has been sent to\n$email',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
         ),
         const SizedBox(height: 40),
         SizedBox(
@@ -152,11 +152,11 @@ class _SuccessView extends StatelessWidget {
           child: OutlinedButton(
             onPressed: () => context.go('/login'),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.border),
+              side: BorderSide(color: AppColors.border),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            child: const Text('Back to Login', style: TextStyle(color: AppColors.textPrimary)),
+            child: Text('Back to Login', style: TextStyle(color: AppColors.textPrimary)),
           ),
         ),
       ],

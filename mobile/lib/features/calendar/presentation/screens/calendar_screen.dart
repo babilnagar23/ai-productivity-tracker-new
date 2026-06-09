@@ -242,7 +242,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           _viewModeButton(),
           IconButton(
             icon:
-                const Icon(Icons.settings_outlined, color: AppColors.textMuted),
+                Icon(Icons.settings_outlined, color: AppColors.textMuted),
             onPressed: _openSettings,
           ),
         ],
@@ -252,11 +252,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         backgroundColor: AppColors.card,
         onRefresh: _refresh,
         child: rangeAsync.when(
-          loading: () => const Center(
+          loading: () => Center(
               child: CircularProgressIndicator(color: AppColors.blue)),
           error: (e, _) => Center(
               child:
-                  Text('$e', style: const TextStyle(color: AppColors.error))),
+                  Text('$e', style: TextStyle(color: AppColors.error))),
           data: (rangeEvents) {
             final byDay = _groupByDay(rangeEvents);
             final dayEvents = dayAsync.asData?.value ?? [];
@@ -319,7 +319,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             Text(label,
                 style: GoogleFonts.inter(
                     color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-            const Icon(Icons.arrow_drop_down_rounded,
+            Icon(Icons.arrow_drop_down_rounded,
                 color: AppColors.textMuted),
           ]),
         ),
@@ -348,7 +348,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           // nav header
           Row(children: [
             IconButton(
-              icon: const Icon(Icons.chevron_left_rounded,
+              icon: Icon(Icons.chevron_left_rounded,
                   color: AppColors.textSecondary),
               onPressed: () => setState(() {
                 _focusedDay = switch (_viewMode) {
@@ -378,7 +378,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               )),
             ),
             IconButton(
-              icon: const Icon(Icons.chevron_right_rounded,
+              icon: Icon(Icons.chevron_right_rounded,
                   color: AppColors.textSecondary),
               onPressed: () => setState(() {
                 _focusedDay = switch (_viewMode) {
@@ -426,7 +426,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     shape: BoxShape.circle),
                 todayTextStyle: GoogleFonts.inter(
                     color: AppColors.blue, fontWeight: FontWeight.w700),
-                selectedDecoration: const BoxDecoration(
+                selectedDecoration: BoxDecoration(
                     color: AppColors.blue, shape: BoxShape.circle),
                 selectedTextStyle: GoogleFonts.inter(
                     color: Colors.white, fontWeight: FontWeight.w700),
@@ -602,7 +602,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               decoration: BoxDecoration(
                   color: AppColors.blue.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.calendar_month_rounded,
+              child: Icon(Icons.calendar_month_rounded,
                   color: AppColors.blue, size: 22)),
           const SizedBox(width: 12),
           Expanded(
@@ -660,7 +660,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 child: OutlinedButton.icon(
               onPressed: _isSyncing ? null : _syncNow,
               icon: _isSyncing
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 14,
                       height: 14,
                       child: CircularProgressIndicator(
@@ -670,7 +670,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.border),
+                  side: BorderSide(color: AppColors.border),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12))),
             )),
@@ -740,7 +740,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               child: Container(
                 width: 56,
                 height: 56,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                     color: AppColors.blue, shape: BoxShape.circle),
                 child: Icon(
                     _fabExpanded ? Icons.close_rounded : Icons.add_rounded,
@@ -806,7 +806,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           const SizedBox(height: 12),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.sync_rounded, color: AppColors.blue),
+            leading: Icon(Icons.sync_rounded, color: AppColors.blue),
             title: Text('Sync now',
                 style: GoogleFonts.inter(color: AppColors.textPrimary)),
             onTap: () {
@@ -817,7 +817,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.refresh_rounded, color: AppColors.blue),
+            leading: Icon(Icons.refresh_rounded, color: AppColors.blue),
             title: Text('Refresh view',
                 style: GoogleFonts.inter(color: AppColors.textPrimary)),
             onTap: () {
@@ -857,7 +857,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         fontSize: 20,
                         fontWeight: FontWeight.w700))),
             IconButton(
-              icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
+              icon: Icon(Icons.close_rounded, color: AppColors.textMuted),
               // Use Navigator.of(ctx) — the sheet's navigator, not the screen's
               onPressed: () => Navigator.of(ctx).pop(),
             ),
@@ -889,7 +889,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.border),
+                  side: BorderSide(color: AppColors.border),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12))),
             )),
@@ -1025,7 +1025,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
               builder: (ctx, child) => Theme(
                   data: Theme.of(ctx).copyWith(
-                      colorScheme: const ColorScheme.dark(
+                      colorScheme: ColorScheme.dark(
                           primary: AppColors.blue,
                           surface: AppColors.surface,
                           onSurface: AppColors.textPrimary)),
@@ -1040,7 +1040,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               initialTime: isStart ? startTOD : endTOD,
               builder: (ctx, child) => Theme(
                   data: Theme.of(ctx).copyWith(
-                      colorScheme: const ColorScheme.dark(
+                      colorScheme: ColorScheme.dark(
                           primary: AppColors.blue,
                           surface: AppColors.surface,
                           onSurface: AppColors.textPrimary)),
@@ -1140,7 +1140,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                               fontWeight: FontWeight.w700))),
                   // ✅ FIX: Use Navigator.of(sheetCtx), not context
                   IconButton(
-                      icon: const Icon(Icons.close_rounded,
+                      icon: Icon(Icons.close_rounded,
                           color: AppColors.textMuted),
                       onPressed: () => Navigator.of(sheetCtx).pop()),
                 ]),
@@ -1210,7 +1210,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(children: [
-                              const Icon(Icons.label_rounded,
+                              Icon(Icons.label_rounded,
                                   color: AppColors.blue, size: 18),
                               const SizedBox(width: 8),
                               Text('Category',
@@ -1334,13 +1334,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             fillColor: AppColors.cardElevated,
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.border)),
+                borderSide: BorderSide(color: AppColors.border)),
             enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.border)),
+                borderSide: BorderSide(color: AppColors.border)),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.blue))),
+                borderSide: BorderSide(color: AppColors.blue))),
       );
 
   Widget _tile(IconData icon, String label, String value, VoidCallback onTap) =>
@@ -1494,7 +1494,7 @@ class _EventCard extends StatelessWidget {
                 ],
               ])),
           if (event.syncedToGoogle)
-            const Icon(Icons.cloud_done_rounded,
+            Icon(Icons.cloud_done_rounded,
                 color: AppColors.success, size: 18),
         ]),
       ),

@@ -122,7 +122,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       appBar: AppBar(
         title: Text('Notifications', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -162,7 +162,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.notifications_none_outlined, size: 56, color: AppColors.textMuted),
+                        Icon(Icons.notifications_none_outlined, size: 56, color: AppColors.textMuted),
                         const SizedBox(height: 12),
                         Text('All caught up!', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 16, fontWeight: FontWeight.w600)),
                         Text('No notifications.', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 14)),
@@ -189,7 +189,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                             color: AppColors.error.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                          child: Icon(Icons.delete_outline_rounded, color: AppColors.error),
                         ),
                         child: GestureDetector(
                           onTap: () {
@@ -231,7 +231,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                   Container(
                                     width: 8,
                                     height: 8,
-                                    decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
+                                    decoration: BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
                                   ),
                               ],
                             ),

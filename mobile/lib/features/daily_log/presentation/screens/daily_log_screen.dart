@@ -302,7 +302,7 @@ class _TopBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: AppColors.success.withValues(alpha: 0.6)),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.calendar_month_rounded,
             color: AppColors.success,
             size: 18,
@@ -320,7 +320,7 @@ class _TopBar extends StatelessWidget {
         const Spacer(),
         IconButton(
           onPressed: onStats,
-          icon: const Icon(
+          icon: Icon(
             Icons.bar_chart_rounded,
             color: AppColors.textSecondary,
             size: 22,
@@ -328,7 +328,7 @@ class _TopBar extends StatelessWidget {
         ),
         IconButton(
           onPressed: onCustomize,
-          icon: const Icon(
+          icon: Icon(
             Icons.tune_rounded,
             color: AppColors.success,
             size: 22,
@@ -336,7 +336,7 @@ class _TopBar extends StatelessWidget {
         ),
         IconButton(
           onPressed: onAdd,
-          icon: const Icon(
+          icon: Icon(
             Icons.add_rounded,
             color: AppColors.blue,
             size: 24,
@@ -382,7 +382,7 @@ class _MonthHeader extends StatelessWidget {
         ),
         IconButton(
           onPressed: onPrevious,
-          icon: const Icon(
+          icon: Icon(
             Icons.chevron_left_rounded,
             color: AppColors.textSecondary,
           ),
@@ -397,7 +397,7 @@ class _MonthHeader extends StatelessWidget {
         ),
         IconButton(
           onPressed: onNext,
-          icon: const Icon(
+          icon: Icon(
             Icons.chevron_right_rounded,
             color: AppColors.textSecondary,
           ),
@@ -437,8 +437,8 @@ class _MonthCalendar extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Expanded(child: _WeekdayLabel(text: 'MO')),
               Expanded(child: _WeekdayLabel(text: 'TU')),
               Expanded(child: _WeekdayLabel(text: 'WE')),
@@ -512,7 +512,7 @@ class _MonthCalendar extends StatelessWidget {
                             Container(
                               width: 7,
                               height: 7,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: AppColors.success,
                               ),
@@ -521,7 +521,7 @@ class _MonthCalendar extends StatelessWidget {
                             Container(
                               width: 7,
                               height: 7,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: AppColors.blue,
                               ),
@@ -793,7 +793,7 @@ class _HabitCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: AppColors.success.withValues(alpha: 0.12),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.check_rounded,
                       color: AppColors.success,
                       size: 22,

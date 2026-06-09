@@ -150,7 +150,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Stack(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.notifications_outlined,
+                      icon: Icon(Icons.notifications_outlined,
                           color: AppColors.textPrimary),
                       onPressed: () => context.push('/notifications'),
                     ),
@@ -160,7 +160,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       child: Container(
                         width: 8,
                         height: 8,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppColors.error,
                           shape: BoxShape.circle,
                         ),
@@ -202,7 +202,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     child: LinearProgressIndicator(
                       value: xpProgress,
                       backgroundColor: const Color(0x14FFFFFF),
-                      valueColor: const AlwaysStoppedAnimation(AppColors.blue),
+                      valueColor: AlwaysStoppedAnimation(AppColors.blue),
                       minHeight: 6,
                     ),
                   ),
@@ -308,7 +308,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                         const SizedBox(height: 12),
                         todayEventsAsync.when(
-                          loading: () => const SizedBox(
+                          loading: () => SizedBox(
                             height: 40,
                             child: Center(
                               child: CircularProgressIndicator(
@@ -351,7 +351,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                           width: 8,
                                           height: 8,
                                           margin: const EdgeInsets.only(top: 6),
-                                          decoration: const BoxDecoration(
+                                          decoration: BoxDecoration(
                                             color: AppColors.blue,
                                             shape: BoxShape.circle,
                                           ),
@@ -389,7 +389,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        const Divider(color: AppColors.border, height: 1),
+                        Divider(color: AppColors.border, height: 1),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -416,7 +416,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                         const SizedBox(height: 12),
                         upcomingEventsAsync.when(
-                          loading: () => const SizedBox(
+                          loading: () => SizedBox(
                             height: 40,
                             child: Center(
                               child: CircularProgressIndicator(
@@ -456,7 +456,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                           width: 8,
                                           height: 8,
                                           margin: const EdgeInsets.only(top: 6),
-                                          decoration: const BoxDecoration(
+                                          decoration: BoxDecoration(
                                             color: AppColors.success,
                                             shape: BoxShape.circle,
                                           ),

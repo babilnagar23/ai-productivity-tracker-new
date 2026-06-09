@@ -61,7 +61,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Create Account',
                   style: TextStyle(
                     color: AppColors.textPrimary,
@@ -70,7 +70,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Enter your email to get started',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
                 ),
@@ -86,7 +86,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Step 1 of 3: Enter email',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                 ),
@@ -113,10 +113,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.blue.withValues(alpha: 0.2)),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.info_outline_rounded, color: AppColors.blue, size: 16),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'We\'ll send a 6-digit OTP to verify your email.',
@@ -136,13 +136,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Already have an account? ',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
                     GestureDetector(
                       onTap: () => context.push('/login'),
-                      child: const Text(
+                      child: Text(
                         'Sign in',
                         style: TextStyle(color: AppColors.purple, fontWeight: FontWeight.w700),
                       ),

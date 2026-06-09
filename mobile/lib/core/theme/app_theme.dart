@@ -2,53 +2,89 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  // Backgrounds
-  static const bg = Color(0xFF050505);
-  static const sidebar = Color(0xFF0A0A0D);
+  static const _dark = _AppPalette(
+    bg: Color(0xFF050505),
+    sidebar: Color(0xFF0A0A0D),
+    card: Color(0xFF141418),
+    cardElevated: Color(0xFF1A1A20),
+    nav: Color(0xFF141418),
+    border: Color(0xFF2A2A33),
+    textPrimary: Color(0xFFFFFFFF),
+    textSecondary: Color(0xFFB8B8C5),
+    textMuted: Color(0xFF8A8A98),
+    purple: Color(0xFFB18CFF),
+    purpleDark: Color(0xFF8E5DFF),
+    purpleLight: Color(0xFFC7B2FF),
+    blue: Color(0xFF7DA6FF),
+    cyan: Color(0xFF06B6D4),
+    success: Color(0xFF2DD881),
+    error: Color(0xFFFF5D73),
+    warning: Color(0xFFFFC857),
+    gradientStart: Color(0xFFC6A5FF),
+    gradientEnd: Color(0xFF7DA6FF),
+  );
 
-  // Cards
-  static const card = Color(0xFF141418);
-  static const cardElevated = Color(0xFF1A1A20);
+  static const _light = _AppPalette(
+    bg: Color(0xFFF8F8F6),
+    sidebar: Color(0xFFFFFFFF),
+    card: Color(0xFFFFFFFF),
+    cardElevated: Color(0xFFF2F4F4),
+    nav: Color(0xFFFFFFFF),
+    border: Color(0xFFE6E8EC),
+    textPrimary: Color(0xFF101114),
+    textSecondary: Color(0xFF4E5563),
+    textMuted: Color(0xFF8A909D),
+    purple: Color(0xFF8E5DFF),
+    purpleDark: Color(0xFF6E3FE8),
+    purpleLight: Color(0xFFE6D9FF),
+    blue: Color(0xFF7DA6FF),
+    cyan: Color(0xFF06B6D4),
+    success: Color(0xFF0E9F6E),
+    error: Color(0xFFE5485D),
+    warning: Color(0xFFE5A500),
+    gradientStart: Color(0xFFC6A5FF),
+    gradientEnd: Color(0xFF7DA6FF),
+  );
 
-  // Borders
-  static const border = Color(0xFF2A2A33);
+  static _AppPalette _active = _dark;
 
-  // Text
-  static const textPrimary = Color(0xFFFFFFFF);
-  static const textSecondary = Color(0xFFB8B8C5);
-  static const textMuted = Color(0xFF8A8A98);
+  static void setThemeMode(ThemeMode mode) {
+    _active = mode == ThemeMode.light ? _light : _dark;
+  }
 
-  // Brand
-  static const purple = Color(0xFFB18CFF);
-  static const purpleDark = Color(0xFF8E5DFF);
-  static const purpleLight = Color(0xFFC7B2FF);
+  static bool get isLight => identical(_active, _light);
 
-  // Accent Blue
-  static const blue = Color(0xFF7DA6FF);
+  // Current active palette
+  static Color get bg => _active.bg;
+  static Color get sidebar => _active.sidebar;
+  static Color get card => _active.card;
+  static Color get cardElevated => _active.cardElevated;
+  static Color get nav => _active.nav;
+  static Color get border => _active.border;
+  static Color get textPrimary => _active.textPrimary;
+  static Color get textSecondary => _active.textSecondary;
+  static Color get textMuted => _active.textMuted;
+  static Color get purple => _active.purple;
+  static Color get purpleDark => _active.purpleDark;
+  static Color get purpleLight => _active.purpleLight;
+  static Color get blue => _active.blue;
+  static Color get cyan => _active.cyan;
+  static Color get success => _active.success;
+  static Color get error => _active.error;
+  static Color get warning => _active.warning;
+  static Color get gradientStart => _active.gradientStart;
+  static Color get gradientEnd => _active.gradientEnd;
 
-  // Status
-  static const success = Color(0xFF2DD881);
-  static const error = Color(0xFFFF5D73);
-  static const warning = Color(0xFFFFC857);
+  // Legacy aliases kept for existing UI code
+  static Color get surface => card;
+  static Color get surfaceLight => cardElevated;
+  static Color get bgSecondary => sidebar;
+  static Color get divider => border;
+  static const Color borderPurple = Color(0x4DB18CFF);
 
-  // Extra accent kept for compatibility with existing screens
-  static const cyan = Color(0xFF06B6D4);
-
-  // Gradient
-  static const gradientStart = Color(0xFF179095);
-  static const gradientEnd = Color(0xFF1FB5BC);
-
-  // Legacy aliases (keep for backward compatibility)
-  static const surface = card;
-  static const surfaceLight = cardElevated;
-  static const nav = card;
-  static const bgSecondary = sidebar;
-  static const divider = border;
-
-  static Color borderPurple = purple.withValues(alpha: 0.30);
-
-  static const cardShadow = BoxShadow(
-    color: Color(0x1FB18CFF),
+  // Keep this const so existing `const [AppColors.cardShadow]` patterns still work.
+  static const BoxShadow cardShadow = BoxShadow(
+    color: Color(0x1A000000),
     blurRadius: 24,
     spreadRadius: 0,
     offset: Offset(0, 8),
@@ -61,86 +97,140 @@ class AppColors {
 
   static Border get cardBorder => Border.all(color: border);
 
-  static LinearGradient get primaryGradient => const LinearGradient(
+  static LinearGradient get primaryGradient => LinearGradient(
         colors: [gradientStart, gradientEnd],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
 }
 
+class _AppPalette {
+  final Color bg;
+  final Color sidebar;
+  final Color card;
+  final Color cardElevated;
+  final Color nav;
+  final Color border;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textMuted;
+  final Color purple;
+  final Color purpleDark;
+  final Color purpleLight;
+  final Color blue;
+  final Color cyan;
+  final Color success;
+  final Color error;
+  final Color warning;
+  final Color gradientStart;
+  final Color gradientEnd;
+
+  Color get divider => border;
+
+  const _AppPalette({
+    required this.bg,
+    required this.sidebar,
+    required this.card,
+    required this.cardElevated,
+    required this.nav,
+    required this.border,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textMuted,
+    required this.purple,
+    required this.purpleDark,
+    required this.purpleLight,
+    required this.blue,
+    required this.cyan,
+    required this.success,
+    required this.error,
+    required this.warning,
+    required this.gradientStart,
+    required this.gradientEnd,
+  });
+}
+
 class AppTheme {
-  static ThemeData get darkTheme {
+  static ThemeData get darkTheme => _buildTheme(AppColors._dark, Brightness.dark);
+  static ThemeData get lightTheme => _buildTheme(AppColors._light, Brightness.light);
+
+  static ThemeData _buildTheme(_AppPalette p, Brightness brightness) {
     final base = GoogleFonts.interTextTheme(
-      const TextTheme(
+      TextTheme(
         displayLarge: TextStyle(
-          color: AppColors.textPrimary,
+          color: p.textPrimary,
           fontSize: 32,
           fontWeight: FontWeight.w700,
         ),
         displayMedium: TextStyle(
-          color: AppColors.textPrimary,
+          color: p.textPrimary,
           fontSize: 24,
           fontWeight: FontWeight.w700,
         ),
         titleLarge: TextStyle(
-          color: AppColors.textPrimary,
+          color: p.textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w700,
         ),
         titleMedium: TextStyle(
-          color: AppColors.textPrimary,
+          color: p.textPrimary,
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
-        bodyLarge: TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 15,
-        ),
-        bodyMedium: TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 14,
-        ),
-        bodySmall: TextStyle(
-          color: AppColors.textMuted,
-          fontSize: 12,
-        ),
+        bodyLarge: TextStyle(color: p.textSecondary, fontSize: 15),
+        bodyMedium: TextStyle(color: p.textSecondary, fontSize: 14),
+        bodySmall: TextStyle(color: p.textMuted, fontSize: 12),
       ),
     );
 
+    final scheme = brightness == Brightness.dark
+        ? ColorScheme.dark(
+            primary: p.purple,
+            secondary: p.blue,
+            surface: p.card,
+            error: p.error,
+            onPrimary: Colors.black,
+            onSecondary: Colors.black,
+            onSurface: p.textPrimary,
+          )
+        : ColorScheme.light(
+            primary: p.purple,
+            secondary: p.blue,
+            surface: p.card,
+            error: p.error,
+            onPrimary: Colors.white,
+            onSecondary: Colors.white,
+            onSurface: p.textPrimary,
+          );
+
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.bg,
-      canvasColor: AppColors.bg,
-      cardColor: AppColors.card,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.purple,
-        secondary: AppColors.blue,
-        surface: AppColors.card,
-        error: AppColors.error,
-        onPrimary: Colors.black,
-        onSecondary: Colors.black,
-        onSurface: AppColors.textPrimary,
-      ),
+      brightness: brightness,
+      scaffoldBackgroundColor: p.bg,
+      canvasColor: p.bg,
+      cardColor: p.card,
+      colorScheme: scheme,
       textTheme: base,
       primaryTextTheme: base,
+
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.bg,
+        backgroundColor: p.bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: AppColors.purple),
-        actionsIconTheme: const IconThemeData(color: AppColors.purple),
+        iconTheme: IconThemeData(color: p.purple),
+        actionsIconTheme: IconThemeData(color: p.purple),
         titleTextStyle: GoogleFonts.inter(
-          color: AppColors.textPrimary,
+          color: p.textPrimary,
           fontSize: 17,
           fontWeight: FontWeight.w700,
         ),
       ),
+
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.nav,
-        selectedItemColor: AppColors.purple,
-        unselectedItemColor: AppColors.textMuted,
+        backgroundColor: p.nav,
+        selectedItemColor: p.purple,
+        unselectedItemColor: p.textMuted,
         type: BottomNavigationBarType.fixed,
         showSelectedLabels: true,
         showUnselectedLabels: true,
@@ -151,14 +241,15 @@ class AppTheme {
         unselectedLabelStyle: GoogleFonts.inter(fontSize: 10),
         elevation: 0,
       ),
+
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.nav,
-        indicatorColor: AppColors.purple.withValues(alpha: 0.16),
+        backgroundColor: p.nav,
+        indicatorColor: p.purple.withValues(alpha: 0.16),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           return GoogleFonts.inter(
             color: states.contains(WidgetState.selected)
-                ? AppColors.purple
-                : AppColors.textMuted,
+                ? p.purple
+                : p.textMuted,
             fontSize: 11,
             fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w700
@@ -168,60 +259,57 @@ class AppTheme {
         iconTheme: WidgetStateProperty.resolveWith((states) {
           return IconThemeData(
             color: states.contains(WidgetState.selected)
-                ? AppColors.purple
-                : AppColors.textMuted,
+                ? p.purple
+                : p.textMuted,
           );
         }),
       ),
+
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.cardElevated,
+        fillColor: p.cardElevated,
         border: OutlineInputBorder(
           borderRadius: AppColors.inputRadius,
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: p.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppColors.inputRadius,
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: p.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppColors.inputRadius,
-          borderSide: const BorderSide(
-            color: AppColors.purple,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: p.purple, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: AppColors.inputRadius,
-          borderSide: const BorderSide(color: AppColors.error),
+          borderSide: BorderSide(color: p.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: AppColors.inputRadius,
-          borderSide: const BorderSide(
-            color: AppColors.error,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: p.error, width: 1.5),
         ),
-        hintStyle: GoogleFonts.inter(color: AppColors.textMuted),
-        labelStyle: GoogleFonts.inter(color: AppColors.textSecondary),
-        prefixIconColor: AppColors.textMuted,
-        suffixIconColor: AppColors.textMuted,
+        hintStyle: GoogleFonts.inter(color: p.textMuted),
+        labelStyle: GoogleFonts.inter(color: p.textSecondary),
+        prefixIconColor: p.textMuted,
+        suffixIconColor: p.textMuted,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
       ),
-      textSelectionTheme: const TextSelectionThemeData(
-        cursorColor: AppColors.purple,
-        selectionColor: Color(0x33B18CFF),
-        selectionHandleColor: AppColors.purple,
+
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: p.purple,
+        selectionColor: p.purple.withValues(alpha: 0.20),
+        selectionHandleColor: p.purple,
       ),
+
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.purple,
+          backgroundColor: p.purple,
           foregroundColor: Colors.black,
-          disabledBackgroundColor: AppColors.cardElevated,
-          disabledForegroundColor: AppColors.textMuted,
+          disabledBackgroundColor: p.cardElevated,
+          disabledForegroundColor: p.textMuted,
           minimumSize: const Size(double.infinity, 50),
           shape: RoundedRectangleBorder(
             borderRadius: AppColors.buttonRadius,
@@ -234,10 +322,11 @@ class AppTheme {
           shadowColor: Colors.transparent,
         ),
       ),
+
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.border),
+          foregroundColor: p.textPrimary,
+          side: BorderSide(color: p.border),
           shape: RoundedRectangleBorder(
             borderRadius: AppColors.buttonRadius,
           ),
@@ -247,85 +336,116 @@ class AppTheme {
           ),
         ),
       ),
+
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.purple,
+          foregroundColor: p.purple,
           textStyle: GoogleFonts.inter(
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
+
       cardTheme: CardThemeData(
-        color: AppColors.card,
+        color: p.card,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: AppColors.cardRadius,
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: p.border),
         ),
       ),
-      dividerTheme: const DividerThemeData(
-        color: AppColors.divider,
+
+      dividerTheme: DividerThemeData(
+        color: p.divider,
         thickness: 1,
       ),
+
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.purple;
-          return AppColors.textMuted;
+          if (states.contains(WidgetState.selected)) return Colors.white;
+          return p.textMuted;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return AppColors.purple.withValues(alpha: 0.30);
+            return p.purple.withValues(alpha: 0.30);
           }
-          return AppColors.border;
+          return p.border;
         }),
       ),
+
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.purple;
+          if (states.contains(WidgetState.selected)) return p.purple;
           return Colors.transparent;
         }),
         checkColor: WidgetStateProperty.all(Colors.white),
-        side: const BorderSide(color: AppColors.border, width: 1.5),
+        side: BorderSide(color: p.border, width: 1.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(4),
         ),
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.purple,
-        linearTrackColor: AppColors.border,
-        circularTrackColor: AppColors.border,
+
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: p.purple,
+        linearTrackColor: p.border,
+        circularTrackColor: p.border,
       ),
+
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.cardElevated,
-        contentTextStyle: GoogleFonts.inter(color: AppColors.textPrimary),
+        backgroundColor: p.cardElevated,
+        contentTextStyle: GoogleFonts.inter(color: p.textPrimary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
         behavior: SnackBarBehavior.floating,
       ),
+
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.card,
+        backgroundColor: p.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
       ),
+
       tabBarTheme: TabBarThemeData(
-        labelColor: AppColors.purple,
-        unselectedLabelColor: AppColors.textMuted,
-        indicatorColor: AppColors.purple,
+        labelColor: p.purple,
+        unselectedLabelColor: p.textMuted,
+        indicatorColor: p.purple,
         labelStyle: GoogleFonts.inter(
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
         unselectedLabelStyle: GoogleFonts.inter(fontSize: 14),
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.purple,
+
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: p.purple,
         foregroundColor: Colors.black,
         elevation: 0,
+      ),
+
+      popupMenuTheme: PopupMenuThemeData(
+        color: p.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: p.border),
+        ),
+        textStyle: GoogleFonts.inter(color: p.textPrimary),
+      ),
+
+      dataTableTheme: DataTableThemeData(
+        headingRowColor: WidgetStatePropertyAll(p.cardElevated),
+        dataRowColor: WidgetStatePropertyAll(p.card),
+        dividerThickness: 1,
+        headingTextStyle: GoogleFonts.inter(
+          color: p.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+        dataTextStyle: GoogleFonts.inter(color: p.textSecondary),
       ),
     );
   }

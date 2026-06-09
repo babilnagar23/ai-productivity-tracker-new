@@ -29,7 +29,7 @@ class _Template {
   });
 }
 
-const _templates = [
+final _templates = [
   _Template(
     id: 'student',
     name: 'Student',
@@ -255,7 +255,7 @@ class _TemplateSelectScreenState extends ConsumerState<TemplateSelectScreen> {
                             Container(
                               width: 22,
                               height: 22,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 color: AppColors.blue,
                                 shape: BoxShape.circle,
                               ),

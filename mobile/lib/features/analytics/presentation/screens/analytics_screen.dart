@@ -172,7 +172,7 @@ class _StatBox extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -180,7 +180,7 @@ class _StatBox extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 10),
           ),
         ],
       ),
@@ -241,13 +241,13 @@ class _AnalyticsTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           showCheckboxColumn: false,
-          headingRowColor: const WidgetStatePropertyAll(AppColors.card),
+          headingRowColor: WidgetStatePropertyAll(AppColors.card),
           horizontalMargin: 12,
           columnSpacing: 18,
           dataRowMinHeight: 44,
           dataRowMaxHeight: 56,
           columns: [
-            const DataColumn(
+            DataColumn(
               label: Text(
                 'Metric',
                 style: TextStyle(
@@ -263,7 +263,7 @@ class _AnalyticsTable extends StatelessWidget {
               return DataColumn(
                 label: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -281,7 +281,7 @@ class _AnalyticsTable extends StatelessWidget {
   DataRow _buildProductivityRow(List<Map<String, dynamic>> rows) {
     return DataRow(
       cells: [
-        const DataCell(
+        DataCell(
           Text(
             'Productivity',
             style: TextStyle(
@@ -302,7 +302,7 @@ class _AnalyticsTable extends StatelessWidget {
             Center(
               child: Text(
                 _formatNum(value ?? 0 ),
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -324,7 +324,7 @@ class _AnalyticsTable extends StatelessWidget {
         DataCell(
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w600,
             ),
@@ -336,7 +336,7 @@ class _AnalyticsTable extends StatelessWidget {
             Center(
               child: Text(
                 value == null ? '—' : _formatNum(value),
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -357,7 +357,7 @@ class _AnalyticsTable extends StatelessWidget {
         DataCell(
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w600,
             ),
@@ -411,7 +411,7 @@ class _HabitRates extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Habit Completion Rates',
             style: TextStyle(
               color: AppColors.textPrimary,
@@ -457,7 +457,7 @@ class _RateBar extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 13,
               ),
@@ -502,7 +502,7 @@ class _SectionTitle extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -527,7 +527,7 @@ class _LoadingSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
-      child: const Center(
+      child: Center(
         child: CircularProgressIndicator(color: AppColors.purple),
       ),
     );
@@ -550,7 +550,7 @@ class _EmptyState extends StatelessWidget {
       child: Center(
         child: Text(
           message,
-          style: const TextStyle(color: AppColors.textMuted),
+          style: TextStyle(color: AppColors.textMuted),
         ),
       ),
     );
@@ -572,7 +572,7 @@ class _ErrorSection extends StatelessWidget {
       ),
       child: Text(
         message,
-        style: const TextStyle(color: AppColors.error, fontSize: 13),
+        style: TextStyle(color: AppColors.error, fontSize: 13),
       ),
     );
   }

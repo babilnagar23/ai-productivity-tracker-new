@@ -80,7 +80,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Verify Email',
                 style: TextStyle(
                   color: AppColors.textPrimary,
@@ -91,7 +91,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               const SizedBox(height: 8),
               Text(
                 'Enter the 6-digit code sent to\n${widget.email}',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.5),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.5),
               ),
               const SizedBox(height: 48),
               Row(
@@ -121,13 +121,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       "Didn't receive the code? ",
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
                     GestureDetector(
                       onTap: _resend,
-                      child: const Text(
+                      child: Text(
                         'Resend',
                         style: TextStyle(color: AppColors.purple, fontWeight: FontWeight.w700),
                       ),
@@ -167,7 +167,7 @@ class _OtpBox extends StatelessWidget {
         maxLength: 1,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         onChanged: onChanged,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textPrimary,
           fontSize: 22,
           fontWeight: FontWeight.w700,
@@ -177,11 +177,11 @@ class _OtpBox extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border),
+            borderSide: BorderSide(color: AppColors.border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.purple, width: 2),
+            borderSide: BorderSide(color: AppColors.purple, width: 2),
           ),
           filled: true,
           fillColor: AppColors.surface,

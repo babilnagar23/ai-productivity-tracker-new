@@ -58,7 +58,7 @@ class _NotificationPrefsScreenState extends ConsumerState<NotificationPrefsScree
       await prefs.setBool('streak_warning', _streakWarning);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Preferences saved!'), backgroundColor: AppColors.success),
+          SnackBar(content: const Text('Preferences saved!'), backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
@@ -79,7 +79,7 @@ class _NotificationPrefsScreenState extends ConsumerState<NotificationPrefsScree
       appBar: AppBar(
         title: Text('Notification Preferences', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 16)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -109,11 +109,11 @@ class _NotificationPrefsScreenState extends ConsumerState<NotificationPrefsScree
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.access_time_rounded, color: AppColors.textSecondary, size: 20),
+                  Icon(Icons.access_time_rounded, color: AppColors.textSecondary, size: 20),
                   const SizedBox(width: 12),
                   Expanded(child: Text('Reminder Time', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15))),
                   Text(_reminderTime.format(context), style: GoogleFonts.inter(color: AppColors.blue, fontSize: 14, fontWeight: FontWeight.w600)),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 18),
+                  Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 18),
                 ],
               ),
             ),
@@ -132,7 +132,7 @@ class _NotificationPrefsScreenState extends ConsumerState<NotificationPrefsScree
             ),
             child: Row(
               children: [
-                const Icon(Icons.timer_outlined, color: AppColors.textSecondary, size: 20),
+                 Icon(Icons.timer_outlined, color: AppColors.textSecondary, size: 20),
                 const SizedBox(width: 12),
                 Expanded(child: Text('Minutes before', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15))),
                 DropdownButton<int>(

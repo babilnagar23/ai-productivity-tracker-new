@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/api/api_endpoints.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/theme_controller.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
 import '../../../../shared/widgets/profile_avatar.dart';
@@ -50,6 +51,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).user;
+    final themeMode = ref.watch(themeModeProvider);
+    final isLightMode = themeMode == ThemeMode.light;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -126,7 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ],
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
                     color: AppColors.textMuted,
                   ),
@@ -182,7 +185,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.event_rounded,
                   color: AppColors.blue,
                   size: 22,
@@ -242,7 +245,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
-          _sectionHeader('PREFERENCES'),
+          _sectionHeader('APPEARANCE'),
           Container(
             decoration: BoxDecoration(
               color: AppColors.card,
@@ -256,36 +259,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.dark_mode_outlined,
-                        color: AppColors.textMuted,
-                        size: 22,
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          isLightMode
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          'Dark Mode',
-                          style: GoogleFonts.inter(
-                            color: AppColors.textSecondary,
-                            fontSize: 15,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isLightMode ? 'Light Mode' : 'Dark Mode',
+                              style: GoogleFonts.inter(
+                                color: AppColors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              isLightMode
+                                  ? 'Premium bright interface'
+                                  : 'Default premium dark interface',
+                              style: GoogleFonts.inter(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const Switch(
-                        value: true,
-                        onChanged: null,
-                        activeThumbColor: AppColors.textMuted,
+                      Switch(
+                        value: isLightMode,
+                        onChanged: (v) => ref
+                            .read(themeModeProvider.notifier)
+                            .toggleLightMode(v),
+                        activeThumbColor: AppColors.purple,
+                        activeTrackColor:
+                            AppColors.purple.withValues(alpha: 0.45),
                       ),
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: AppColors.divider),
+                Divider(height: 1, color: AppColors.border),
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.notifications_outlined,
                         color: AppColors.textSecondary,
                         size: 22,
@@ -324,7 +356,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: OutlinedButton.icon(
               onPressed: () => _showExportSheet(context),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.blue),
+                side: BorderSide(color: AppColors.blue),
                 foregroundColor: AppColors.blue,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -344,7 +376,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: OutlinedButton.icon(
               onPressed: () => _confirmLogout(context),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.error),
+                side: BorderSide(color: AppColors.error),
                 foregroundColor: AppColors.error,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -403,7 +435,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               color: AppColors.textMuted,
               size: 18,

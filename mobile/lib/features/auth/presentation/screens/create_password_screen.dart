@@ -72,7 +72,7 @@ class _CreatePasswordScreenState extends ConsumerState<CreatePasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Create Password',
                   style: TextStyle(
                     color: AppColors.textPrimary,
@@ -81,7 +81,7 @@ class _CreatePasswordScreenState extends ConsumerState<CreatePasswordScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Set a strong password for your account',
                   style: TextStyle(color: AppColors.textSecondary),
                 ),

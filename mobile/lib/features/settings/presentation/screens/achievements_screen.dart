@@ -46,12 +46,12 @@ class AchievementsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text('Achievements', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: routinesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.blue)),
+        loading: () => Center(child: CircularProgressIndicator(color: AppColors.blue)),
         error: (e, _) => Center(child: Text('$e', style: GoogleFonts.inter(color: AppColors.error))),
         data: (routines) {
           final totalStudyHours = routines.fold(0.0, (sum, r) => sum + r.studyHours);
@@ -153,7 +153,7 @@ class AchievementsScreen extends ConsumerWidget {
                     earnedText: 'Completed! • 50 XP',
                     progressText: '0/1 logs',
                   ),
-                  const _BadgeCard(
+                  _BadgeCard(
                     icon: Icons.star_rounded,
                     color: AppColors.warning,
                     name: 'Perfect Week',
@@ -185,9 +185,9 @@ class AchievementsScreen extends ConsumerWidget {
                         text: 'Started your productivity journey',
                       ),
                     if (streak >= 7)
-                      const _MilestoneTile(date: '', icon: Icons.local_fire_department_rounded, color: AppColors.warning, text: 'Reached 7-day streak'),
+                      _MilestoneTile(date: '', icon: Icons.local_fire_department_rounded, color: AppColors.warning, text: 'Reached 7-day streak'),
                     if (totalStudyHours >= 10)
-                      const _MilestoneTile(date: '', icon: Icons.menu_book_rounded, color: AppColors.blue, text: 'Completed 10 study hours'),
+                      _MilestoneTile(date: '', icon: Icons.menu_book_rounded, color: AppColors.blue, text: 'Completed 10 study hours'),
                     if (routines.isEmpty)
                       Center(child: Text('No milestones yet', style: GoogleFonts.inter(color: AppColors.textMuted))),
                   ],
@@ -210,7 +210,7 @@ class AchievementsScreen extends ConsumerWidget {
                       ),
                       child: Column(
                         children: [
-                          const Icon(Icons.emoji_events_rounded, color: AppColors.warning, size: 28),
+                          Icon(Icons.emoji_events_rounded, color: AppColors.warning, size: 28),
                           const SizedBox(height: 6),
                           Text('Longest Streak', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
                           Text('$streak Days', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
@@ -229,7 +229,7 @@ class AchievementsScreen extends ConsumerWidget {
                       ),
                       child: Column(
                         children: [
-                          const Icon(Icons.calendar_today_rounded, color: AppColors.blue, size: 28),
+                          Icon(Icons.calendar_today_rounded, color: AppColors.blue, size: 28),
                           const SizedBox(height: 6),
                           Text('Most Productive Day', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12), textAlign: TextAlign.center),
                           Text(bestDay != null ? '${bestDay.date} (${bestDay.productivityScore}pts)' : 'N/A',
@@ -268,7 +268,7 @@ class _XpArcPainter extends CustomPainter {
     canvas.drawCircle(center, radius, trackPaint);
 
     final progressPaint = Paint()
-      ..shader = const LinearGradient(colors: [AppColors.blue, AppColors.purple]).createShader(
+      ..shader = LinearGradient(colors: [AppColors.blue, AppColors.purple]).createShader(
           Rect.fromCircle(center: center, radius: radius))
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
@@ -325,7 +325,7 @@ class _BadgeCard extends StatelessWidget {
                 child: Icon(icon, color: earned ? color : AppColors.textMuted.withValues(alpha: 0.3), size: 28),
               ),
               if (!earned)
-                const Positioned(
+                Positioned(
                   bottom: 0,
                   right: 0,
                   child: Icon(Icons.lock_rounded, color: AppColors.textMuted, size: 16),

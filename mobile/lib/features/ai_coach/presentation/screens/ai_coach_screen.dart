@@ -129,7 +129,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
               child: Row(
                 children: [
                   Expanded(child: Text(title, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700))),
-                  IconButton(icon: const Icon(Icons.close_rounded, color: AppColors.textMuted), onPressed: () => Navigator.pop(ctx)),
+                  IconButton(icon: Icon(Icons.close_rounded, color: AppColors.textMuted), onPressed: () => Navigator.pop(ctx)),
                 ],
               ),
             ),
@@ -243,7 +243,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
           // Chat input
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.card,
               border: Border(top: BorderSide(color: AppColors.border)),
             ),
@@ -260,9 +260,9 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
                       hintStyle: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 14),
                       filled: true,
                       fillColor: AppColors.cardElevated,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: AppColors.border)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: AppColors.border)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: AppColors.blue)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: AppColors.border)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: AppColors.border)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: AppColors.blue)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     ),
                   ),
@@ -399,7 +399,7 @@ class _TipCard extends StatelessWidget {
               const SizedBox(height: 4),
               GestureDetector(
                 onTap: onDismiss,
-                child: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 20),
+                child: Icon(Icons.close_rounded, color: AppColors.textMuted, size: 20),
               ),
             ],
           ),

@@ -43,7 +43,7 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
       ref.invalidate(routinesProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved!'), backgroundColor: AppColors.success),
+          SnackBar(content: const Text('Saved!'), backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
@@ -81,7 +81,7 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
@@ -215,13 +215,13 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
         fillColor: AppColors.cardElevated,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.border)),
+            borderSide: BorderSide(color: AppColors.border)),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.border)),
+            borderSide: BorderSide(color: AppColors.border)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.blue)),
+            borderSide: BorderSide(color: AppColors.blue)),
       ),
     );
   }
@@ -230,7 +230,7 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
   Widget build(BuildContext context) {
     final configAsync = ref.watch(customConfigProvider);
     return configAsync.when(
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
           backgroundColor: AppColors.bg,
           body:
               Center(child: CircularProgressIndicator(color: AppColors.blue))),
@@ -259,7 +259,7 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_rounded,
             color: AppColors.textPrimary,
             size: 20,
@@ -333,7 +333,7 @@ class _CustomizationScreenState extends ConsumerState<CustomizationScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.add_circle_outline_rounded,
+            Icon(Icons.add_circle_outline_rounded,
                 color: AppColors.blue, size: 20),
             const SizedBox(width: 8),
             Text(label,
@@ -426,7 +426,7 @@ class _HabitCard extends StatelessWidget {
               color: AppColors.blue.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.check_circle_outline_rounded,
+            child: Icon(Icons.check_circle_outline_rounded,
                 color: AppColors.blue, size: 22),
           ),
           const SizedBox(width: 12),
@@ -447,11 +447,11 @@ class _HabitCard extends StatelessWidget {
             ),
           ),
           IconButton(
-              icon: const Icon(Icons.edit_outlined,
+              icon: Icon(Icons.edit_outlined,
                   color: AppColors.blue, size: 20),
               onPressed: onEdit),
           IconButton(
-              icon: const Icon(Icons.delete_outline_rounded,
+              icon: Icon(Icons.delete_outline_rounded,
                   color: AppColors.error, size: 20),
               onPressed: onDelete),
         ],
@@ -486,7 +486,7 @@ class _MetricCard extends StatelessWidget {
               color: AppColors.cyan.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.bar_chart_rounded,
+            child: Icon(Icons.bar_chart_rounded,
                 color: AppColors.cyan, size: 22),
           ),
           const SizedBox(width: 12),
@@ -498,11 +498,11 @@ class _MetricCard extends StatelessWidget {
                     fontWeight: FontWeight.w700)),
           ),
           IconButton(
-              icon: const Icon(Icons.edit_outlined,
+              icon: Icon(Icons.edit_outlined,
                   color: AppColors.blue, size: 20),
               onPressed: onEdit),
           IconButton(
-              icon: const Icon(Icons.delete_outline_rounded,
+              icon: Icon(Icons.delete_outline_rounded,
                   color: AppColors.error, size: 20),
               onPressed: onDelete),
         ],

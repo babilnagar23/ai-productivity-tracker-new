@@ -348,7 +348,7 @@ class _FocusScreenState extends State<FocusScreen>
                 fontWeight: FontWeight.w700,
                 fontSize: 17)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded,
+          icon: Icon(Icons.arrow_back_ios_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -513,7 +513,7 @@ class _FocusScreenState extends State<FocusScreen>
                 child: OutlinedButton(
                   onPressed: _timerRunning ? _pauseTimer : _startTimer,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
+                    side: BorderSide(color: AppColors.border),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -529,7 +529,7 @@ class _FocusScreenState extends State<FocusScreen>
                 child: OutlinedButton(
                   onPressed: _endTimer,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.error),
+                    side: BorderSide(color: AppColors.error),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -631,7 +631,7 @@ class _FocusScreenState extends State<FocusScreen>
                 child: OutlinedButton(
                   onPressed: _addLap,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
+                    side: BorderSide(color: AppColors.border),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -647,7 +647,7 @@ class _FocusScreenState extends State<FocusScreen>
                 child: OutlinedButton(
                   onPressed: _stopStopwatch,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.error),
+                    side: BorderSide(color: AppColors.error),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -666,7 +666,7 @@ class _FocusScreenState extends State<FocusScreen>
                 child: OutlinedButton(
                   onPressed: _resetStopwatch,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
+                    side: BorderSide(color: AppColors.border),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -783,15 +783,15 @@ class _FocusScreenState extends State<FocusScreen>
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide:
-                                  const BorderSide(color: AppColors.border)),
+                                  BorderSide(color: AppColors.border)),
                           enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide:
-                                  const BorderSide(color: AppColors.border)),
+                                  BorderSide(color: AppColors.border)),
                           focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide:
-                                  const BorderSide(color: AppColors.blue)),
+                                  BorderSide(color: AppColors.blue)),
                         ),
                       ),
                     ],
@@ -819,15 +819,15 @@ class _FocusScreenState extends State<FocusScreen>
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide:
-                                  const BorderSide(color: AppColors.border)),
+                                  BorderSide(color: AppColors.border)),
                           enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide:
-                                  const BorderSide(color: AppColors.border)),
+                                  BorderSide(color: AppColors.border)),
                           focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide:
-                                  const BorderSide(color: AppColors.blue)),
+                                  BorderSide(color: AppColors.blue)),
                         ),
                       ),
                     ],
@@ -897,10 +897,10 @@ class _FocusScreenState extends State<FocusScreen>
                 fillColor: AppColors.cardElevated,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border)),
+                    borderSide: BorderSide(color: AppColors.border)),
                 enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border)),
+                    borderSide: BorderSide(color: AppColors.border)),
               ),
             ),
             const SizedBox(height: 16),

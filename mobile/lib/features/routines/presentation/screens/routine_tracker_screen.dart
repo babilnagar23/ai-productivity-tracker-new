@@ -25,14 +25,14 @@ class RoutineTrackerScreen extends ConsumerWidget {
         ],
       ),
       body: routinesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.purple)),
+        loading: () => Center(child: CircularProgressIndicator(color: AppColors.purple)),
         error: (e, _) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
+              Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
               const SizedBox(height: 16),
-              Text('$e', style: const TextStyle(color: AppColors.textSecondary), textAlign: TextAlign.center),
+              Text('$e', style: TextStyle(color: AppColors.textSecondary), textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.invalidate(routinesProvider),
@@ -47,11 +47,11 @@ class RoutineTrackerScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.checklist_rounded, color: AppColors.textMuted, size: 64),
+                  Icon(Icons.checklist_rounded, color: AppColors.textMuted, size: 64),
                   const SizedBox(height: 16),
-                  const Text('No routines logged yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+                  Text('No routines logged yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
                   const SizedBox(height: 8),
-                  const Text('Start tracking your daily habits', style: TextStyle(color: AppColors.textMuted)),
+                  Text('Start tracking your daily habits', style: TextStyle(color: AppColors.textMuted)),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () => context.push('/routines/add'),
@@ -106,16 +106,16 @@ class RoutineTrackerScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Delete Entry', style: TextStyle(color: AppColors.textPrimary)),
-        content: const Text('Are you sure you want to delete this log?', style: TextStyle(color: AppColors.textSecondary)),
+        title: Text('Delete Entry', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('Are you sure you want to delete this log?', style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+            child: Text('Delete', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -170,11 +170,11 @@ class _RoutineCard extends StatelessWidget {
                   children: [
                     Text(
                       _formatDate(routine.date),
-                      style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 15),
+                      style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 15),
                     ),
                     Text(
                       '${routine.studyHours}h study • ${routine.mobileUsage}h mobile',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -186,22 +186,22 @@ class _RoutineCard extends StatelessWidget {
                   if (val == 'delete') onDelete();
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Row(
+                  PopupMenuItem(value: 'edit', child: Row(
                     children: [
                       Icon(Icons.edit_outlined, color: AppColors.textSecondary, size: 16),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text('Edit', style: TextStyle(color: AppColors.textPrimary)),
                     ],
                   )),
-                  const PopupMenuItem(value: 'delete', child: Row(
+                  PopupMenuItem(value: 'delete', child: Row(
                     children: [
                       Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 16),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text('Delete', style: TextStyle(color: AppColors.error)),
                     ],
                   )),
                 ],
-                icon: const Icon(Icons.more_vert_rounded, color: AppColors.textMuted, size: 20),
+                icon: Icon(Icons.more_vert_rounded, color: AppColors.textMuted, size: 20),
               ),
             ],
           ),
@@ -226,7 +226,7 @@ class _RoutineCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               routine.notes,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),

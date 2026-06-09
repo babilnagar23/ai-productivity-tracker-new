@@ -37,7 +37,7 @@ class ProfileAvatar extends StatelessWidget {
                 height: size,
               )
             : Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppColors.blue, AppColors.purple],
                   ),
@@ -75,7 +75,7 @@ class ProfileAvatar extends StatelessWidget {
             child: Container(
               width: size * 0.32,
               height: size * 0.32,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.blue,
                 shape: BoxShape.circle,
               ),

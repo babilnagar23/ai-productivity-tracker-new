@@ -31,7 +31,7 @@ class MainShell extends StatelessWidget {
       body: child,
       bottomNavigationBar: Container(
         height: 60 + MediaQuery.of(context).padding.bottom,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.nav,
           border: Border(top: BorderSide(color: AppColors.border, width: 1)),
         ),

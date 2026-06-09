@@ -211,7 +211,7 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
           ),
         ),
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_rounded,
             color: AppColors.textPrimary,
             size: 20,
@@ -802,7 +802,7 @@ class _WeeklyLineChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (routines.isEmpty) {
-      return const SizedBox(
+      return SizedBox(
         height: 120,
         child: Center(
           child: Text(
@@ -832,7 +832,7 @@ class _WeeklyLineChart extends StatelessWidget {
             show: true,
             drawVerticalLine: false,
             getDrawingHorizontalLine: (_) =>
-                const FlLine(color: AppColors.border, strokeWidth: 1),
+                FlLine(color: AppColors.border, strokeWidth: 1),
           ),
           borderData: FlBorderData(show: false),
           titlesData: FlTitlesData(
@@ -914,10 +914,10 @@ class _HabitBars extends StatelessWidget {
   Widget build(BuildContext context) {
     if (routines.isEmpty) return const SizedBox.shrink();
 
-    const colors = [
-      Color.fromARGB(255, 255, 255, 255),
+    final colors = [
+      const Color.fromARGB(255, 255, 255, 255),
       AppColors.success,
-      Color.fromARGB(255, 124, 121, 151),
+      const Color.fromARGB(255, 124, 121, 151),
       AppColors.warning,
       AppColors.cyan,
     ];

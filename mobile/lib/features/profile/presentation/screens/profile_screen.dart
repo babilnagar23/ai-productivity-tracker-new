@@ -24,7 +24,7 @@ class ProfileScreen extends ConsumerWidget {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [AppColors.gradientStart, AppColors.gradientEnd],
                     ),
                     shape: BoxShape.circle,
@@ -42,12 +42,12 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 Text(
                   user?.displayName ?? 'User',
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   user?.email ?? '',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 14),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -96,7 +96,7 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           const _SectionHeader('About'),
-          const _SettingsTile(
+          _SettingsTile(
             icon: Icons.info_outline_rounded,
             label: 'Version 1.0.0',
             onTap: null,
@@ -113,19 +113,19 @@ class ProfileScreen extends ConsumerWidget {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     backgroundColor: AppColors.surface,
-                    title: const Text('Logout', style: TextStyle(color: AppColors.textPrimary)),
-                    content: const Text(
+                    title: Text('Logout', style: TextStyle(color: AppColors.textPrimary)),
+                    content: Text(
                       'Are you sure you want to log out?',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                        child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Logout', style: TextStyle(color: AppColors.error)),
+                        child: Text('Logout', style: TextStyle(color: AppColors.error)),
                       ),
                     ],
                   ),
@@ -135,7 +135,7 @@ class ProfileScreen extends ConsumerWidget {
                 }
               },
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.error),
+                side: BorderSide(color: AppColors.error),
                 foregroundColor: AppColors.error,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -161,7 +161,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1),
+        style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1),
       ),
     );
   }
@@ -192,10 +192,10 @@ class _SettingsTile extends StatelessWidget {
             Icon(icon, color: AppColors.textSecondary, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(label, style: const TextStyle(color: AppColors.textPrimary, fontSize: 15)),
+              child: Text(label, style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
             ),
             trailing ?? (onTap != null
-                ? const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 18)
+                ? Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 18)
                 : const SizedBox.shrink()),
           ],
         ),

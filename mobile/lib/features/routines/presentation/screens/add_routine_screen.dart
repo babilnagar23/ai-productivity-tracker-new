@@ -260,7 +260,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
       lastDate: DateTime.now(),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.dark(
+          colorScheme: ColorScheme.dark(
             primary: AppColors.blue,
             surface: AppColors.surface,
             onSurface: AppColors.textPrimary,
@@ -278,7 +278,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
       initialTime: isSleep ? _sleepTime : _wakeTime,
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.dark(
+          colorScheme: ColorScheme.dark(
             primary: AppColors.blue,
             surface: AppColors.surface,
             onSurface: AppColors.textPrimary,
@@ -310,13 +310,13 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
               color: AppColors.textPrimary, fontWeight: FontWeight.w700),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded,
+          icon: Icon(Icons.arrow_back_ios_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => context.pop(),
         ),
       ),
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(color: AppColors.blue))
           : Form(
               key: _formKey,
@@ -327,7 +327,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [
                           AppColors.gradientStart,
                           AppColors.gradientEnd
@@ -373,7 +373,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today_rounded,
+                          Icon(Icons.calendar_today_rounded,
                               color: AppColors.blue, size: 18),
                           const SizedBox(width: 10),
                           Text(
@@ -384,7 +384,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                                 fontWeight: FontWeight.w600),
                           ),
                           const Spacer(),
-                          const Icon(Icons.chevron_right_rounded,
+                          Icon(Icons.chevron_right_rounded,
                               color: AppColors.textMuted),
                         ],
                       ),
@@ -493,14 +493,14 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide:
-                              const BorderSide(color: AppColors.border)),
+                              BorderSide(color: AppColors.border)),
                       enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide:
-                              const BorderSide(color: AppColors.border)),
+                              BorderSide(color: AppColors.border)),
                       focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.blue)),
+                          borderSide: BorderSide(color: AppColors.blue)),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -653,13 +653,13 @@ class _MetricField extends StatelessWidget {
         fillColor: AppColors.card,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border)),
+            borderSide: BorderSide(color: AppColors.border)),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border)),
+            borderSide: BorderSide(color: AppColors.border)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.blue)),
+            borderSide: BorderSide(color: AppColors.blue)),
       ),
       validator: (v) {
         if (v == null || v.isEmpty) return 'Required';
