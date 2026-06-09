@@ -159,6 +159,17 @@ class _DailyLogScreenState extends ConsumerState<DailyLogScreen> {
                 metrics: configMetrics,
               ),
               const SizedBox(height: 22),
+              _NotesSection(
+                routine: selectedRoutine,
+                onTap: () {
+                  if (selectedRoutine != null) {
+                    context.push(
+                      '/daily-log/edit/${selectedRoutine.id}',
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 22),
             ],
           ),
         ),
@@ -1002,6 +1013,56 @@ class _MetricCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NotesSection extends StatelessWidget {
+  final RoutineModel? routine;
+  final VoidCallback? onTap;
+
+  const _NotesSection({
+    required this.routine,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final notes = routine?.notes.trim() ?? '';
+
+    if (notes.isEmpty) {
+      return const SizedBox();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle(text: 'Notes'),
+        const SizedBox(height: 12),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.border,
+              ),
+            ),
+            child: Text(
+              notes,
+              style: GoogleFonts.inter(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
