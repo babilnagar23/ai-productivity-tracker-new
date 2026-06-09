@@ -51,33 +51,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.isAuthenticated;
+      final firstLoginDone = ref.read(firstLoginDoneProvider);
       final location = state.matchedLocation;
 
       debugPrint('[ROUTER] Current route: $location');
       debugPrint('[ROUTER] Authenticated: $isLoggedIn');
+      debugPrint('[ROUTER] First login done: $firstLoginDone');
 
       final isAuthRoute = location.startsWith('/login') ||
           location.startsWith('/register') ||
           location.startsWith('/otp') ||
           location.startsWith('/create-password') ||
-          location.startsWith('/forgot-password') ||
-          location.startsWith('/template-select');
+          location.startsWith('/forgot-password');
 
-      if (!isLoggedIn && !isAuthRoute) {
-        debugPrint('[ROUTER] Redirect triggered → /login');
-        return '/login';
+      if (!isLoggedIn) {
+        return isAuthRoute ? null : '/login';
       }
 
-      if (isLoggedIn &&
-          (location.startsWith('/login') ||
-              location.startsWith('/register') ||
-              location.startsWith('/otp') ||
-              location.startsWith('/create-password'))) {
-        // Check first login flag synchronously via the provider
-        final done = ref.read(firstLoginDoneProvider);
-        if (!done) {
-          return '/template-select';
-        }
+      if (!firstLoginDone) {
+        return location == '/template-select' ? null : '/template-select';
+      }
+
+      if (location == '/template-select') {
+        return '/dashboard';
+      }
+
+      if (isAuthRoute) {
         return '/dashboard';
       }
 
@@ -173,10 +172,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
               path: '/notifications',
               builder: (c, s) => const NotificationCenterScreen()),
-          GoRoute(
-            path: '/todos',
-            builder: (context, state) => const TodoScreen(),
-          ),
         ],
       ),
 

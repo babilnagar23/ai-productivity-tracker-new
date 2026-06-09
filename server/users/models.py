@@ -72,6 +72,7 @@ class UserProfile(models.Model):
     custom_config = models.JSONField(default=default_config)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    has_selected_template = models.BooleanField(default=False)
 
     def __str__(self):
         return f'{self.user.email} profile'

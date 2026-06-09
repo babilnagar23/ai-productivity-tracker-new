@@ -15,6 +15,7 @@ class UserModel {
   final int streak;
   final int xp;
   final Map<String, dynamic> customConfig;
+  final bool hasSelectedTemplate;
 
   const UserModel({
     required this.id,
@@ -24,6 +25,7 @@ class UserModel {
     this.streak = 0,
     this.xp = 0,
     this.customConfig = const {},
+    this.hasSelectedTemplate = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {

@@ -37,7 +37,7 @@ class _CreatePasswordScreenState extends ConsumerState<CreatePasswordScreen> {
     if (!mounted) return;
     if (success) {
       // completeRegistration now auto-logs in via the returned JWT
-      context.go('/dashboard');
+      context.go('/template-select');
     } else {
       final error = ref.read(authStateProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
