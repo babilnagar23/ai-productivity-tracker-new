@@ -12,6 +12,9 @@ from routines.serializers import RoutineSerializer
 
 logger = logging.getLogger('ai')
 
+from .models import AiJob
+from .tasks import process_ai_job
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -136,9 +139,48 @@ class ChatCoachView(APIView):
         )
         logger.info('[AI] Prompt generated — calling Groq')
         try:
-            reply = generate_ai_response(prompt)
-            logger.info('[AI] Response received')
-            return Response({'success': True, 'reply': reply})
+            job = AiJob.objects.create(
+                user=request.user,
+                prompt=prompt,
+                  status='pending',
+            )
+
+            process_ai_job.delay(job.id)
+
+            return Response(
+                {
+                    'success': True,
+                    'job_id': job.id,
+                    'status': 'pending',
+                },
+                status=202,
+            )
         except Exception as exc:
             logger.exception('[AI] Error: %s', exc)
             return Response({'success': False, 'error': str(exc)}, status=500)
+
+
+class AiJobStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, job_id):
+        try:
+            job = AiJob.objects.get(
+                id=job_id,
+                user=request.user,
+            )
+
+            return Response({
+                'job_id': job.id,
+                'status': job.status,
+                'result': job.result,
+                'error': job.error,
+            })
+
+        except AiJob.DoesNotExist:
+            return Response(
+                {
+                    'error': 'Job not found',
+                },
+                status=404,
+            )

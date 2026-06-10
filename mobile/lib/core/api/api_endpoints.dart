@@ -24,6 +24,7 @@ class ApiEndpoints {
   static const aiChat = '/ai/chat';
   static const aiGeneratePlan = '/ai/generate-plan';
   static const aiAnalyze = '/ai/analyze';
+  static String aiJobDetail(int jobId) => '/ai/jobs/$jobId/';
 
   // ── Calendar ───────────────────────────────────────────────────────────────
   static const calendarStatus = '/calendar/status';

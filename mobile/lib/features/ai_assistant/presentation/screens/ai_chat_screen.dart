@@ -53,7 +53,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     super.dispose();
   }
 
-  Future<void> _send(String message) async {
+  Future<void> _sendMessage(String message) async {
     if (message.trim().isEmpty) return;
     final userMsg = message.trim();
     _textCtrl.clear();
@@ -70,11 +70,19 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         ApiEndpoints.aiChat,
         data: {'message': userMsg},
       );
-      final reply = response.data['reply'] as String? ?? 'No response';
+      final int jobId = response.data['job_id'];
+      print('Job ID received: $jobId');
+
       setState(() {
-        _messages.add(ChatMessage(text: reply, isUser: false));
-        _isTyping = false;
+        _messages.add(
+          ChatMessage(
+            text: 'Generating response...',
+            isUser: false,
+          ),
+        );
       });
+
+      await _pollJobStatus(jobId);
     } on DioException catch (e) {
       String errorMsg;
       if (e.response?.statusCode == 429) {
@@ -91,6 +99,87 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     }
 
     _scrollToBottom();
+  }
+
+  Future<void> _pollJobStatus(int jobId) async {
+    while (mounted) {
+      await Future.delayed(const Duration(seconds: 2));
+
+      try {
+        print('Polling Job: $jobId');
+
+        final response = await apiClient.dio.get(
+          ApiEndpoints.aiJobDetail(jobId),
+        );
+
+        print('Job Response: ${response.data}');
+
+        final status = response.data['status'];
+
+        print('Status: $status');
+
+        if (status == 'done') {
+          final result = response.data['result'];
+
+          setState(() {
+            if (_messages.isNotEmpty) {
+              _messages.removeLast();
+            }
+
+            _messages.add(
+              ChatMessage(
+                text: result,
+                isUser: false,
+              ),
+            );
+
+            _isTyping = false;
+          });
+
+          _scrollToBottom();
+          return;
+        }
+
+        if (status == 'failed') {
+          setState(() {
+            if (_messages.isNotEmpty) {
+              _messages.removeLast();
+            }
+
+            _messages.add(
+              ChatMessage(
+                text: 'AI request failed.',
+                isUser: false,
+              ),
+            );
+
+            _isTyping = false;
+          });
+
+          return;
+        }
+      } catch (e, s) {
+        print('POLL ERROR');
+        print(e);
+        print(s);
+        setState(() {
+          if (_messages.isNotEmpty) {
+            _messages.removeLast();
+          }
+
+          _messages.add(
+            ChatMessage(
+              text: 'Could not check AI job status.',
+              isUser: false,
+            ),
+          );
+
+          _isTyping = false;
+        });
+
+        return;
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -153,7 +242,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 itemCount: _quickPrompts.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => GestureDetector(
-                  onTap: () => _send(
+                  onTap: () => _sendMessage(
                       _quickPrompts[i].replaceAll(RegExp(r'^[^\s]+ '), '')),
                   child: Container(
                     padding:
@@ -203,11 +292,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     style: TextStyle(color: AppColors.textPrimary),
                     maxLines: null,
                     textInputAction: TextInputAction.send,
-                    onSubmitted: _send,
+                    onSubmitted: _sendMessage,
                     decoration: InputDecoration(
                       hintText: 'Ask about your productivity...',
-                      hintStyle: TextStyle(
-                          color: AppColors.textMuted, fontSize: 14),
+                      hintStyle:
+                          TextStyle(color: AppColors.textMuted, fontSize: 14),
                       filled: true,
                       fillColor: AppColors.bg,
                       border: OutlineInputBorder(
@@ -229,7 +318,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: () => _send(_textCtrl.text),
+                  onTap: () => _sendMessage(_textCtrl.text),
                   child: Container(
                     width: 44,
                     height: 44,
@@ -323,8 +412,7 @@ class _MessageBubble extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   DateFormat('HH:mm').format(message.time),
-                  style:
-                      TextStyle(color: AppColors.textMuted, fontSize: 10),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 10),
                 ),
               ],
             ),
@@ -416,8 +504,8 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
       child: Container(
         width: 8,
         height: 8,
-        decoration: BoxDecoration(
-            shape: BoxShape.circle, color: AppColors.purple),
+        decoration:
+            BoxDecoration(shape: BoxShape.circle, color: AppColors.purple),
       ),
     );
   }

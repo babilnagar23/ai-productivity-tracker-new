@@ -57,7 +57,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
     super.dispose();
   }
 
-  Future<void> _send(String message) async {
+  Future<void> _sendMessage(String message) async {
     if (message.trim().isEmpty) return;
     final userMsg = message.trim();
     _textCtrl.clear();
@@ -68,8 +68,15 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
     _scrollToBottom();
     try {
       final response = await apiClient.dio.post(ApiEndpoints.aiChat, data: {'message': userMsg});
-      final reply = response.data['reply'] as String? ?? 'No response';
-      setState(() { _messages.add(_ChatMessage(text: reply, isUser: false)); _isTyping = false; });
+      final int jobId = response.data['job_id'];
+      print('Job ID received: $jobId');
+
+      setState(() {
+        _messages.add(_ChatMessage(text: 'Generating response...', isUser: false));
+      });
+      _scrollToBottom();
+
+      await _pollJobStatus(jobId);
     } on DioException catch (e) {
       String msg;
       if (e.response?.statusCode == 429) { msg = '⚠️ AI quota exceeded. Try again in a moment.'; }
@@ -77,6 +84,55 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
       setState(() { _messages.add(_ChatMessage(text: msg, isUser: false)); _isTyping = false; });
     }
     _scrollToBottom();
+  }
+
+  Future<void> _pollJobStatus(int jobId) async {
+    while (mounted) {
+      await Future.delayed(const Duration(seconds: 2));
+      try {
+        print('Polling Job: $jobId');
+        final response = await apiClient.dio.get(ApiEndpoints.aiJobDetail(jobId));
+        print('Job Response: ${response.data}');
+        final status = response.data['status'];
+        print('Status: $status');
+
+        if (status == 'done') {
+          final result = response.data['result'];
+          setState(() {
+            if (_messages.isNotEmpty) {
+              _messages.removeLast();
+            }
+            _messages.add(_ChatMessage(text: result, isUser: false));
+            _isTyping = false;
+          });
+          _scrollToBottom();
+          return;
+        }
+
+        if (status == 'failed') {
+          setState(() {
+            if (_messages.isNotEmpty) {
+              _messages.removeLast();
+            }
+            _messages.add(_ChatMessage(text: 'AI request failed.', isUser: false));
+            _isTyping = false;
+          });
+          return;
+        }
+      } catch (e, s) {
+        print('POLL ERROR');
+        print(e);
+        print(s);
+        setState(() {
+          if (_messages.isNotEmpty) {
+            _messages.removeLast();
+          }
+          _messages.add(_ChatMessage(text: 'Could not check AI job status.', isUser: false));
+          _isTyping = false;
+        });
+        return;
+      }
+    }
   }
 
   Future<void> _callAnalyze() async {
@@ -187,9 +243,9 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
                           children: [
                             _QuickCard(icon: Icons.insights_rounded, label: 'Analyse Productivity', desc: 'Get AI insights', color: AppColors.blue, onTap: _callAnalyze),
                             _QuickCard(icon: Icons.edit_calendar_rounded, label: 'Create Study Plan', desc: 'AI-generated plan', color: AppColors.purple, onTap: _callGeneratePlan),
-                            _QuickCard(icon: Icons.summarize_rounded, label: 'Weekly Review', desc: 'This week summary', color: AppColors.success, onTap: () => _send('Give me my weekly review')),
-                            _QuickCard(icon: Icons.center_focus_strong_rounded, label: 'Improve Focus', desc: 'Focus strategies', color: AppColors.warning, onTap: () => _send('How can I improve my focus?')),
-                            _QuickCard(icon: Icons.bolt_rounded, label: 'Reduce Procrastination', desc: 'Beat delays', color: AppColors.cyan, onTap: () => _send('Help me overcome procrastination')),
+                            _QuickCard(icon: Icons.summarize_rounded, label: 'Weekly Review', desc: 'This week summary', color: AppColors.success, onTap: () => _sendMessage('Give me my weekly review')),
+                            _QuickCard(icon: Icons.center_focus_strong_rounded, label: 'Improve Focus', desc: 'Focus strategies', color: AppColors.warning, onTap: () => _sendMessage('How can I improve my focus?')),
+                            _QuickCard(icon: Icons.bolt_rounded, label: 'Reduce Procrastination', desc: 'Beat delays', color: AppColors.cyan, onTap: () => _sendMessage('Help me overcome procrastination')),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -203,11 +259,11 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
                             scrollDirection: Axis.horizontal,
                             children: [
                               _ReportCard(title: 'Weekly Review', subtitle: 'This week', metric: '85% Focus Score',
-                                  onTap: () => _send('Give me my weekly review')),
+                                  onTap: () => _sendMessage('Give me my weekly review')),
                               _ReportCard(title: 'Monthly Review', subtitle: DateFormat('MMMM').format(DateTime.now()),
-                                  metric: 'Productivity Trend', onTap: () => _send('Give me my monthly productivity review')),
+                                  metric: 'Productivity Trend', onTap: () => _sendMessage('Give me my monthly productivity review')),
                               _ReportCard(title: 'Habit Analysis', subtitle: 'All time', metric: 'View habits',
-                                  onTap: () => _send('Analyze my habit completion patterns')),
+                                  onTap: () => _sendMessage('Analyze my habit completion patterns')),
                             ],
                           ),
                         ),
@@ -254,7 +310,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
                     controller: _textCtrl,
                     style: GoogleFonts.inter(color: AppColors.textPrimary),
                     textInputAction: TextInputAction.send,
-                    onSubmitted: _send,
+                    onSubmitted: _sendMessage,
                     decoration: InputDecoration(
                       hintText: 'Ask your AI coach...',
                       hintStyle: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 14),
@@ -269,7 +325,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: () => _send(_textCtrl.text),
+                  onTap: () => _sendMessage(_textCtrl.text),
                   child: Container(
                     width: 44,
                     height: 44,
