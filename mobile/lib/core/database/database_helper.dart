@@ -23,8 +23,9 @@ class DatabaseHelper {
       return await databaseFactory.openDatabase(
         'ai_productivity_tracker.db',
         options: OpenDatabaseOptions(
-          version: 1,
+          version: 3,
           onCreate: _onCreate,
+          onUpgrade: _onUpgrade,
         ),
       );
     } 
@@ -40,8 +41,9 @@ class DatabaseHelper {
     return await databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 3,
         onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
       ),
     );
   }
@@ -72,7 +74,10 @@ class DatabaseHelper {
         completedAt TEXT,
         createdAt TEXT,
         updatedAt TEXT,
-        deletedAt TEXT
+        deletedAt TEXT,
+        userId TEXT,
+        deletedFlag INTEGER DEFAULT 0,
+        deviceId TEXT
       )
     ''');
 
@@ -97,7 +102,10 @@ class DatabaseHelper {
         customLogsJson TEXT DEFAULT '[]',
         createdAt TEXT,
         updatedAt TEXT,
-        deletedAt TEXT
+        deletedAt TEXT,
+        userId TEXT,
+        deletedFlag INTEGER DEFAULT 0,
+        deviceId TEXT
       )
     ''');
 
@@ -116,7 +124,10 @@ class DatabaseHelper {
         lapsJson TEXT DEFAULT '[]',
         createdAt TEXT,
         updatedAt TEXT,
-        deletedAt TEXT
+        deletedAt TEXT,
+        userId TEXT,
+        deletedFlag INTEGER DEFAULT 0,
+        deviceId TEXT
       )
     ''');
 
@@ -132,9 +143,13 @@ class DatabaseHelper {
         endTime TEXT NOT NULL,
         allDay INTEGER DEFAULT 0,
         googleEventId TEXT,
+        syncedToGoogle INTEGER DEFAULT 0,
         createdAt TEXT,
         updatedAt TEXT,
-        deletedAt TEXT
+        deletedAt TEXT,
+        userId TEXT,
+        deletedFlag INTEGER DEFAULT 0,
+        deviceId TEXT
       )
     ''');
 
@@ -154,9 +169,106 @@ class DatabaseHelper {
         dismissedAt TEXT,
         createdAt TEXT,
         updatedAt TEXT,
-        deletedAt TEXT
+        deletedAt TEXT,
+        userId TEXT,
+        deletedFlag INTEGER DEFAULT 0,
+        deviceId TEXT
       )
     ''');
+
+    // achievements_cache
+    await db.execute('''
+      CREATE TABLE achievements_cache (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        name TEXT NOT NULL,
+        icon TEXT,
+        color TEXT,
+        earned INTEGER DEFAULT 0,
+        earnedText TEXT,
+        progressText TEXT,
+        createdAt TEXT,
+        updatedAt TEXT,
+        syncStatus TEXT,
+        deletedFlag INTEGER DEFAULT 0,
+        deviceId TEXT
+      )
+    ''');
+
+    // analytics_snapshots_cache
+    await db.execute('''
+      CREATE TABLE analytics_snapshots_cache (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        snapshotType TEXT NOT NULL,
+        payloadJson TEXT NOT NULL,
+        createdAt TEXT,
+        updatedAt TEXT,
+        syncStatus TEXT,
+        deletedFlag INTEGER DEFAULT 0,
+        deviceId TEXT
+      )
+    ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS achievements_cache (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          name TEXT NOT NULL,
+          icon TEXT,
+          color TEXT,
+          earned INTEGER DEFAULT 0,
+          earnedText TEXT,
+          progressText TEXT,
+          createdAt TEXT,
+          updatedAt TEXT,
+          syncStatus TEXT,
+          deletedFlag INTEGER DEFAULT 0,
+          deviceId TEXT
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS analytics_snapshots_cache (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          snapshotType TEXT NOT NULL,
+          payloadJson TEXT NOT NULL,
+          createdAt TEXT,
+          updatedAt TEXT,
+          syncStatus TEXT,
+          deletedFlag INTEGER DEFAULT 0,
+          deviceId TEXT
+        )
+      ''');
+
+      try { await db.execute("ALTER TABLE todos_cache ADD COLUMN userId TEXT;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE todos_cache ADD COLUMN deletedFlag INTEGER DEFAULT 0;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE todos_cache ADD COLUMN deviceId TEXT;"); } catch(_) {}
+
+      try { await db.execute("ALTER TABLE routines_cache ADD COLUMN userId TEXT;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE routines_cache ADD COLUMN deletedFlag INTEGER DEFAULT 0;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE routines_cache ADD COLUMN deviceId TEXT;"); } catch(_) {}
+
+      try { await db.execute("ALTER TABLE focus_sessions_cache ADD COLUMN userId TEXT;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE focus_sessions_cache ADD COLUMN deletedFlag INTEGER DEFAULT 0;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE focus_sessions_cache ADD COLUMN deviceId TEXT;"); } catch(_) {}
+
+      try { await db.execute("ALTER TABLE calendar_events_cache ADD COLUMN userId TEXT;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE calendar_events_cache ADD COLUMN deletedFlag INTEGER DEFAULT 0;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE calendar_events_cache ADD COLUMN deviceId TEXT;"); } catch(_) {}
+
+      try { await db.execute("ALTER TABLE notifications_cache ADD COLUMN userId TEXT;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE notifications_cache ADD COLUMN deletedFlag INTEGER DEFAULT 0;"); } catch(_) {}
+      try { await db.execute("ALTER TABLE notifications_cache ADD COLUMN deviceId TEXT;"); } catch(_) {}
+    }
+
+    if (oldVersion < 3) {
+      try { await db.execute("ALTER TABLE calendar_events_cache ADD COLUMN syncedToGoogle INTEGER DEFAULT 0;"); } catch(_) {}
+    }
   }
 
   // --- Helper Methods ---

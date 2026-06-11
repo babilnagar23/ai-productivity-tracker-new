@@ -16,6 +16,7 @@ class NotificationRecord(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
     sync_version = models.PositiveIntegerField(default=1)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

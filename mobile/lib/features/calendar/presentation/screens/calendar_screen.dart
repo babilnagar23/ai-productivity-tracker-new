@@ -4,10 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/api/api_client.dart';
 import '../../../../core/api/api_endpoints.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/database/database_helper.dart';
+import '../../../../core/sync/sync_engine.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
@@ -16,7 +19,8 @@ import '../../../../core/theme/app_theme.dart';
 enum CalendarViewMode { month, week, day }
 
 class CalendarEventItem {
-  final int id;
+  final String id;
+  final int? serverId;
   final String? googleEventId;
   final String title;
   final String description;
@@ -30,12 +34,14 @@ class CalendarEventItem {
   final List<dynamic> recurrence;
   final List<dynamic> reminders;
   final bool syncedToGoogle;
+  final String syncStatus;
   final bool isAiGenerated;
   final bool completed;
   final DateTime createdAt;
 
   CalendarEventItem({
     required this.id,
+    this.serverId,
     required this.title,
     required this.start,
     required this.end,
@@ -49,6 +55,7 @@ class CalendarEventItem {
     this.recurrence = const [],
     this.reminders = const [10],
     this.syncedToGoogle = false,
+    this.syncStatus = 'synced',
     this.isAiGenerated = false,
     this.completed = false,
     DateTime? createdAt,
@@ -69,28 +76,27 @@ class CalendarEventItem {
     }
 
     return CalendarEventItem(
-      id: (json['id'] as num?)?.toInt() ?? 0,
-      googleEventId: json['googleEventId'] as String?,
+      id: json['localId']?.toString() ?? json['client_uuid']?.toString() ?? (json['id']?.toString() ?? ''),
+      serverId: json['serverId'] as int? ?? (json['id'] is int ? json['id'] as int : null),
+      googleEventId: json['googleEventId'] as String? ?? json['google_event_id'] as String?,
       title: json['title'] as String? ?? 'Untitled',
       description: json['description'] as String? ?? '',
-      start: parseDate(json['start']),
-      end: parseDate(json['end']),
-      allDay: json['allDay'] as bool? ?? false,
-      colorKey:
-          json['colorKey'] as String? ?? json['color'] as String? ?? 'blue',
+      start: parseDate(json['start'] ?? json['startTime'] ?? json['start_time']),
+      end: parseDate(json['end'] ?? json['endTime'] ?? json['end_time']),
+      allDay: (json['allDay'] == true || json['allDay'] == 1 || json['all_day'] == true || json['all_day'] == 1),
+      colorKey: json['colorKey'] as String? ?? json['color'] as String? ?? 'blue',
       category: json['category'] as String? ?? 'personal',
       location: json['location'] as String? ?? '',
-      attendees:
-          (json['attendees'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      attendees: (json['attendees'] as List?)?.map((e) => e.toString()).toList() ?? [],
       recurrence: json['recurrence'] as List? ?? [],
       reminders: json['reminders'] as List? ?? [10],
-      syncedToGoogle: json['syncedToGoogle'] as bool? ?? false,
-      isAiGenerated: json['isAiGenerated'] as bool? ?? false,
-      completed: json['completed'] as bool? ?? false,
+      syncedToGoogle: (json['syncedToGoogle'] == true || json['syncedToGoogle'] == 1 || json['synced_to_google'] == true || json['synced_to_google'] == 1),
+      syncStatus: json['syncStatus'] as String? ?? 'synced',
+      isAiGenerated: (json['isAiGenerated'] == true || json['isAiGenerated'] == 1),
+      completed: (json['completed'] == true || json['completed'] == 1),
       createdAt: json['createdAt'] != null
-          ? (DateTime.tryParse(json['createdAt'].toString())?.toLocal() ??
-              DateTime.now())
-          : DateTime.now(),
+          ? (DateTime.tryParse(json['createdAt'].toString())?.toLocal() ?? DateTime.now())
+          : (json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString())?.toLocal() ?? DateTime.now() : DateTime.now()),
     );
   }
 }
@@ -158,20 +164,29 @@ final calendarEventsRangeProvider =
     final parts = rangeKey.split('|');
     final start = DateTime.parse(parts.first);
     final end = DateTime.parse(parts.last);
-    final r = await apiClient.dio.get(ApiEndpoints.calendarEvents,
-        queryParameters: {
-          'start': start.toIso8601String(),
-          'end': end.toIso8601String()
-        });
-    final body = r.data as Map<String, dynamic>;
-    final raw = (body['events'] as List?) ?? (body['data'] as List?) ?? [];
 
-    return raw
-        .whereType<Map>()
-        .map((e) => CalendarEventItem.fromJson(Map<String, dynamic>.from(e)))
-        .toList()
-      ..sort((a, b) => a.start.compareTo(b.start));
-  } catch (_) {
+    final dbHelper = DatabaseHelper();
+    final rows = await dbHelper.query(
+      'calendar_events_cache',
+      where: 'deletedFlag = 0',
+    );
+
+    final List<CalendarEventItem> localEvents = [];
+    for (final r in rows) {
+      final item = CalendarEventItem.fromJson(r);
+      if (item.start.isBefore(end) && item.end.isAfter(start)) {
+        localEvents.add(item);
+      }
+    }
+
+    localEvents.sort((a, b) => a.start.compareTo(b.start));
+
+    // Trigger background sync
+    SyncEngine().syncNow();
+
+    return localEvents;
+  } catch (e) {
+    debugPrint('[CalendarProvider] Error: $e');
     return [];
   }
 });
@@ -531,9 +546,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           color: AppColors.card,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.border)),
-      child: Column(
-        children: List.generate(sorted.length, (index) {
-          final event = sorted[index];
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Calculate right column width for IntrinsicHeight to work properly with wrapped text
+          // 75 (left) + 16 (gap) + 14 (middle) + 16 (gap) = 121
+          final rightWidth = constraints.maxWidth - 121;
+          
+          return Column(
+            children: List.generate(sorted.length, (index) {
+              final event = sorted[index];
           final isLast = index == sorted.length - 1;
           final localStart = event.start.toLocal();
           final localEnd = event.end.toLocal();
@@ -602,7 +623,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 const SizedBox(width: 16),
 
                 // Right Column: Event Details Card
-                Expanded(
+                SizedBox(
+                  width: rightWidth,
                   child: GestureDetector(
                     onTap: () => _showEventDetail(event),
                     child: Container(
@@ -646,6 +668,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             ),
           );
         }),
+      );
+    },
       ),
     );
   }
@@ -1022,7 +1046,27 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
     if (ok != true || !mounted) return;
     try {
-      await apiClient.dio.delete('${ApiEndpoints.calendarEvents}/${event.id}');
+      final dbHelper = DatabaseHelper();
+      await dbHelper.update(
+        'calendar_events_cache',
+        {
+          'deletedFlag': 1,
+          'syncStatus': 'pending',
+          'deletedAt': DateTime.now().toIso8601String(),
+        },
+        'localId = ?',
+        [event.id],
+      );
+
+      final apiPayload = {
+        'localId': event.id,
+        'client_uuid': event.id,
+        if (event.serverId != null) 'serverId': event.serverId,
+        'title': event.title,
+      };
+
+      await SyncEngine().queuePendingMutation('calendar_event', 'delete', apiPayload);
+
       await _refresh();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -1135,31 +1179,53 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 : DateTime(selDate.year, selDate.month, selDate.day,
                     endTOD.hour, endTOD.minute);
 
-            final payload = {
-              'title': titleCtrl.text.trim(),
-              'description': descCtrl.text.trim(),
-              'start': startDT.toIso8601String(),
-              'end': endDT.toIso8601String(),
-              'allDay': allDay,
-              'category': selCategory,
-              'color': selColor,
-              'location': locationCtrl.text.trim(),
-              'attendees': [],
-              'recurrence': [],
-              'reminders': [reminder],
-              'syncToGoogle': syncGoogle,
-              'isAiGenerated': false,
-            };
+
 
             try {
-              if (existing == null) {
-                await apiClient.dio
-                    .post(ApiEndpoints.calendarEvents, data: payload);
-              } else {
-                await apiClient.dio.put(
-                    '${ApiEndpoints.calendarEvents}/${existing.id}',
-                    data: payload);
-              }
+              final localId = existing?.id ?? const Uuid().v4();
+              final isNew = existing == null;
+
+              final localRow = {
+                'localId': localId,
+                if (existing?.serverId != null) 'serverId': existing!.serverId,
+                'syncStatus': 'pending',
+                'title': titleCtrl.text.trim(),
+                'description': descCtrl.text.trim(),
+                'startTime': startDT.toIso8601String(),
+                'endTime': endDT.toIso8601String(),
+                'allDay': allDay ? 1 : 0,
+                'googleEventId': existing?.googleEventId ?? '',
+                'createdAt': existing?.createdAt.toIso8601String() ?? DateTime.now().toIso8601String(),
+                'updatedAt': DateTime.now().toIso8601String(),
+                'syncedToGoogle': syncGoogle ? 1 : 0,
+                'deletedFlag': 0,
+              };
+
+              final dbHelper = DatabaseHelper();
+              await dbHelper.insert('calendar_events_cache', localRow);
+
+              final apiPayload = {
+                'localId': localId,
+                'client_uuid': localId,
+                if (existing?.serverId != null) 'serverId': existing!.serverId,
+                'title': titleCtrl.text.trim(),
+                'description': descCtrl.text.trim(),
+                'start_time': startDT.toIso8601String(),
+                'end_time': endDT.toIso8601String(),
+                'all_day': allDay,
+                'color': selColor,
+                'category': selCategory,
+                'location': locationCtrl.text.trim(),
+                'syncedToGoogle': syncGoogle,
+                'syncToGoogle': syncGoogle,
+                'completed': false,
+              };
+
+              await SyncEngine().queuePendingMutation(
+                'calendar_event',
+                isNew ? 'create' : 'update',
+                apiPayload,
+              );
 
               // ✅ FIX: Pop the sheet using sheetCtx BEFORE any screen-level work
               if (!sheetCtx.mounted) return;
@@ -1493,7 +1559,7 @@ class _EventCard extends StatelessWidget {
                           color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ])),
-          if (event.syncedToGoogle)
+          if (event.syncedToGoogle && event.syncStatus == 'synced')
             Icon(Icons.cloud_done_rounded,
                 color: AppColors.success, size: 18),
         ]),

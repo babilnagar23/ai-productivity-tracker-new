@@ -13,8 +13,12 @@ class TodoRepository {
 
 
   Future<List<TodoModel>> fetchTodos() async {
-    // Return local data immediately
-    final rows = await _dbHelper.query('todos_cache', orderBy: 'dueDate ASC');
+    // Return local data immediately where deletedFlag = 0
+    final rows = await _dbHelper.query(
+      'todos_cache',
+      where: 'deletedFlag = 0',
+      orderBy: 'dueDate ASC',
+    );
     final todos = rows.map((r) => TodoModel.fromJson(r)).toList();
     
     // Trigger background sync
@@ -23,7 +27,7 @@ class TodoRepository {
     return todos;
   }
 
-  Map<String, dynamic> _toDbFormat(TodoModel todo) {
+  Map<String, dynamic> _toDbFormat(TodoModel todo, {int deletedFlag = 0}) {
     final map = todo.toJson();
     map['completed'] = todo.completed ? 1 : 0;
     
@@ -41,6 +45,7 @@ class TodoRepository {
     map['createdAt'] = todo.createdAt?.toIso8601String();
     map['updatedAt'] = todo.updatedAt?.toIso8601String();
     map['syncStatus'] = todo.syncStatus;
+    map['deletedFlag'] = deletedFlag;
     
     return map;
   }
@@ -66,8 +71,15 @@ class TodoRepository {
     final rows = await _dbHelper.query('todos_cache', where: 'localId = ?', whereArgs: [id]);
     if (rows.isNotEmpty) {
       final todo = TodoModel.fromJson(rows.first);
+      // Soft delete in local DB
+      await _dbHelper.update(
+        'todos_cache',
+        {'deletedFlag': 1, 'syncStatus': 'pending', 'deletedAt': DateTime.now().toIso8601String()},
+        'localId = ?',
+        [id],
+      );
+      // Queue delete mutation
       await _syncEngine.queuePendingMutation('todo', 'delete', todo.toJson());
-      await _dbHelper.delete('todos_cache', 'localId = ?', [id]);
     }
   }
 }

@@ -62,8 +62,20 @@ class CalendarEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Sync fields
+    client_uuid = models.UUIDField(null=True, blank=True, unique=True)
+    sync_version = models.PositiveIntegerField(default=1)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ['start_time']
+
+    def save(self, *args, **kwargs):
+        if not self.client_uuid:
+            import uuid
+            self.client_uuid = uuid.uuid4()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.user.email} — {self.title} ({self.start_time.date()})'

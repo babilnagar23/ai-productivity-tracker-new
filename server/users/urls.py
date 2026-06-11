@@ -6,8 +6,28 @@ from .views import (
     ForgotPasswordView, ResetPasswordView,
     SendOTPView, VerifyOTPView, OTPRegisterView,
 )
+from .sync_views import (
+    SyncTasksView, SyncDailyLogsView, SyncRoutinesView,
+    SyncFocusSessionsView, SyncCalendarEventsView,
+    SyncNotificationsView, SyncBatchView,
+)
 
 urlpatterns = [
+    # Sync Endpoints
+    path('sync/tasks', SyncTasksView.as_view(), name='sync_tasks'),
+    path('sync/tasks/', SyncTasksView.as_view()),
+    path('sync/daily-logs', SyncDailyLogsView.as_view(), name='sync_daily_logs'),
+    path('sync/daily-logs/', SyncDailyLogsView.as_view()),
+    path('sync/routines', SyncRoutinesView.as_view(), name='sync_routines'),
+    path('sync/routines/', SyncRoutinesView.as_view()),
+    path('sync/focus-sessions', SyncFocusSessionsView.as_view(), name='sync_focus_sessions'),
+    path('sync/focus-sessions/', SyncFocusSessionsView.as_view()),
+    path('sync/calendar-events', SyncCalendarEventsView.as_view(), name='sync_calendar_events'),
+    path('sync/calendar-events/', SyncCalendarEventsView.as_view()),
+    path('sync/notifications', SyncNotificationsView.as_view(), name='sync_notifications'),
+    path('sync/notifications/', SyncNotificationsView.as_view()),
+    path('sync/batch', SyncBatchView.as_view(), name='sync_batch'),
+    path('sync/batch/', SyncBatchView.as_view()),
     path('auth/register', RegisterView.as_view(), name='register'),
     path('auth/register/', RegisterView.as_view(), name='register_slash'),
     path('auth/login', LoginView.as_view(), name='login'),

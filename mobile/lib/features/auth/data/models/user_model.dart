@@ -55,4 +55,16 @@ class UserModel {
   bool get hasAvatar {
     return avatar != null && avatar!.trim().isNotEmpty;
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'name': name,
+      'avatar': avatar,
+      'streak': streak,
+      'xp': xp,
+      'customConfig': customConfig,
+    };
+  }
 }

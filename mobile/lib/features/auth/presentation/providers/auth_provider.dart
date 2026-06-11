@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/storage/secure_storage.dart';
@@ -53,14 +54,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
     debugPrint('[AUTH] Initialising — checking stored tokens');
     final hasToken = await SecureStorageService.hasTokens();
     if (hasToken) {
-      debugPrint('[AUTH] Token found — fetching user profile');
+      debugPrint('[AUTH] Token found — restoring cached profile if available');
+      final cachedJson = await SecureStorageService.getCachedUserProfile();
+      if (cachedJson != null) {
+        try {
+          final decoded = jsonDecode(cachedJson) as Map<String, dynamic>;
+          final user = UserModel.fromJson(decoded);
+          state = state.copyWith(user: user, isAuthenticated: true);
+          debugPrint('[AUTH] Restored cached session offline for: ${user.email}');
+        } catch (e) {
+          debugPrint('[AUTH] Failed to decode cached profile: $e');
+        }
+      }
+
       try {
         final user = await _repository.getMe();
         state = state.copyWith(user: user, isAuthenticated: true);
-        debugPrint('[AUTH] Session restored — ${user.email}');
+        await SecureStorageService.saveUserProfile(jsonEncode(user.toJson()));
+        debugPrint('[AUTH] Session refreshed from server: ${user.email}');
       } catch (e) {
-        debugPrint('[AUTH] Session restore failed: $e — clearing tokens');
-        await SecureStorageService.clearAll();
+        debugPrint('[AUTH] Background revalidation failed: $e');
+        final isAuthError = e.toString().contains('401') || e.toString().contains('403');
+        if (isAuthError) {
+          debugPrint('[AUTH] Auth error — clearing session');
+          await SecureStorageService.clearAll();
+          state = const AuthState();
+        }
       }
     } else {
       debugPrint('[AUTH] No stored token — user must log in');
@@ -74,6 +93,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _repository.login(email, password);
+      await SecureStorageService.saveUserProfile(jsonEncode(user.toJson()));
       state = state.copyWith(
         user: user,
         isAuthenticated: true,
@@ -131,6 +151,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final userJson = data['user'] as Map<String, dynamic>?;
       if (userJson != null) {
         final user = UserModel.fromJson(userJson);
+        await SecureStorageService.saveUserProfile(jsonEncode(user.toJson()));
         state = state.copyWith(
           user: user,
           isAuthenticated: true,
@@ -186,7 +207,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       await _repository.updateProfile(data);
       final user = await _repository.getMe();
-
+      await SecureStorageService.saveUserProfile(jsonEncode(user.toJson()));
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {

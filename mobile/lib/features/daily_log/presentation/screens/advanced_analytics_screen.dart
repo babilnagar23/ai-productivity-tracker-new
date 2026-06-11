@@ -16,6 +16,8 @@ import '../../../routines/presentation/providers/routines_provider.dart';
 import '../../utils/export_utils.dart';
 import 'chart_edit_screen.dart';
 
+import '../../../../core/database/database_helper.dart';
+
 final analyticsRoutinesProvider =
     FutureProvider<List<RoutineModel>>((ref) async {
   return RoutineRepository().getRoutines();
@@ -23,8 +25,29 @@ final analyticsRoutinesProvider =
 
 final analyticsStatsProvider =
     FutureProvider<Map<String, dynamic>>((ref) async {
-  final response = await apiClient.dio.get(ApiEndpoints.analyticsFull);
-  return response.data as Map<String, dynamic>;
+  try {
+    final response = await apiClient.dio.get(ApiEndpoints.analyticsFull);
+    final data = response.data as Map<String, dynamic>;
+    
+    // Save to cache
+    final dbHelper = DatabaseHelper();
+    await dbHelper.insert('analytics_snapshots_cache', {
+      'id': 'full_analytics',
+      'userId': 'current_user',
+      'snapshotType': 'full',
+      'payloadJson': jsonEncode(data),
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+    return data;
+  } catch (e) {
+    // Fallback to cache
+    final dbHelper = DatabaseHelper();
+    final cached = await dbHelper.query('analytics_snapshots_cache', where: "id = 'full_analytics'");
+    if (cached.isNotEmpty) {
+      return jsonDecode(cached.first['payloadJson'] as String) as Map<String, dynamic>;
+    }
+    return {'stats': {}, 'charts': {}};
+  }
 });
 
 class AdvancedAnalyticsScreen extends ConsumerStatefulWidget {
@@ -251,6 +274,38 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
     );
   }
 
+  int _calculateCurrentStreak(List<RoutineModel> routines) {
+    if (routines.isEmpty) return 0;
+
+    final sortedDates = routines
+        .map((r) => DateTime.tryParse(r.date))
+        .where((d) => d != null)
+        .map((d) => DateTime(d!.year, d.month, d.day))
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    if (sortedDates.isEmpty) return 0;
+
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    final mostRecent = sortedDates.first;
+    if (mostRecent != today && mostRecent != yesterday) {
+      return 0;
+    }
+
+    int streak = 1;
+    for (int i = 0; i < sortedDates.length - 1; i++) {
+      final diff = sortedDates[i].difference(sortedDates[i + 1]).inDays;
+      if (diff == 1) {
+        streak++;
+      } else if (diff > 1) {
+        break;
+      }
+    }
+    return streak;
+  }
+
   Widget _buildBody(
     List<RoutineModel> routines,
     AsyncValue<Map<String, dynamic>> statsAsync,
@@ -262,7 +317,7 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
         statsAsync.asData?.value['stats'] as Map<String, dynamic>? ?? {};
 
     final totalDays = stats['totalLogs'] ?? routines.length;
-    final streak = stats['currentStreak'] ?? 0;
+    final streak = stats['currentStreak'] ?? _calculateCurrentStreak(routines);
     final avgScore = stats['avgScore'] ??
         (routines.isEmpty
             ? 0

@@ -493,89 +493,93 @@ class CalendarEventDetailView(APIView):
 # NEW: Pull events from Google Calendar into DB
 # ─────────────────────────────────────────────────────────────────────────────
 
+def pull_google_calendar_events(user):
+    connection = GoogleCalendarConnection.objects.filter(user=user).first()
+    if not connection or not connection.connected:
+        return 0, 'Google Calendar not connected.'
+    service = calendar_service(connection)
+    if not service:
+        return 0, 'Google Calendar dependencies not installed.'
+
+    now = timezone.now()
+    time_min = (now - timedelta(days=30)).isoformat()
+    time_max = (now + timedelta(days=60)).isoformat()
+
+    try:
+        result = service.events().list(
+            calendarId=connection.calendar_id,
+            timeMin=time_min,
+            timeMax=time_max,
+            singleEvents=True,
+            orderBy='startTime',
+            maxResults=250,
+        ).execute()
+        google_events = result.get('items', [])
+    except Exception as exc:
+        SyncLog.objects.create(user=user, direction='pull', status='error', error_message=str(exc))
+        return 0, str(exc)
+
+    imported = 0
+    for g_event in google_events:
+        g_id = g_event.get('id', '')
+        if not g_id:
+            continue
+
+        # Parse start/end
+        start_raw = g_event.get('start', {})
+        end_raw = g_event.get('end', {})
+        all_day = 'date' in start_raw and 'dateTime' not in start_raw
+
+        if all_day:
+            start_dt = datetime.combine(
+                datetime.strptime(start_raw['date'], '%Y-%m-%d').date(),
+                datetime.min.time()
+            )
+            end_dt = datetime.combine(
+                datetime.strptime(end_raw.get('date', start_raw['date']), '%Y-%m-%d').date(),
+                datetime.min.time()
+            )
+        else:
+            try:
+                start_dt = parse_iso_datetime(start_raw.get('dateTime', now.isoformat()))
+                end_dt = parse_iso_datetime(end_raw.get('dateTime', now.isoformat()))
+            except Exception:
+                continue
+
+        if timezone.is_naive(start_dt):
+            start_dt = timezone.make_aware(start_dt)
+        if timezone.is_naive(end_dt):
+            end_dt = timezone.make_aware(end_dt)
+
+        CalendarEvent.objects.update_or_create(
+            user=user,
+            google_event_id=g_id,
+            defaults={
+                'title': g_event.get('summary', 'Untitled'),
+                'description': g_event.get('description', ''),
+                'start_time': start_dt,
+                'end_time': end_dt,
+                'all_day': all_day,
+                'location': g_event.get('location', ''),
+                'attendees': [a.get('email', '') for a in g_event.get('attendees', [])],
+                'recurrence': g_event.get('recurrence', []),
+                'synced_to_google': True,
+                'color': 'blue',
+            },
+        )
+        imported += 1
+
+    SyncLog.objects.create(user=user, direction='pull', status='success', events_synced=imported)
+    return imported, ''
+
 class CalendarFetchGoogleView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
-        if not connection or not connection.connected:
-            return Response({'success': False, 'error': 'Google Calendar not connected.'}, status=400)
-        service = calendar_service(connection)
-        if not service:
-            return Response({'success': False, 'error': 'Google Calendar dependencies not installed.'}, status=501)
-
-        now = timezone.now()
-        time_min = (now - timedelta(days=30)).isoformat()
-        time_max = (now + timedelta(days=60)).isoformat()
-
-        try:
-            result = service.events().list(
-                calendarId=connection.calendar_id,
-                timeMin=time_min,
-                timeMax=time_max,
-                singleEvents=True,
-                orderBy='startTime',
-                maxResults=250,
-            ).execute()
-            google_events = result.get('items', [])
-        except Exception as exc:
-            SyncLog.objects.create(user=request.user, direction='pull', status='error', error_message=str(exc))
-            return Response({'success': False, 'error': str(exc)}, status=500)
-
-        imported = 0
-        for g_event in google_events:
-            g_id = g_event.get('id', '')
-            if not g_id:
-                continue
-
-            # Parse start/end
-            start_raw = g_event.get('start', {})
-            end_raw = g_event.get('end', {})
-            all_day = 'date' in start_raw and 'dateTime' not in start_raw
-
-            if all_day:
-                from datetime import date as date_type
-                start_dt = datetime.combine(
-                    datetime.strptime(start_raw['date'], '%Y-%m-%d').date(),
-                    datetime.min.time()
-                )
-                end_dt = datetime.combine(
-                    datetime.strptime(end_raw.get('date', start_raw['date']), '%Y-%m-%d').date(),
-                    datetime.min.time()
-                )
-            else:
-                try:
-                    start_dt = parse_iso_datetime(start_raw.get('dateTime', now.isoformat()))
-                    end_dt = parse_iso_datetime(end_raw.get('dateTime', now.isoformat()))
-                except Exception:
-                    continue
-
-            if timezone.is_naive(start_dt):
-                start_dt = timezone.make_aware(start_dt)
-            if timezone.is_naive(end_dt):
-                end_dt = timezone.make_aware(end_dt)
-
-            CalendarEvent.objects.update_or_create(
-                user=request.user,
-                google_event_id=g_id,
-                defaults={
-                    'title': g_event.get('summary', 'Untitled'),
-                    'description': g_event.get('description', ''),
-                    'start_time': start_dt,
-                    'end_time': end_dt,
-                    'all_day': all_day,
-                    'location': g_event.get('location', ''),
-                    'attendees': [a.get('email', '') for a in g_event.get('attendees', [])],
-                    'recurrence': g_event.get('recurrence', []),
-                    'synced_to_google': True,
-                    'color': 'blue',
-                },
-            )
-            imported += 1
-
-        SyncLog.objects.create(user=request.user, direction='pull', status='success', events_synced=imported)
+        imported, err = pull_google_calendar_events(request.user)
+        if err:
+            return Response({'success': False, 'error': err}, status=400 if 'not connected' in err.lower() else 500)
         return Response({'success': True, 'imported': imported})
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # NEW: AI Scheduler — Gemini-powered plan generation

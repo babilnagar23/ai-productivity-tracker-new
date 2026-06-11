@@ -4,6 +4,7 @@ import '../../../../core/api/api_client.dart';
 import '../../../../core/api/api_endpoints.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/sync/sync_engine.dart';
+import '../../../../core/storage/secure_storage.dart';
 import '../models/routine_model.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,7 +14,11 @@ class RoutineRepository {
   final SyncEngine _syncEngine = SyncEngine();
 
   Future<List<RoutineModel>> getRoutines() async {
-    final rows = await _dbHelper.query('routines_cache', orderBy: 'date DESC, createdAt DESC');
+    final rows = await _dbHelper.query(
+      'routines_cache',
+      where: 'deletedFlag = 0',
+      orderBy: 'date DESC, createdAt DESC',
+    );
     
     final seenDates = <String>{};
     final routines = <RoutineModel>[];
@@ -38,7 +43,7 @@ class RoutineRepository {
     return routines;
   }
 
-  Map<String, dynamic> _toDbFormat(RoutineModel routine) {
+  Map<String, dynamic> _toDbFormat(RoutineModel routine, {int deletedFlag = 0}) {
     final map = routine.toJson();
     map['syncStatus'] = routine.syncStatus;
     map['coreChecklistsJson'] = jsonEncode(map['core_checklists'] ?? {});
@@ -52,6 +57,7 @@ class RoutineRepository {
     map['wakeTime'] = map['wake_time'];
     map['mobileUsage'] = map['mobile_usage'];
     map['productivityScore'] = map['productivity_score'];
+    map['deletedFlag'] = deletedFlag;
     
     // Remove fields not in SQLite table
     map.remove('core_checklists');
@@ -96,8 +102,16 @@ class RoutineRepository {
       map['coreMetrics'] = jsonDecode(map['coreMetricsJson'] ?? '{}');
       map['customLogs'] = jsonDecode(map['customLogsJson'] ?? '[]');
       final routine = RoutineModel.fromJson(map);
+      
+      // Soft delete in local DB
+      await _dbHelper.update(
+        'routines_cache',
+        {'deletedFlag': 1, 'syncStatus': 'pending', 'deletedAt': DateTime.now().toIso8601String()},
+        'localId = ?',
+        [id],
+      );
+      // Queue delete mutation
       await _syncEngine.queuePendingMutation('routine', 'delete', routine.toJson());
-      await _dbHelper.delete('routines_cache', 'localId = ?', [id]);
     }
   }
 
@@ -111,12 +125,40 @@ class RoutineRepository {
   }
 
   Future<Map<String, dynamic>> getCustomConfig() async {
-    final response = await _dio.get(ApiEndpoints.customConfig);
-    final body = response.data as Map<String, dynamic>;
-    return body['data'] as Map<String, dynamic>? ?? body;
+    try {
+      final response = await _dio.get(ApiEndpoints.customConfig);
+      final body = response.data as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>? ?? body;
+      await SecureStorageService.saveFlag('custom_config', jsonEncode(data));
+      return data;
+    } catch (e) {
+      final cached = await SecureStorageService.getFlag('custom_config');
+      if (cached != null) {
+        return jsonDecode(cached) as Map<String, dynamic>;
+      }
+      return {
+        'coreChecklists': [
+          {'key': 'study_completed', 'label': 'Study session completed'},
+          {'key': 'exercise_completed', 'label': 'Exercise completed'},
+          {'key': 'ml_completed', 'label': 'ML/Coding completed'},
+        ],
+        'coreMetrics': [
+          {'key': 'study_hours', 'label': 'Study Hours', 'type': 'number'},
+          {'key': 'sleep_time', 'label': 'Sleep Time', 'type': 'time'},
+          {'key': 'wake_time', 'label': 'Wake Time', 'type': 'time'},
+          {'key': 'mobile_usage', 'label': 'Mobile Usage', 'type': 'number'},
+        ],
+      };
+    }
   }
 
   Future<void> updateCustomConfig(Map<String, dynamic> config) async {
-    await _dio.patch(ApiEndpoints.customConfig, data: config);
+    await SecureStorageService.saveFlag('custom_config', jsonEncode(config));
+    try {
+      await _dio.patch(ApiEndpoints.customConfig, data: config);
+    } catch (e) {
+      // Offline support: config is saved locally, queue mutation for backend sync
+      await _syncEngine.queuePendingMutation('custom_config', 'update', config);
+    }
   }
 }

@@ -10,6 +10,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/profile_avatar.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../todos/widgets/todo_preview_card.dart';
+import '../../../../core/database/database_helper.dart';
 
 DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
 DateTime _endOfDay(DateTime d) =>
@@ -28,15 +29,7 @@ DateTime _parseDateTime(dynamic value) {
   return DateTime.now();
 }
 
-List<Map<String, dynamic>> _extractEvents(dynamic data) {
-  if (data is! Map<String, dynamic>) return [];
-  final raw = (data['data'] as List<dynamic>?) ??
-      (data['events'] as List<dynamic>?) ??
-      const [];
-  return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
-    ..sort((a, b) => _parseDateTime(a['start'] ?? a['start_time'])
-        .compareTo(_parseDateTime(b['start'] ?? b['start_time'])));
-}
+
 
 String _formatDashboardEventTime(Map<String, dynamic> event) {
   final dt = _parseDateTime(event['start'] ?? event['start_time']).toLocal();
@@ -52,15 +45,32 @@ final dashboardTodayEventsProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
     final now = DateTime.now();
-    final response = await apiClient.dio.get(
-      ApiEndpoints.calendarEvents,
-      queryParameters: {
-        'start': _startOfDay(now).toIso8601String(),
-        'end': _endOfDay(now).toIso8601String(),
-      },
+    final start = _startOfDay(now);
+    final end = _endOfDay(now);
+
+    final dbHelper = DatabaseHelper();
+    final rows = await dbHelper.query(
+      'calendar_events_cache',
+      where: 'deletedFlag = 0',
     );
-    return _extractEvents(response.data);
-  } catch (_) {
+
+    final List<Map<String, dynamic>> localEvents = [];
+    for (final r in rows) {
+      final dtStr = r['startTime'] ?? r['start_time'];
+      if (dtStr == null) continue;
+      final dt = _parseDateTime(dtStr);
+      if (dt.isBefore(end) && dt.isAfter(start)) {
+        // Ensure the map structure matches what the UI expects
+        final eventMap = Map<String, dynamic>.from(r);
+        eventMap['start'] = eventMap['startTime'] ?? eventMap['start_time'];
+        localEvents.add(eventMap);
+      }
+    }
+
+    localEvents.sort((a, b) => _parseDateTime(a['start']).compareTo(_parseDateTime(b['start'])));
+    return localEvents;
+  } catch (e) {
+    debugPrint('Dashboard Today Events Error: $e');
     return [];
   }
 });
@@ -69,17 +79,31 @@ final dashboardUpcomingEventsProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
     final now = DateTime.now();
-    final response = await apiClient.dio.get(
-      ApiEndpoints.calendarEvents,
-      queryParameters: {
-        'start': _endOfDay(now)
-            .add(const Duration(milliseconds: 1))
-            .toIso8601String(),
-        'end': _endOfDay(now.add(const Duration(days: 7))).toIso8601String(),
-      },
+    final start = _endOfDay(now).add(const Duration(milliseconds: 1));
+    final end = _endOfDay(now.add(const Duration(days: 7)));
+
+    final dbHelper = DatabaseHelper();
+    final rows = await dbHelper.query(
+      'calendar_events_cache',
+      where: 'deletedFlag = 0',
     );
-    return _extractEvents(response.data);
-  } catch (_) {
+
+    final List<Map<String, dynamic>> localEvents = [];
+    for (final r in rows) {
+      final dtStr = r['startTime'] ?? r['start_time'];
+      if (dtStr == null) continue;
+      final dt = _parseDateTime(dtStr);
+      if (dt.isBefore(end) && dt.isAfter(start)) {
+        final eventMap = Map<String, dynamic>.from(r);
+        eventMap['start'] = eventMap['startTime'] ?? eventMap['start_time'];
+        localEvents.add(eventMap);
+      }
+    }
+
+    localEvents.sort((a, b) => _parseDateTime(a['start']).compareTo(_parseDateTime(b['start'])));
+    return localEvents;
+  } catch (e) {
+    debugPrint('Dashboard Upcoming Events Error: $e');
     return [];
   }
 });

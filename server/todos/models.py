@@ -25,5 +25,11 @@ class Todo(models.Model):
     class Meta:
         ordering = ['due_date', '-created_at']
 
+    def save(self, *args, **kwargs):
+        if not self.client_uuid:
+            import uuid
+            self.client_uuid = uuid.uuid4()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.title

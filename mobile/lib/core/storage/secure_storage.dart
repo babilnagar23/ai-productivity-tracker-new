@@ -99,6 +99,16 @@ class SecureStorageService {
     return token != null && token.isNotEmpty;
   }
 
+  static const _userProfileKey = 'cached_user_profile';
+
+  static Future<void> saveUserProfile(String profileJson) async {
+    await saveFlag(_userProfileKey, profileJson);
+  }
+
+  static Future<String?> getCachedUserProfile() async {
+    return await getFlag(_userProfileKey);
+  }
+
   // ── Generic flags ──────────────────────────────────────────────────────────
 
   static Future<void> saveFlag(String key, String value) async {
