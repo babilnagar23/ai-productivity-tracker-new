@@ -87,17 +87,33 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
   }
 
   Future<void> _pollJobStatus(int jobId) async {
+    final pollingUrl = ApiEndpoints.aiJobDetail(jobId);
     while (mounted) {
       await Future.delayed(const Duration(seconds: 2));
       try {
-        print('Polling Job: $jobId');
-        final response = await apiClient.dio.get(ApiEndpoints.aiJobDetail(jobId));
-        print('Job Response: ${response.data}');
+        print('jobId received: $jobId');
+        print('polling URL: $pollingUrl');
+        final response = await apiClient.dio.get(pollingUrl);
+        print('status code: ${response.statusCode}');
+        print('response.data: ${response.data}');
+
+        if (response.data == null || response.data is! Map) {
+          print('JSON parsing error: Response is not a JSON Map. Raw body: ${response.data}');
+          setState(() {
+            if (_messages.isNotEmpty) {
+              _messages.removeLast();
+            }
+            _messages.add(_ChatMessage(text: '❌ Could not get a response. Invalid response format.', isUser: false));
+            _isTyping = false;
+          });
+          return;
+        }
+
         final status = response.data['status'];
         print('Status: $status');
 
         if (status == 'done') {
-          final result = response.data['result'];
+          final result = response.data['result'] as String? ?? 'No response result found.';
           setState(() {
             if (_messages.isNotEmpty) {
               _messages.removeLast();
@@ -114,20 +130,62 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
             if (_messages.isNotEmpty) {
               _messages.removeLast();
             }
-            _messages.add(_ChatMessage(text: 'AI request failed.', isUser: false));
+            _messages.add(_ChatMessage(text: '❌ The AI job failed to process. Please try again.', isUser: false));
             _isTyping = false;
           });
           return;
         }
+      } on DioException catch (e) {
+        print('DioException in polling: $e');
+        print('DioException response: ${e.response}');
+        print('DioException error detail: ${e.error}');
+
+        final statusCode = e.response?.statusCode;
+        final responseData = e.response?.data;
+
+        if (statusCode == 401 || statusCode == 403) {
+          setState(() {
+            if (_messages.isNotEmpty) {
+              _messages.removeLast();
+            }
+            _messages.add(_ChatMessage(text: '🔒 Authentication error. Please log in again.', isUser: false));
+            _isTyping = false;
+          });
+          return;
+        }
+
+        if (statusCode == 404) {
+          print('404 URL mismatch. Polled URL: $pollingUrl, Status Code: $statusCode');
+          setState(() {
+            if (_messages.isNotEmpty) {
+              _messages.removeLast();
+            }
+            _messages.add(_ChatMessage(text: '❌ Polling endpoint not found (404). Check backend configuration.', isUser: false));
+            _isTyping = false;
+          });
+          return;
+        }
+
+        if (responseData != null && responseData is! Map) {
+          print('Raw response body: $responseData');
+        }
+
+        setState(() {
+          if (_messages.isNotEmpty) {
+            _messages.removeLast();
+          }
+          _messages.add(_ChatMessage(text: '❌ Could not get a response. Check your connection.', isUser: false));
+          _isTyping = false;
+        });
+        return;
       } catch (e, s) {
-        print('POLL ERROR');
-        print(e);
+        print('General exception in polling: $e');
         print(s);
         setState(() {
           if (_messages.isNotEmpty) {
             _messages.removeLast();
           }
-          _messages.add(_ChatMessage(text: 'Could not check AI job status.', isUser: false));
+          _messages.add(_ChatMessage(text: '❌ JSON parsing or unexpected error occurred.', isUser: false));
           _isTyping = false;
         });
         return;
