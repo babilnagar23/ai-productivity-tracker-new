@@ -9,8 +9,9 @@ import '../../data/repositories/routine_repository.dart';
 import '../providers/routines_provider.dart';
 
 class AddRoutineScreen extends ConsumerStatefulWidget {
-  final int? routineId;
-  const AddRoutineScreen({super.key, this.routineId});
+  final String? routineId;
+  final DateTime? initialDate;
+  const AddRoutineScreen({super.key, this.routineId, this.initialDate});
 
   @override
   ConsumerState<AddRoutineScreen> createState() => _AddRoutineScreenState();
@@ -20,7 +21,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
   final _formKey = GlobalKey<FormState>();
   final _notesCtrl = TextEditingController();
 
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
   TimeOfDay _sleepTime = const TimeOfDay(hour: 23, minute: 0);
   TimeOfDay _wakeTime = const TimeOfDay(hour: 7, minute: 0);
 
@@ -39,6 +40,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedDate = widget.initialDate ?? DateTime.now();
     _loadConfig();
   }
 
@@ -196,6 +198,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
         double.tryParse(_metricControllers['mobileUsage']?.text ?? '0') ?? 0.0;
 
     final routine = RoutineModel(
+      id: _existingRoutine?.id ?? '',
       date: DateFormat('yyyy-MM-dd').format(_selectedDate),
       studyCompleted: studyCompleted,
       exerciseCompleted: exerciseCompleted,
@@ -214,7 +217,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
 
     try {
       if (_isEditing && _existingRoutine?.id != null) {
-        await RoutineRepository().updateRoutine(_existingRoutine!.id!, routine);
+        await RoutineRepository().updateRoutine(_existingRoutine!.id, routine);
       } else {
         await RoutineRepository().createRoutine(routine);
       }
@@ -229,9 +232,9 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = _friendlyError(e);
+        debugPrint('SAVE ERROR: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AppColors.error),
+          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -239,18 +242,7 @@ class _AddRoutineScreenState extends ConsumerState<AddRoutineScreen> {
     }
   }
 
-  String _friendlyError(dynamic e) {
-    final s = e.toString();
-    if (s.contains('already exists') || s.contains('409')) {
-      return 'A log already exists for this date. Edit the existing entry.';
-    }
-    if (s.contains('network') ||
-        s.contains('connection') ||
-        s.contains('socket')) {
-      return 'Check your internet connection and try again.';
-    }
-    return 'Could not save. Please try again.';
-  }
+
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(

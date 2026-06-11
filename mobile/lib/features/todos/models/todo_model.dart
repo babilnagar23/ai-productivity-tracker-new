@@ -1,7 +1,8 @@
 import 'package:intl/intl.dart';
 
 class TodoModel {
-  final int? id;
+  final String id; // localId
+  final int? serverId;
   final String title;
   final String description;
   final DateTime dueDate;
@@ -9,9 +10,11 @@ class TodoModel {
   final DateTime? completedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String syncStatus;
 
   const TodoModel({
-    this.id,
+    required this.id,
+    this.serverId,
     required this.title,
     this.description = '',
     required this.dueDate,
@@ -19,10 +22,12 @@ class TodoModel {
     this.completedAt,
     this.createdAt,
     this.updatedAt,
+    this.syncStatus = 'synced',
   });
 
   TodoModel copyWith({
-    int? id,
+    String? id,
+    int? serverId,
     String? title,
     String? description,
     DateTime? dueDate,
@@ -30,9 +35,11 @@ class TodoModel {
     DateTime? completedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncStatus,
   }) {
     return TodoModel(
       id: id ?? this.id,
+      serverId: serverId ?? this.serverId,
       title: title ?? this.title,
       description: description ?? this.description,
       dueDate: dueDate ?? this.dueDate,
@@ -40,6 +47,7 @@ class TodoModel {
       completedAt: completedAt ?? this.completedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
     );
   }
 
@@ -58,9 +66,10 @@ class TodoModel {
   }
 
   factory TodoModel.fromJson(Map<String, dynamic> json) {
-    final dueRaw = json['due_date'] ?? json['date'];
+    final dueRaw = json['due_date'] ?? json['dueDate'] ?? json['date'];
     return TodoModel(
-      id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}'),
+      id: json['localId']?.toString() ?? json['client_uuid']?.toString() ?? '',
+      serverId: json['serverId'] ?? json['id'],
       title: (json['title'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
       dueDate: dueRaw != null
@@ -68,13 +77,18 @@ class TodoModel {
           : DateTime.now(),
       completed: _parseBool(json['completed']),
       completedAt: _tryParseDate(json['completed_at']),
-      createdAt: _tryParseDate(json['created_at']),
-      updatedAt: _tryParseDate(json['updated_at']),
+      createdAt: _tryParseDate(json['created_at'] ?? json['createdAt']),
+      updatedAt: _tryParseDate(json['updated_at'] ?? json['updatedAt']),
+      syncStatus: json['syncStatus'] ?? 'synced',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'localId': id,
+      'client_uuid': id,
+      if (serverId != null) 'serverId': serverId,
+      if (serverId != null) 'id': serverId,
       'title': title,
       'description': description,
       'due_date': DateFormat('yyyy-MM-dd').format(dueDate),

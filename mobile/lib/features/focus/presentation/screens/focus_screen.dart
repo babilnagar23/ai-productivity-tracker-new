@@ -7,8 +7,8 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/focus_alarm_service.dart';
-
-// ── Focus Session Model ───────────────────────────────────────────────────────
+import '../../../../core/database/database_helper.dart';
+import '../../../../core/sync/sync_engine.dart';
 
 class FocusSession {
   final String id;
@@ -100,22 +100,53 @@ class _FocusScreenState extends State<FocusScreen>
   }
 
   Future<void> _loadSessions() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('focus_sessions');
-    if (raw != null) {
-      final list = jsonDecode(raw) as List<dynamic>;
-      setState(() {
-        _sessions = list
-            .map((e) => FocusSession.fromJson(e as Map<String, dynamic>))
-            .toList();
-      });
-    }
+    final dbHelper = DatabaseHelper();
+    final rows = await dbHelper.query('focus_sessions_cache', orderBy: 'startTime DESC');
+    setState(() {
+      _sessions = rows.map((j) => FocusSession(
+        id: j['localId'] as String,
+        startTime: DateTime.parse(j['startTime'] as String),
+        endTime: j['endTime'] != null ? DateTime.parse(j['endTime'] as String) : null,
+        durationMinutes: j['durationMinutes'] as int,
+        label: j['label'] as String,
+        completed: (j['completed'] as int) == 1,
+      )).toList();
+    });
   }
 
-  Future<void> _saveSessions() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('focus_sessions',
-        jsonEncode(_sessions.map((s) => s.toJson()).toList()));
+  Future<void> _saveSession(FocusSession session) async {
+    final dbHelper = DatabaseHelper();
+    final payload = {
+      'localId': session.id,
+      'sessionType': 'timer', // Assuming timer for now, maybe stopwatch later
+      'label': session.label,
+      'startTime': session.startTime.toIso8601String(),
+      'endTime': session.endTime?.toIso8601String(),
+      'durationMinutes': session.durationMinutes,
+      'completed': session.completed ? 1 : 0,
+      'syncStatus': 'pending',
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+    
+    await dbHelper.insert('focus_sessions_cache', payload);
+    
+    // Convert to JSON payload for API
+    final apiPayload = {
+      'client_uuid': session.id,
+      'localId': session.id,
+      'session_type': 'timer',
+      'label': session.label,
+      'start_time': session.startTime.toIso8601String(),
+      'end_time': session.endTime?.toIso8601String(),
+      'duration_minutes': session.durationMinutes,
+      'completed': session.completed,
+    };
+    
+    SyncEngine().queuePendingMutation('focus_session', 'create', apiPayload);
+    
+    setState(() {
+      _sessions.insert(0, session);
+    });
   }
 
   void _startTimer() {
@@ -180,8 +211,7 @@ class _FocusScreenState extends State<FocusScreen>
       label: _sessionLabel,
       completed: false,
     );
-    _sessions.insert(0, session);
-    _saveSessions();
+    _saveSession(session);
     _sessionEndTime = null;
     setState(() {
       _timerRunning = false;
@@ -200,9 +230,7 @@ class _FocusScreenState extends State<FocusScreen>
       completed: true,
     );
 
-    _sessions.insert(0, session);
-
-    await _saveSessions();
+    await _saveSession(session);
 
     setState(() {
       _remainingSeconds = _selectedMinutes * 60;
@@ -299,8 +327,7 @@ class _FocusScreenState extends State<FocusScreen>
       label: label.isEmpty ? 'Stopwatch Session' : label,
       completed: true,
     );
-    _sessions.insert(0, session);
-    _saveSessions();
+    _saveSession(session);
     _resetStopwatch();
   }
 

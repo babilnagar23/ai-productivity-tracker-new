@@ -15,6 +15,12 @@ class Todo(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Sync fields
+    client_uuid = models.UUIDField(null=True, blank=True, unique=True)
+    sync_version = models.PositiveIntegerField(default=1)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['due_date', '-created_at']

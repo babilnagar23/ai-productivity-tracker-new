@@ -524,62 +524,128 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       );
     }
     final sorted = [...events]..sort((a, b) => a.start.compareTo(b.start));
-    const startH = 0, endH = 23, slotW = 84.0;
+
     return Container(
-      height: events.length * 80.0,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       decoration: BoxDecoration(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.border)),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: (endH - startH + 1) * slotW,
-          child: Stack(children: [
-            Positioned.fill(
-              child: Row(
-                  children: List.generate(endH - startH + 1, (i) {
-                final h = startH + i;
-                return SizedBox(
-                    width: slotW,
-                    child: Container(
-                      decoration: BoxDecoration(
-                          border: Border(
-                              left: BorderSide(
-                                  color: AppColors.border
-                                      .withValues(alpha: 0.5)))),
-                      child: Align(
-                          alignment: Alignment.topCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                                h == 12
-                                    ? '12 PM'
-                                    : h < 12
-                                        ? '$h AM'
-                                        : '${h - 12} PM',
-                                style: GoogleFonts.inter(
-                                    color: AppColors.textMuted, fontSize: 10)),
-                          )),
-                    ));
-              })),
-            ),
-            ...sorted.asMap().entries.map((entry) {
-              final index = entry.key;
-              final event = entry.value;
+      child: Column(
+        children: List.generate(sorted.length, (index) {
+          final event = sorted[index];
+          final isLast = index == sorted.length - 1;
+          final localStart = event.start.toLocal();
+          final localEnd = event.end.toLocal();
+          final color = _eventColor(event.colorKey);
 
-              return _TimelineBlock(
-                event: event,
-                lane: index,
-                startHour: startH,
-                endHour: endH,
-                slotWidth: slotW,
-                onTap: () => _showEventDetail(event),
-              );
-            }),
-          ]),
-        ),
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Left Column: Time range
+                SizedBox(
+                  width: 75,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _fmtTime(localStart),
+                        style: GoogleFonts.inter(
+                          color: AppColors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _fmtTime(localEnd),
+                        style: GoogleFonts.inter(
+                          color: AppColors.textMuted,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Middle Column: Timeline node and vertical line
+                Column(
+                  children: [
+                    Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.card, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          )
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: isLast
+                          ? const SizedBox.shrink()
+                          : Container(
+                              width: 2,
+                              color: AppColors.border,
+                            ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+
+                // Right Column: Event Details Card
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _showEventDetail(event),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardElevated,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: color.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            event.title,
+                            style: GoogleFonts.inter(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (event.description.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              event.description,
+                              style: GoogleFonts.inter(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
       ),
     );
   }
@@ -1376,73 +1442,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 // Sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _TimelineBlock extends StatelessWidget {
-  final CalendarEventItem event;
-  final double slotWidth;
-  final int startHour, endHour;
-  final VoidCallback onTap;
-  final int lane;
-  const _TimelineBlock(
-      {required this.event,
-      required this.lane,
-      required this.slotWidth,
-      required this.startHour,
-      required this.endHour,
-      required this.onTap});
 
-  @override
-  Widget build(BuildContext context) {
-    final localStart = event.start.toLocal();
-    final localEnd = event.end.toLocal();
-
-    final dayStart =
-        DateTime(localStart.year, localStart.month, localStart.day, startHour);
-    final dayEnd =
-        DateTime(localStart.year, localStart.month, localStart.day, endHour);
-
-    final s = localStart.isBefore(dayStart) ? dayStart : localStart;
-    final e = localEnd.isAfter(dayEnd) ? dayEnd : localEnd;
-    final mins = e.difference(s).inMinutes.clamp(30, 9999);
-    final left = (s.difference(dayStart).inMinutes / 60.0) * slotWidth;
-    final width = ((mins / 60.0) * slotWidth).clamp(80.0, 280.0);
-    final c = _eventColor(event.colorKey);
-    return Positioned(
-      left: left,
-      top: 20 + (lane * 70),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: width,
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-              color: c.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: c.withValues(alpha: 0.4))),
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(event.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                        color: AppColors.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
-                Text(
-                    event.allDay
-                        ? 'All day'
-                        : '${_fmtTime(localStart)} • ${_fmtTime(localEnd)}',
-                    style: GoogleFonts.inter(
-                        color: AppColors.textMuted, fontSize: 10)),
-              ]),
-        ),
-      ),
-    );
-  }
-}
 
 class _EventCard extends StatelessWidget {
   final CalendarEventItem event;

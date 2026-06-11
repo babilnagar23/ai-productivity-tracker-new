@@ -41,7 +41,9 @@ INSTALLED_APPS = [
     'productivity_ai',
     'common',
 
-    'todos', 
+    'todos',
+    'focus',
+    'notifications',
 ]
 
 # CorsMiddleware MUST be before CommonMiddleware and SessionMiddleware.

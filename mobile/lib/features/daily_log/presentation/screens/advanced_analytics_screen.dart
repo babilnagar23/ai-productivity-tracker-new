@@ -13,6 +13,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../routines/data/models/routine_model.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
 import '../../../routines/presentation/providers/routines_provider.dart';
+import '../../utils/export_utils.dart';
 import 'chart_edit_screen.dart';
 
 final analyticsRoutinesProvider =
@@ -115,19 +116,15 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
             const SizedBox(height: 16),
             _exportTile(Icons.upload_rounded, 'Export as PDF', () {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('PDF export coming soon')),
-              );
+              ExportUtils.exportToPdf(routines);
             }),
             _exportTile(Icons.table_chart_outlined, 'Export as CSV', () {
               Navigator.pop(ctx);
-              _exportCsv(routines);
+              ExportUtils.exportToCsv(routines);
             }),
             _exportTile(Icons.description_outlined, 'Export as Word Table', () {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Word export coming soon')),
-              );
+              ExportUtils.exportToWord(routines);
             }),
             const SizedBox(height: 8),
           ],
@@ -164,19 +161,7 @@ class _AdvancedAnalyticsScreenState extends ConsumerState<AdvancedAnalyticsScree
     );
   }
 
-  Future<void> _exportCsv(List<RoutineModel> routines) async {
-    final buf = StringBuffer();
-    buf.writeln('Date,Score,Sleep,Wake');
-    for (final r in routines) {
-      buf.writeln('${r.date},${r.productivityScore},${r.sleepTime},${r.wakeTime}');
-    }
-    await SharePlus.instance.share(
-      ShareParams(
-        text: buf.toString(),
-        subject: 'Productivity Tracker Data Export',
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {

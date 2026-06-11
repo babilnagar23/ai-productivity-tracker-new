@@ -119,12 +119,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               path: '/daily-log', builder: (c, s) => const DailyLogScreen()),
           GoRoute(
             path: '/daily-log/add',
-            builder: (c, s) => const AddRoutineScreen(),
+            builder: (c, s) {
+              final dStr = s.uri.queryParameters['date'];
+              return AddRoutineScreen(initialDate: dStr != null ? DateTime.tryParse(dStr) : null);
+            },
           ),
           GoRoute(
             path: '/daily-log/edit/:id',
             builder: (context, state) {
-              final id = int.parse(state.pathParameters['id']!);
+              final id = state.pathParameters['id']!;
 
               return AddRoutineScreen(
                 routineId: id,

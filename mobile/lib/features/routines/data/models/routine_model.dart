@@ -1,5 +1,6 @@
 class RoutineModel {
-  final int? id;
+  final String id; // localId
+  final int? serverId;
   final String date;
   final bool studyCompleted;
   final bool exerciseCompleted;
@@ -13,9 +14,11 @@ class RoutineModel {
   final Map<String, bool> coreChecklists;
   final Map<String, dynamic> coreMetrics;
   final List<dynamic> customLogs;
+  final String syncStatus;
 
   const RoutineModel({
-    this.id,
+    required this.id,
+    this.serverId,
     required this.date,
     this.studyCompleted = false,
     this.exerciseCompleted = false,
@@ -29,21 +32,29 @@ class RoutineModel {
     this.coreChecklists = const {},
     this.coreMetrics = const {},
     this.customLogs = const [],
+    this.syncStatus = 'synced',
   });
+
+  static bool _parseBool(dynamic value) {
+    if (value == true) return true;
+    if (value == 1) return true;
+    final text = value.toString().toLowerCase();
+    return text == 'true' || text == '1';
+  }
 
   factory RoutineModel.fromJson(Map<String, dynamic> json) {
     // Backend serializer returns camelCase in to_representation.
     // Accept both camelCase (backend response) and snake_case (legacy / direct).
     return RoutineModel(
-      id: json['id'] as int?,
+      id: json['localId']?.toString() ?? json['client_uuid']?.toString() ?? '',
+      serverId: json['serverId'] ?? json['id'],
       date: json['date'] as String,
       studyCompleted:
-          (json['studyCompleted'] ?? json['study_completed']) as bool? ?? false,
+          _parseBool(json['studyCompleted'] ?? json['study_completed']),
       exerciseCompleted:
-          (json['exerciseCompleted'] ?? json['exercise_completed']) as bool? ??
-              false,
+          _parseBool(json['exerciseCompleted'] ?? json['exercise_completed']),
       mlCompleted:
-          (json['mlCompleted'] ?? json['ml_completed']) as bool? ?? false,
+          _parseBool(json['mlCompleted'] ?? json['ml_completed']),
       studyHours:
           ((json['studyHours'] ?? json['study_hours']) as num?)?.toDouble() ??
               0,
@@ -67,10 +78,15 @@ class RoutineModel {
           : {},
       customLogs:
           (json['customLogs'] ?? json['custom_logs']) as List<dynamic>? ?? [],
+      syncStatus: json['syncStatus'] as String? ?? 'synced',
     );
   }
 
   Map<String, dynamic> toJson() => {
+        'localId': id,
+        'client_uuid': id,
+        if (serverId != null) 'serverId': serverId,
+        if (serverId != null) 'id': serverId,
         'date': date,
         'study_completed': studyCompleted,
         'exercise_completed': exerciseCompleted,
@@ -87,7 +103,8 @@ class RoutineModel {
       };
 
   RoutineModel copyWith({
-    int? id,
+    String? id,
+    int? serverId,
     String? date,
     bool? studyCompleted,
     bool? exerciseCompleted,
@@ -101,9 +118,11 @@ class RoutineModel {
     Map<String, bool>? coreChecklists,
     Map<String, dynamic>? coreMetrics,
     List<dynamic>? customLogs,
+    String? syncStatus,
   }) {
     return RoutineModel(
       id: id ?? this.id,
+      serverId: serverId ?? this.serverId,
       date: date ?? this.date,
       studyCompleted: studyCompleted ?? this.studyCompleted,
       exerciseCompleted: exerciseCompleted ?? this.exerciseCompleted,
@@ -117,6 +136,7 @@ class RoutineModel {
       coreChecklists: coreChecklists ?? this.coreChecklists,
       coreMetrics: coreMetrics ?? this.coreMetrics,
       customLogs: customLogs ?? this.customLogs,
+      syncStatus: syncStatus ?? this.syncStatus,
     );
   }
 }

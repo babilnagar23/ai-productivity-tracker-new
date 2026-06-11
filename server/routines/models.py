@@ -18,6 +18,12 @@ class Routine(models.Model):
     core_metrics = models.JSONField(default=dict, blank=True)
     custom_logs = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Sync fields
+    client_uuid = models.UUIDField(null=True, blank=True, unique=True)
+    sync_version = models.PositiveIntegerField(default=1)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-date', '-created_at']

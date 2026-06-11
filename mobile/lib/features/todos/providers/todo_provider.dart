@@ -54,9 +54,9 @@ class TodoNotifier extends StateNotifier<AsyncValue<List<TodoModel>>> {
   }
 
   Future<void> deleteTodo(TodoModel todo) async {
-    if (todo.id == null) return;
+    if (todo.id.isEmpty) return;
 
-    await repository.deleteTodo(todo.id!);
+    await repository.deleteTodo(todo.id);
     final current = _currentList();
 
     state = AsyncData(

@@ -60,7 +60,7 @@ class _TodoFormScreenState extends ConsumerState<TodoFormScreen> {
     setState(() => _saving = true);
 
     final model = TodoModel(
-      id: widget.todo?.id,
+      id: widget.todo?.id ?? '',
       title: _titleCtrl.text.trim(),
       description: _descCtrl.text.trim(),
       dueDate: _selectedDate,

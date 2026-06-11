@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/database/database_helper.dart';
 
 class _AppNotification {
   final String id;
@@ -27,12 +27,12 @@ class _AppNotification {
   };
 
   factory _AppNotification.fromJson(Map<String, dynamic> j) => _AppNotification(
-    id: j['id'] as String,
-    category: j['category'] as String,
-    title: j['title'] as String,
-    body: j['body'] as String,
-    time: DateTime.parse(j['time'] as String),
-    read: j['read'] as bool? ?? false,
+    id: j['localId'] as String? ?? j['client_uuid'] as String? ?? '',
+    category: j['type'] as String? ?? 'system',
+    title: j['title'] as String? ?? '',
+    body: j['body'] as String? ?? '',
+    time: j['createdAt'] != null ? DateTime.parse(j['createdAt'] as String) : DateTime.now(),
+    read: j['readAt'] != null,
   );
 }
 
@@ -55,30 +55,22 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   }
 
   Future<void> _loadNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('notifications');
-    if (raw != null) {
-      final list = jsonDecode(raw) as List<dynamic>;
-      setState(() {
-        _notifications = list.map((e) => _AppNotification.fromJson(e as Map<String, dynamic>)).toList();
-      });
-    } else {
-      // Pre-populate mock notifications
-      final now = DateTime.now();
-      _notifications = [
-        _AppNotification(id: '1', category: 'streak', title: '🔥 Streak Alert', body: 'You\'re on a 5-day streak! Keep it up!', time: now.subtract(const Duration(hours: 1))),
-        _AppNotification(id: '2', category: 'ai_insight', title: '💡 AI Insight', body: 'Your productivity peaks on Tuesdays. Schedule deep work then.', time: now.subtract(const Duration(hours: 3))),
-        _AppNotification(id: '3', category: 'reminder', title: '⏰ Daily Log Reminder', body: 'Don\'t forget to log your day before midnight!', time: now.subtract(const Duration(hours: 5))),
-        _AppNotification(id: '4', category: 'achievement', title: '🏆 Achievement Unlocked', body: 'You earned the "First Log" badge!', time: now.subtract(const Duration(days: 1))),
-        _AppNotification(id: '5', category: 'ai_insight', title: '📊 Weekly Review Ready', body: 'Your weekly productivity report is ready to view.', time: now.subtract(const Duration(days: 2))),
-      ];
-      _saveNotifications();
-    }
+    final dbHelper = DatabaseHelper();
+    final rows = await dbHelper.query('notifications_cache', orderBy: 'createdAt DESC');
+    setState(() {
+      _notifications = rows.map((e) => _AppNotification.fromJson(e)).toList();
+    });
   }
 
   Future<void> _saveNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('notifications', jsonEncode(_notifications.map((n) => n.toJson()).toList()));
+    // In a full implementation, you'd mark read/dismissed in SQLite and trigger sync.
+    // For now we'll just update SQLite locally.
+    final dbHelper = DatabaseHelper();
+    for (final n in _notifications) {
+      if (n.read) {
+        await dbHelper.update('notifications_cache', {'readAt': DateTime.now().toIso8601String()}, 'localId = ?', [n.id]);
+      }
+    }
   }
 
   List<_AppNotification> get _filtered {
@@ -178,9 +170,9 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                       return Dismissible(
                         key: Key(n.id),
                         direction: DismissDirection.endToStart,
-                        onDismissed: (_) {
+                        onDismissed: (_) async {
                           setState(() => _notifications.removeWhere((x) => x.id == n.id));
-                          _saveNotifications();
+                          await DatabaseHelper().delete('notifications_cache', 'localId = ?', [n.id]);
                         },
                         background: Container(
                           alignment: Alignment.centerRight,

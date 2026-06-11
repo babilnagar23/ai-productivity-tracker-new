@@ -11,6 +11,7 @@ import '../../../../core/theme/theme_controller.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../routines/data/repositories/routine_repository.dart';
 import '../../../../shared/widgets/profile_avatar.dart';
+import '../../../daily_log/utils/export_utils.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -472,38 +473,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ctx,
               Icons.upload_rounded,
               'Export as PDF',
-              () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('PDF export coming soon')),
-              ),
+              () async {
+                final routines = await RoutineRepository().getRoutines();
+                await ExportUtils.exportToPdf(routines);
+              },
             ),
             _exportTile(
               ctx,
               Icons.table_chart_outlined,
               'Export as CSV',
               () async {
-                final scaffoldMessenger = ScaffoldMessenger.of(context);
                 final routines = await RoutineRepository().getRoutines();
-                final buf = StringBuffer();
-                buf.writeln(
-                  'Date,Study,Exercise,Deep Work,Study Hrs,Mobile Hrs,Score',
-                );
-                for (final r in routines) {
-                  buf.writeln(
-                    '${r.date},${r.studyCompleted},${r.exerciseCompleted},${r.mlCompleted},${r.studyHours},${r.mobileUsage},${r.productivityScore}',
-                  );
-                }
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(content: Text('CSV ready to share')),
-                );
+                await ExportUtils.exportToCsv(routines);
               },
             ),
             _exportTile(
               ctx,
               Icons.description_outlined,
               'Export as Word Table',
-              () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Word export coming soon')),
-              ),
+              () async {
+                final routines = await RoutineRepository().getRoutines();
+                await ExportUtils.exportToWord(routines);
+              },
             ),
           ],
         ),

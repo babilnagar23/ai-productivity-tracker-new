@@ -8,6 +8,8 @@ import 'core/storage/secure_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'core/services/notification_service.dart';
+import 'core/sync/connectivity_service.dart';
+import 'core/sync/sync_engine.dart';
 
 ThemeMode _effectiveMode(ThemeMode mode) {
   if (mode != ThemeMode.system) return mode;
@@ -26,9 +28,12 @@ SystemUiOverlayStyle _overlayStyleFor(ThemeMode mode) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   apiClient.init();
   await NotificationService.initialize();
+  ConnectivityService().initialize();
+  
+  // Hydrate initial sync if possible
+  SyncEngine().syncNow();
 
   final firstLoginDone =
       await SecureStorageService.getFlag('first_login_done') == 'true';

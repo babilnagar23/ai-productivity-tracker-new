@@ -40,4 +40,11 @@ class ApiEndpoints {
   static const todos = '/todos/';
   static String todoDetail(int id) =>
     '/todos/$id/';
+
+  // ── Focus & Notifications ──────────────────────────────────────────────────
+  static const focusSessions = '/focus-sessions/';
+  static String focusSessionDetail(int id) => '/focus-sessions/$id/';
+  
+  static const notifications = '/notifications/';
+  static String notificationDetail(int id) => '/notifications/$id/';
 }

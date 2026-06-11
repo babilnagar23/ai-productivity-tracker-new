@@ -9,4 +9,6 @@ urlpatterns = [
     path('api/', include('ai_assistant.urls')),
     path('api/', include('calendar_integration.urls')),
     path('api/todos/', include('todos.urls')),
+    path('api/focus-sessions/', include('focus.urls')),
+    path('api/notifications/', include('notifications.urls')),
 ]

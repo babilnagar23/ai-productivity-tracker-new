@@ -79,8 +79,8 @@ class RoutineTrackerScreen extends ConsumerWidget {
                 },
                 onDelete: () async {
                   final confirmed = await _confirmDelete(context);
-                  if (confirmed == true && routines[i].id != null) {
-                    await RoutineRepository().deleteRoutine(routines[i].id!);
+                  if (confirmed == true) {
+                    await RoutineRepository().deleteRoutine(routines[i].id);
                     ref.invalidate(routinesProvider);
                   }
                 },

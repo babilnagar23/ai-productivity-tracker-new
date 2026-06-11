@@ -59,7 +59,11 @@ class _DailyLogScreenState extends ConsumerState<DailyLogScreen> {
       backgroundColor: AppColors.bg,
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await context.push('/daily-log/add');
+          if (selectedRoutine != null) {
+            await context.push('/daily-log/edit/${selectedRoutine.id}');
+          } else {
+            await context.push('/daily-log/add?date=${_selectedDate.toIso8601String()}');
+          }
           ref.invalidate(routinesProvider);
         },
         backgroundColor: AppColors.blue,
@@ -83,7 +87,11 @@ class _DailyLogScreenState extends ConsumerState<DailyLogScreen> {
                 onCustomize: () => context.push('/daily-log/customize'),
                 onStats: () => context.push('/daily-log/analytics'),
                 onAdd: () async {
-                  await context.push('/daily-log/add');
+                  if (selectedRoutine != null) {
+                    await context.push('/daily-log/edit/${selectedRoutine.id}');
+                  } else {
+                    await context.push('/daily-log/add?date=${_selectedDate.toIso8601String()}');
+                  }
                   ref.invalidate(routinesProvider);
                 },
               ),
@@ -147,7 +155,7 @@ class _DailyLogScreenState extends ConsumerState<DailyLogScreen> {
                         '/daily-log/edit/${selectedRoutine.id}',
                       );
                     } else {
-                      await context.push('/daily-log/add');
+                      await context.push('/daily-log/add?date=${_selectedDate.toIso8601String()}');
                     }
 
                     ref.invalidate(routinesProvider);

@@ -2,78 +2,72 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/api/api_client.dart';
 import '../../../../core/api/api_endpoints.dart';
+import '../../../../core/database/database_helper.dart';
+import '../../../../core/sync/sync_engine.dart';
 import '../../models/todo_model.dart';
+import 'package:uuid/uuid.dart';
 
 class TodoRepository {
-  List<dynamic> _extractList(dynamic data) {
-    if (data is List) return data;
+  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final SyncEngine _syncEngine = SyncEngine();
 
-    if (data is Map<String, dynamic>) {
-      final results = data['results'];
-      if (results is List) return results;
-
-      final items = data['data'];
-      if (items is List) return items;
-
-      final todos = data['todos'];
-      if (todos is List) return todos;
-    }
-
-    return <dynamic>[];
-  }
-
-  Map<String, dynamic> _extractMap(dynamic data) {
-    if (data is Map<String, dynamic>) {
-      final inner = data['data'];
-      if (inner is Map<String, dynamic>) return inner;
-      return data;
-    }
-    return <String, dynamic>{};
-  }
 
   Future<List<TodoModel>> fetchTodos() async {
-    final response = await apiClient.dio.get(
-      ApiEndpoints.todos,
-    );
-
-    final raw = _extractList(response.data);
-
-    final todos = raw
-        .whereType<Map>()
-        .map((e) => TodoModel.fromJson(Map<String, dynamic>.from(e)))
-        .toList();
-
-    todos.sort((a, b) => b.dueDate.compareTo(a.dueDate));
+    // Return local data immediately
+    final rows = await _dbHelper.query('todos_cache', orderBy: 'dueDate ASC');
+    final todos = rows.map((r) => TodoModel.fromJson(r)).toList();
+    
+    // Trigger background sync
+    _syncEngine.syncNow();
+    
     return todos;
   }
 
-  Future<TodoModel> createTodo(TodoModel todo) async {
-    final response = await apiClient.dio.post(
-      ApiEndpoints.todos,
-      data: todo.toJson(),
-    );
+  Map<String, dynamic> _toDbFormat(TodoModel todo) {
+    final map = todo.toJson();
+    map['completed'] = todo.completed ? 1 : 0;
+    
+    // Remove fields not in SQLite table
+    map.remove('client_uuid');
+    map.remove('due_date');
+    map.remove('completed_at');
+    map.remove('id');
+    
+    // Add fields that match the SQLite schema
+    map['dueDate'] = todo.dueDate.toIso8601String();
+    if (todo.completedAt != null) {
+      map['completedAt'] = todo.completedAt!.toIso8601String();
+    }
+    map['createdAt'] = todo.createdAt?.toIso8601String();
+    map['updatedAt'] = todo.updatedAt?.toIso8601String();
+    map['syncStatus'] = todo.syncStatus;
+    
+    return map;
+  }
 
-    final data = _extractMap(response.data);
-    return TodoModel.fromJson(data);
+  Future<TodoModel> createTodo(TodoModel todo) async {
+    final localId = const Uuid().v4();
+    final newTodo = todo.copyWith(id: localId, syncStatus: 'pending', createdAt: DateTime.now());
+    
+    await _dbHelper.insert('todos_cache', _toDbFormat(newTodo));
+    await _syncEngine.queuePendingMutation('todo', 'create', newTodo.toJson());
+    
+    return newTodo;
   }
 
   Future<TodoModel> updateTodo(TodoModel todo) async {
-    if (todo.id == null) {
-      throw Exception('Todo ID is required for update.');
-    }
-
-    final response = await apiClient.dio.patch(
-      ApiEndpoints.todoDetail(todo.id!),
-      data: todo.toJson(),
-    );
-
-    final data = _extractMap(response.data);
-    return TodoModel.fromJson(data);
+    final updated = todo.copyWith(syncStatus: 'pending', updatedAt: DateTime.now());
+    await _dbHelper.update('todos_cache', _toDbFormat(updated), 'localId = ?', [todo.id]);
+    await _syncEngine.queuePendingMutation('todo', 'update', updated.toJson());
+    return updated;
   }
 
-  Future<void> deleteTodo(int id) async {
-    await apiClient.dio.delete(
-      ApiEndpoints.todoDetail(id),
-    );
+  Future<void> deleteTodo(String id) async {
+    final rows = await _dbHelper.query('todos_cache', where: 'localId = ?', whereArgs: [id]);
+    if (rows.isNotEmpty) {
+      final todo = TodoModel.fromJson(rows.first);
+      await _syncEngine.queuePendingMutation('todo', 'delete', todo.toJson());
+      await _dbHelper.delete('todos_cache', 'localId = ?', [id]);
+    }
   }
 }
