@@ -12,7 +12,7 @@ def process_ai_job(self, job_id):
         job.status = 'processing'
         job.save(update_fields=['status'])
 
-        result = generate_ai_response(job.prompt)
+        result = generate_ai_response(job.prompt, clean=True)
 
         job.result = result
         job.status = 'done'

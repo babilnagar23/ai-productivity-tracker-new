@@ -6,6 +6,7 @@ Model: llama-3.3-70b-versatile
 """
 import json
 import logging
+import re
 
 from django.conf import settings
 
@@ -28,7 +29,29 @@ def _get_client():
         return None
 
 
-def generate_ai_response(prompt: str, *, temperature: float = 0.7, max_tokens: int = 2000) -> str:
+def clean_ai_response(text: str) -> str:
+    """
+    Cleans up AI response to remove markdown headers and convert lists to readable sentences.
+    """
+    if not text:
+        return text
+
+    # Remove ###, ##, # headings
+    text = re.sub(r'^#{1,3}\s+', '', text, flags=re.MULTILINE)
+    
+    # Remove bold/italic markers
+    text = text.replace('**', '')
+    
+    # Convert bullet points into readable sentences (remove bullets)
+    text = re.sub(r'^[\*\-]\s+(.*)$', r'\1', text, flags=re.MULTILINE)
+    
+    # Replace multiple newlines with a double newline for paragraph spacing
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    return text.strip()
+
+
+def generate_ai_response(prompt: str, *, temperature: float = 0.7, max_tokens: int = 2000, clean: bool = False) -> str:
     """
     Send a plain-text prompt to Groq and return the response string.
 
@@ -52,6 +75,10 @@ def generate_ai_response(prompt: str, *, temperature: float = 0.7, max_tokens: i
         )
         text = response.choices[0].message.content
         logger.info('[AI] Response received (%d chars)', len(text))
+        
+        if clean:
+            text = clean_ai_response(text)
+            
         return text
     except Exception as exc:
         logger.error('[AI] Error: %s', exc)

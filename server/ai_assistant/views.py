@@ -297,83 +297,70 @@ def build_prompt(context):
         task_block = (
             "The user is asking about their tasks/to-do list.\n"
             "Analyze the 'todos' and 'calendar_events' in the context.\n"
-            "Format the response with the following sections:\n"
-            "### 1. Prioritized To-Do List\n"
-            "Return a ranked list of items. Prioritize overdue tasks first (marked is_overdue=True), then today's tasks (is_today=True), then upcoming tasks.\n"
-            "For each item, specify:\n"
-            "- Task Title: [exact title from context]\n"
-            "- Priority/Status: [overdue/today/upcoming]\n"
-            "- Reason for Rank: [why this is ranked here]\n"
-            "- Source: todo\n\n"
-            "### 2. Evidence Used\n"
-            "List the exact todo titles and calendar events that informed this answer.\n\n"
-            "### 3. Action Plan\n"
-            "Give 1-3 extremely specific actions for completing these tasks today."
+            "Provide conversational priority recommendations.\n"
+            "Naturally mention their actual tasks. For example, explain what their highest priority is and why based on due dates and status. "
+            "Point out overdue tasks naturally, and explain that clearing them helps. "
+            "Finally, give a brief, highly specific suggestion on what to tackle first today."
         )
     elif intent == 'schedule':
         task_block = (
             "The user is asking about their schedule or today's plan.\n"
             "Analyze the 'calendar_events', 'todos', and 'routine_summary' in the context.\n"
-            "Build a realistic time-block plan around the user's real events and study habits.\n"
-            "Format the response with the following sections:\n"
-            "### 1. Time-Block Schedule\n"
-            "Create a daily schedule using real events from the calendar. Place tasks/routine study blocks around these events.\n"
-            "For each block, mention:\n"
-            "- Time Range\n"
-            "- Event/Task Title: [exact title from context]\n"
-            "- Source: [calendar/todo/routine]\n\n"
-            "### 2. Evidence Used\n"
-            "List the exact event titles, todo titles, and metrics (like avgStudy, avgMobile) used to build this schedule.\n\n"
-            "### 3. Action Plan\n"
-            "Provide a concise tip on staying on track with this schedule today."
+            "Provide a natural daily schedule explanation.\n"
+            "Walk through their day conversationally, referencing real events from their calendar and placing their tasks or study blocks around these events. "
+            "Mention how this fits into their current habits. "
+            "End with a concise, encouraging tip on how to stay on track today."
         )
     elif intent == 'analysis':
         task_block = (
             "The user is asking for habit/productivity analysis.\n"
             "Analyze 'routine_summary' and 'recent_routines' in the context.\n"
-            "Format the response with the following sections:\n"
-            "### 1. Productivity Insights\n"
-            "Provide 3-5 short bullet-point insights backed by the actual numbers in the context (average study hours, average mobile usage, streak, best score, productivity score trends).\n"
-            "Mention exact values/percentages.\n\n"
-            "### 2. Evidence Used\n"
-            "List the exact routine numbers, logs analyzed, and streak stats used.\n\n"
-            "### 3. Action Plan\n"
-            "Suggest one next-step action to improve productivity or reduce mobile usage, based on their average metrics."
+            "Provide conversational insights and observations.\n"
+            "Share 3-5 short, naturally flowing insights backed by their actual numbers (average study hours, average mobile usage, streak, best score, productivity score trends). "
+            "Mention exact values naturally, e.g., 'I noticed you studied 6 hours on average this week.' "
+            "Suggest one practical next step to improve productivity or reduce mobile usage."
         )
     else:
         # general_coach
         task_block = (
             "Act as a personal AI productivity coach.\n"
             "Respond to the user's message using the provided context.\n"
-            "Format the response with the following sections:\n"
-            "### 1. Coach Answer\n"
-            "Answer the user's question concisely. Use the user's real todo titles, event titles, and routine numbers. Never give generic motivational or wellness advice (like 'drink water' or 'sleep 8 hours') unless directly supported by the context.\n\n"
-            "### 2. Evidence Used\n"
-            "List the specific todo titles, calendar events, or routine metrics referenced in the answer.\n\n"
-            "### 3. Action Plan\n"
-            "Suggest 1-2 practical next steps."
+            "Provide a coach-like conversation.\n"
+            "Answer the user's question concisely. Naturally integrate the user's real todo titles, event titles, and routine numbers into your answer. "
+            "Never give generic motivational or wellness advice (like 'drink water' or 'sleep 8 hours') unless directly supported by the context. "
+            "Conclude with 1-2 practical next steps."
         )
 
     return f"""
-You are an expert AI productivity coach for a student productivity app.
+You are a personal productivity coach.
+
+Speak naturally as if chatting with the user.
 
 Your task:
 {task_block}
 
 Hard rules:
-1. Use ONLY the supplied data in the CONTEXT. Never invent tasks, times, events, or habits.
-2. If any data type (todos, calendar events, or routines) is empty or missing, state exactly what is missing under 'Evidence Used' or in the text (e.g., "No calendar events found for the next 7 days") and ask the user to add it.
-3. Reference real numbers: average study hours, mobile usage, productivity score, current streak, etc.
-4. Do not output generic filler text.
-5. Do not suggest actions not supported by the user's data.
+1. Do not use markdown.
+2. Do not use # headers.
+3. Do not use ## headers.
+4. Do not use ### headers.
+5. Do not use code blocks.
+6. Do not use report formatting or excessive bullet lists.
+7. Use short paragraphs.
+8. Use emojis sparingly when useful.
+9. Reference actual user data (real tasks, real events, real productivity metrics).
+10. Explain WHY you are making each recommendation.
+11. Write like a human coach speaking directly to the user.
+12. Use ONLY the supplied data in the CONTEXT. Never invent tasks, times, events, or habits.
+13. If any data type (todos, calendar events, or routines) is empty or missing, state it naturally in the conversation (e.g., "I noticed you don't have any calendar events scheduled today") and suggest they add some.
+14. Do not output generic filler text.
+15. Keep the response concise: 150–300 words maximum. Mobile friendly. Easy to read.
 
 CURRENT USER MESSAGE:
 {message}
 
 CONTEXT:
 {json.dumps(context, default=_json_default, ensure_ascii=False, indent=2)}
-
-Return the requested markdown structure only. Do not wrap in markdown code blocks like ```markdown...```. Output the headings and content directly.
 """.strip()
 
 
@@ -478,7 +465,7 @@ class GeneratePlanView(APIView):
         prompt = build_prompt(context)
         logger.info('[AI] Prompt generated — calling Groq')
         try:
-            plan = generate_ai_response(prompt)
+            plan = generate_ai_response(prompt, clean=True)
             logger.info('[AI] Response received')
             return Response({'success': True, 'plan': plan})
         except Exception as exc:
@@ -513,7 +500,7 @@ class AnalyzeHabitsView(APIView):
         prompt = build_prompt(context)
         logger.info('[AI] Prompt generated — calling Groq')
         try:
-            analysis = generate_ai_response(prompt)
+            analysis = generate_ai_response(prompt, clean=True)
             logger.info('[AI] Response received')
             return Response({'success': True, 'analysis': analysis, 'data': analysis})
         except Exception as exc:
