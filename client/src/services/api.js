@@ -111,9 +111,9 @@ export const calendarApi = {
 
 // ─── Analytics ────────────────────────────────────────────────────
 export const analyticsApi = {
-  daily: (params) => api.get('/analytics/daily', { params }).then(r => r.data),
+  full: () => api.get('/analytics/full').then(r => r.data),
   weekly: () => api.get('/analytics/weekly').then(r => r.data),
-  focus: () => api.get('/analytics/focus').then(r => r.data),
+  insights: () => api.get('/analytics/insights').then(r => r.data),
 };
 
 // ─── Notifications ────────────────────────────────────────────────
@@ -133,7 +133,7 @@ export const achievementsApi = {
 export const aiApi = {
   analyze: () => api.post('/ai/analyze').then(r => r.data),
   chat: (message, history = []) => api.post('/ai/chat', { message, history }).then(r => r.data),
-  coach: () => api.post('/ai/coach').then(r => r.data),
+  generatePlan: () => api.post('/ai/generate-plan').then(r => r.data),
 };
 
 export default api;

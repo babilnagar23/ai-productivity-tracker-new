@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/database/database_helper.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -78,6 +79,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         if (isAuthError) {
           debugPrint('[AUTH] Auth error — clearing session');
           await SecureStorageService.clearAll();
+          await DatabaseHelper().clearAllCache();
           state = const AuthState();
         }
       }
@@ -221,6 +223,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     debugPrint('[AUTH] Logout');
     await _repository.logout();
+    await DatabaseHelper().clearAllCache();
     state = const AuthState();
   }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import StatCard from '../components/ui/StatCard';
-import { apiFetch } from '../services/api';
+import { analyticsApi } from '../services/api';
 import { BarChart3, TrendingUp, Target, Focus, CalendarDays, Award } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -14,10 +14,13 @@ export default function Analytics() {
     const fetchAnalytics = async () => {
       setLoading(true);
       try {
-        const res = await apiFetch(`/analytics?range=${timeRange}`);
-        setData(res?.data || res);
+        const res = await analyticsApi.full();
+        if (res.success && res.stats) {
+          setData(mapBackendToChartData(res));
+        } else {
+          setData(generateMockData(timeRange));
+        }
       } catch (err) {
-        // Mock data fallback if endpoint isn't fully ready
         setData(generateMockData(timeRange));
       } finally {
         setLoading(false);
@@ -135,6 +138,37 @@ export default function Analytics() {
       </div>
     </AppLayout>
   );
+}
+
+// Helper to map real backend data
+function mapBackendToChartData(backendRes) {
+  const { stats, behavioral } = backendRes;
+  
+  const trendData = (behavioral?.habitHeatmap || []).map(h => {
+    const d = new Date(h.date);
+    return {
+      date: `${d.getMonth()+1}/${d.getDate()}`,
+      score: h.score || 0
+    };
+  });
+  
+  const focusData = (behavioral?.studyVsMobile || []).slice(-7).map(s => {
+    const d = new Date(s.date);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return {
+      day: dayNames[d.getDay()],
+      hours: s.studyHours || 0
+    };
+  });
+
+  return {
+    avgScore: stats?.avgScore || 0,
+    focusHours: focusData.reduce((acc, curr) => acc + curr.hours, 0).toFixed(1),
+    tasksCompleted: stats?.totalLogs || 0,
+    activeDays: stats?.totalLogs || 0,
+    trendData,
+    focusData
+  };
 }
 
 // Mock data generator for visualization until backend is ready

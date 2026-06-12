@@ -292,4 +292,16 @@ class DatabaseHelper {
     final db = await database;
     return await db.query(table, where: where, whereArgs: whereArgs, orderBy: orderBy, limit: limit);
   }
+
+  Future<void> clearAllCache() async {
+    final db = await database;
+    await db.delete('todos_cache');
+    await db.delete('routines_cache');
+    await db.delete('focus_sessions_cache');
+    await db.delete('calendar_events_cache');
+    await db.delete('notifications_cache');
+    await db.delete('achievements_cache');
+    await db.delete('analytics_snapshots_cache');
+    await db.delete('pending_mutations');
+  }
 }
