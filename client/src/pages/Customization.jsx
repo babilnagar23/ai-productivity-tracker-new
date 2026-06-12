@@ -181,7 +181,7 @@ const Customization = () => {
   };
 
   return (
-    <div className="flex bg-background min-h-screen text-white">
+    <div className="flex bg-void min-h-screen text-white">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-y-auto">
         <Navbar />
@@ -190,10 +190,10 @@ const Customization = () => {
           {/* Header */}
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">System Customization</h1>
+              <h1 className="text-3xl font-hero font-extrabold tracking-tight">System Customization</h1>
               <p className="text-sm text-gray-400">Configure core tracking variables and easily restore deleted layouts.</p>
             </div>
-            <div className="bg-white/5 border border-white/5 px-4 py-2 rounded-xl text-xs text-blue-400 flex items-center gap-1.5 font-medium">
+            <div className="bg-white/5 border border-white/5 px-4 py-2 rounded-xl text-xs text-cyan flex items-center gap-1.5 font-medium">
               <Settings className="h-4 w-4 animate-spin-slow" /> Custom Engine Active
             </div>
           </div>
@@ -211,13 +211,12 @@ const Customization = () => {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* 1. Core Checklists Panel */}
-            <div className="glass-card p-6 space-y-6">
+            <div className="glass card-3d p-6 space-y-6">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <h3 className="font-bold text-lg text-white flex items-center gap-2">
-                  <CheckSquare className="h-5 w-5 text-blue-400" /> Core Checklists
+                  <CheckSquare className="h-5 w-5 text-cyan" /> Core Checklists
                 </h3>
-                <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-full font-bold">
+                <span className="text-[10px] bg-cyan/10 text-cyan px-2.5 py-1 rounded-full font-bold">
                   {config.coreChecklists.length} Active
                 </span>
               </div>
@@ -256,33 +255,32 @@ const Customization = () => {
                     placeholder="Checklist Title (e.g. Core Study Completed)"
                     value={newChecklistTitle}
                     onChange={(e) => setNewChecklistTitle(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 transition text-xs"
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan transition text-xs"
                   />
                   <input
                     type="text"
                     placeholder="Brief description / instructions..."
                     value={newChecklistDesc}
                     onChange={(e) => setNewChecklistDesc(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 transition text-xs"
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan transition text-xs"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-600 font-semibold text-xs hover:bg-blue-700 transition"
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-cyan font-semibold text-black text-xs hover:opacity-90 transition"
                 >
                   <Plus className="h-3.5 w-3.5" /> Add Checklist
                 </button>
               </form>
             </div>
 
-            {/* 2. Core Metrics Panel */}
-            <div className="glass-card p-6 space-y-6">
+            <div className="glass card-3d p-6 space-y-6">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <h3 className="font-bold text-lg text-white flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-purple-400" /> Core Numerical Metrics
+                  <Activity className="h-5 w-5 text-plasma" /> Core Numerical Metrics
                 </h3>
-                <span className="text-[10px] bg-purple-500/10 text-purple-400 px-2.5 py-1 rounded-full font-bold">
+                <span className="text-[10px] bg-plasma/10 text-plasma px-2.5 py-1 rounded-full font-bold">
                   {config.coreMetrics.length} Active
                 </span>
               </div>
@@ -320,12 +318,12 @@ const Customization = () => {
                   placeholder="Metric Name (e.g. Study Duration (Hrs))"
                   value={newMetricTitle}
                   onChange={(e) => setNewMetricTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-purple-500 transition text-xs"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-plasma transition text-xs"
                 />
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-purple-600 font-semibold text-xs hover:bg-purple-700 transition"
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-plasma font-semibold text-black text-xs hover:opacity-90 transition"
                 >
                   <Plus className="h-3.5 w-3.5" /> Add Metric
                 </button>
@@ -333,8 +331,7 @@ const Customization = () => {
             </div>
           </div>
 
-          {/* 3. Deleted History & Recovery Bin Panel */}
-          <div className="glass-card p-6 space-y-4">
+          <div className="glass card-3d p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-white/5 pb-4">
               <div>
                 <h3 className="font-bold text-lg text-white flex items-center gap-2">
@@ -359,7 +356,7 @@ const Customization = () => {
                     <div>
                       <div className="flex items-center gap-1.5 mb-1">
                         <span className={`text-[8px] uppercase font-black px-1.5 py-0.5 rounded ${
-                          item.type === 'checklist' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
+                          item.type === 'checklist' ? 'bg-cyan/20 text-cyan' : 'bg-plasma/20 text-plasma'
                         }`}>
                           {item.type}
                         </span>

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../services/api';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
@@ -8,16 +8,31 @@ import {
   Plus, 
   Trash2, 
   Edit2,
-  BookOpen, 
-  Activity, 
-  Smartphone, 
-  Clock, 
-  FileText,
-  CheckSquare,
-  X
+  X,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Calendar as CalendarIcon,
+  BarChart2
 } from 'lucide-react';
+import { 
+  format, 
+  addMonths, 
+  subMonths, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  isSameMonth, 
+  isSameDay, 
+  addDays, 
+  parseISO,
+  isToday
+} from 'date-fns';
+import Modal from '../components/ui/Modal';
 
-const localToday = () => {
+const localTodayStr = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
   return date.toISOString().split('T')[0];
@@ -26,15 +41,22 @@ const localToday = () => {
 const RoutineTracker = () => {
   const { user, refreshUser } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [routines, setRoutines] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // New States for UI
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  // Form states
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [formError, setFormError] = useState('');       // inline form error
-  const [duplicateId, setDuplicateId] = useState(null); // existing entry id on duplicate
+  const [formError, setFormError] = useState('');
+  const [duplicateId, setDuplicateId] = useState(null);
   const [deleteError, setDeleteError] = useState('');
 
-  // Custom configurations configuration fallback
+  // Fallback Config
   const config = user?.customConfig || {
     coreChecklists: [
       { id: 'study', title: 'Core Study session completed', description: 'Main focus agenda checklist' },
@@ -48,15 +70,12 @@ const RoutineTracker = () => {
     deletedHistory: []
   };
 
-  // Form states mapping dynamically to configs
   const [coreChecklistsState, setCoreChecklistsState] = useState({});
   const [coreMetricsState, setCoreMetricsState] = useState({});
   const [sleepTime, setSleepTime] = useState('23:00');
   const [wakeTime, setWakeTime] = useState('07:00');
   const [notes, setNotes] = useState('');
-  const [date, setDate] = useState(localToday());
-
-  // Custom logs dynamic list
+  const [formDateStr, setFormDateStr] = useState(localTodayStr());
   const [customLogs, setCustomLogs] = useState([]);
   const [newCustomLogTitle, setNewCustomLogTitle] = useState('');
 
@@ -73,56 +92,69 @@ const RoutineTracker = () => {
     }
   };
 
-  // Initialize form state fields based on configuration
   const initializeFormFields = () => {
     const initialChecklists = {};
-    config.coreChecklists.forEach(chk => {
-      initialChecklists[chk.id] = false;
-    });
+    config.coreChecklists.forEach(chk => { initialChecklists[chk.id] = false; });
     setCoreChecklistsState(initialChecklists);
 
     const initialMetrics = {};
-    config.coreMetrics.forEach(met => {
-      initialMetrics[met.id] = 0;
-    });
+    config.coreMetrics.forEach(met => { initialMetrics[met.id] = 0; });
     setCoreMetricsState(initialMetrics);
   };
 
-  useEffect(() => {
-    fetchRoutines();
-  }, []);
+  useEffect(() => { fetchRoutines(); }, []);
+  useEffect(() => { if (user?.customConfig) initializeFormFields(); }, [user]);
 
-  useEffect(() => {
-    if (user?.customConfig) {
-      initializeFormFields();
-    }
-  }, [user]);
-
-  // Auto-open edit mode when navigated from Analytics table
+  // Handle Edit passed by router state
   useEffect(() => {
     if (location.state?.editId && routines.length > 0) {
       const target = routines.find(r => (r._id || r.id) === location.state.editId);
       if (target) {
         handleEditInit(target);
-        // Clear state so navigating back doesn't re-trigger
+        setSelectedDate(parseISO(target.date));
+        setCurrentMonth(parseISO(target.date));
         window.history.replaceState({}, '');
       }
     }
   }, [location.state, routines]);
 
+  // Derived state for the selected day
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+  const selectedRoutine = useMemo(() => {
+    return routines.find(r => r.date.split('T')[0] === selectedDateStr);
+  }, [routines, selectedDateStr]);
+
+  const habitsCompletedCount = useMemo(() => {
+    if (!selectedRoutine) return 0;
+    let count = 0;
+    config.coreChecklists.forEach(chk => {
+      if (selectedRoutine.coreChecklists?.[chk.id]) count++;
+    });
+    if (selectedRoutine.customLogs) {
+      selectedRoutine.customLogs.forEach(log => {
+        if (log.completed) count++;
+      });
+    }
+    return count;
+  }, [selectedRoutine, config]);
+
+  const totalHabitsCount = useMemo(() => {
+    if (!selectedRoutine) return 0;
+    return config.coreChecklists.length + (selectedRoutine.customLogs?.length || 0);
+  }, [selectedRoutine, config]);
+
+  // Form Handlers
   const handleAddCustomLog = (e) => {
     e.preventDefault();
     if (!newCustomLogTitle.trim()) return;
     setCustomLogs([...customLogs, { title: newCustomLogTitle.trim(), completed: false }]);
     setNewCustomLogTitle('');
   };
-
   const handleToggleCustomLog = (index) => {
     const updated = [...customLogs];
     updated[index].completed = !updated[index].completed;
     setCustomLogs(updated);
   };
-
   const handleRemoveCustomLog = (index) => {
     setCustomLogs(customLogs.filter((_, i) => i !== index));
   };
@@ -134,7 +166,35 @@ const RoutineTracker = () => {
     setEditingId(null);
     setFormError('');
     setDuplicateId(null);
-    setDate(localToday());
+    setFormDateStr(selectedDateStr);
+  };
+
+  const handleEditInit = (item) => {
+    setEditingId(item.id || item._id);
+    setFormDateStr(new Date(item.date).toISOString().split('T')[0]);
+    
+    const initialChecklists = {};
+    config.coreChecklists.forEach(chk => {
+      initialChecklists[chk.id] = item.coreChecklists?.[chk.id] || false;
+    });
+    setCoreChecklistsState(initialChecklists);
+
+    const initialMetrics = {};
+    config.coreMetrics.forEach(met => {
+      initialMetrics[met.id] = item.coreMetrics?.[met.id] || 0;
+    });
+    setCoreMetricsState(initialMetrics);
+
+    setSleepTime(item.sleepTime || '23:00');
+    setWakeTime(item.wakeTime || '07:00');
+    setNotes(item.notes || '');
+    setCustomLogs(item.customLogs || []);
+    setShowForm(true);
+  };
+
+  const openNewForm = () => {
+    resetForm();
+    setShowForm(true);
   };
 
   const handleSubmit = async (e) => {
@@ -143,7 +203,7 @@ const RoutineTracker = () => {
     setDuplicateId(null);
     try {
       const payload = {
-        date,
+        date: formDateStr,
         coreChecklists: coreChecklistsState,
         coreMetrics: coreMetricsState,
         sleepTime,
@@ -154,15 +214,9 @@ const RoutineTracker = () => {
 
       let res;
       if (editingId) {
-        res = await apiFetch(`/routines/${editingId}`, {
-          method: 'PUT',
-          body: JSON.stringify(payload)
-        });
+        res = await apiFetch(`/routines/${editingId}`, { method: 'PUT', body: JSON.stringify(payload) });
       } else {
-        res = await apiFetch('/routines', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
+        res = await apiFetch('/routines', { method: 'POST', body: JSON.stringify(payload) });
       }
 
       if (res.success) {
@@ -172,10 +226,8 @@ const RoutineTracker = () => {
         refreshUser();
       }
     } catch (err) {
-      // Handle 409 duplicate date
       if (err.message?.includes('already exists') || err.existingId) {
         setFormError('A log entry already exists for this date. You can edit the existing one instead.');
-        // Try parse existingId from error if API sent it back
         const match = err.message?.match(/existingId[":\s]+([a-f0-9]{24})/i);
         if (match) setDuplicateId(match[1]);
       } else {
@@ -184,43 +236,15 @@ const RoutineTracker = () => {
     }
   };
 
-  const handleEditInit = (item) => {
-    setEditingId(item.id || item._id);
-    setDate(new Date(item.date).toISOString().split('T')[0]);
-    
-    const itemChecklists = item.coreChecklists || {};
-    const itemMetrics = item.coreMetrics || {};
-
-    const initialChecklists = {};
-    config.coreChecklists.forEach(chk => {
-      initialChecklists[chk.id] = itemChecklists[chk.id] || false;
-    });
-    setCoreChecklistsState(initialChecklists);
-
-    const initialMetrics = {};
-    config.coreMetrics.forEach(met => {
-      initialMetrics[met.id] = itemMetrics[met.id] || 0;
-    });
-    setCoreMetricsState(initialMetrics);
-
-    setSleepTime(item.sleepTime || '23:00');
-    setWakeTime(item.wakeTime || '07:00');
-    setNotes(item.notes || '');
-    setCustomLogs(item.customLogs || []);
-    setShowForm(true);
-
-    // Scroll form into view smoothly
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to remove this log?')) return;
+    if (!window.confirm('Are you sure you want to remove this log?')) return;
     setDeleteError('');
     try {
       const res = await apiFetch(`/routines/${id}`, { method: 'DELETE' });
       if (res.success) {
         fetchRoutines();
         refreshUser();
+        setSelectedDate(new Date()); // reset selection
       }
     } catch (err) {
       setDeleteError(err.message || 'Failed to delete. Please try again.');
@@ -228,360 +252,374 @@ const RoutineTracker = () => {
     }
   };
 
+  // Calendar render logic
+  const renderCalendar = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    
+    const rows = [];
+    let days = [];
+    let day = startDate;
+    let formattedDate = '';
+    
+    while (day <= endDate) {
+      for (let i = 0; i < 7; i++) {
+        formattedDate = format(day, 'd');
+        const cloneDay = day;
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const hasLog = routines.some(r => r.date.split('T')[0] === dateStr);
+        const isSelected = isSameDay(day, selectedDate);
+        const isCurrentMonth = isSameMonth(day, monthStart);
+
+        days.push(
+          <div 
+            key={day} 
+            className={`flex flex-col items-center justify-center p-2 rounded-xl cursor-pointer transition-all ${
+              !isCurrentMonth ? 'text-gray-600' : 'text-gray-300'
+            } ${isSelected ? 'border border-[#14b8a6] bg-[#14b8a6]/10 shadow-[0_0_10px_rgba(20,184,166,0.2)] text-white' : 'hover:bg-white/5'}`}
+            onClick={() => setSelectedDate(cloneDay)}
+          >
+            <span className="font-bold text-sm leading-none">{formattedDate}</span>
+            <div className="h-2 w-2 mt-1 rounded-full flex items-center justify-center">
+              {hasLog && <span className="h-1.5 w-1.5 bg-[#14b8a6] rounded-full"></span>}
+            </div>
+          </div>
+        );
+        day = addDays(day, 1);
+      }
+      rows.push(<div className="grid grid-cols-7 gap-1 mb-1" key={day}>{days}</div>);
+      days = [];
+    }
+    return rows;
+  };
+
   return (
-    <div className="flex bg-background min-h-screen text-white">
+    <div className="flex bg-void min-h-screen text-white font-body relative">
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-y-auto">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <Navbar />
 
-        <main className="p-8 space-y-8 flex-1">
-          {/* Header */}
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">Daily Routines</h1>
-              <p className="text-sm text-gray-400">Chronicle metrics to monitor habits consistency and daily goals.</p>
+        {/* Top Action Bar matching mobile app */}
+        <div className="flex justify-between items-center px-8 py-4 border-b border-smoke bg-carbon relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-cyan/10 rounded-lg">
+              <CalendarIcon className="w-5 h-5 text-cyan" />
             </div>
-            
-            <button
-              onClick={() => {
-                if (showForm) resetForm();
-                setShowForm(!showForm);
-              }}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 font-semibold text-sm shadow-neon hover:opacity-90 transition-all duration-300"
+            <h1 className="text-xl font-hero font-extrabold tracking-tight text-white">Daily Log</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <button 
+              className="text-gray-400 hover:text-white transition p-2 hover:bg-white/5 rounded-lg"
+              title="View Analytics"
+              onClick={() => navigate('/analytics')}
             >
-              <Plus className="h-4 w-4" /> {showForm ? 'Close Entry' : 'Log New Day'}
+              <BarChart2 className="w-5 h-5" />
+            </button>
+            <button 
+              className="text-gray-400 hover:text-white transition p-2 hover:bg-white/5 rounded-lg"
+              title="Settings & Customization"
+              onClick={() => navigate('/customization')}
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            <button 
+              className="text-cyan hover:text-white transition p-2 hover:bg-cyan/10 rounded-lg"
+              title="Add Log"
+              onClick={openNewForm}
+            >
+              <Plus className="w-6 h-6" />
             </button>
           </div>
+        </div>
 
-          {/* Delete error toast */}
+        <main className="flex-1 overflow-y-auto p-8 bg-void relative z-10">
           {deleteError && (
-            <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-2xl text-sm animate-fadeIn">
-              <span className="flex-1">{deleteError}</span>
+            <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-sm max-w-4xl mx-auto">
+              {deleteError}
             </div>
           )}
 
-          {/* New Entry Form */}
-          {showForm && (
-            <form onSubmit={handleSubmit} className="glass-card p-8 border border-white/10 space-y-6 animate-fadeIn">
-              <div className="flex justify-between items-center border-b border-white/5 pb-4">
-                <h3 className="text-xl font-bold text-gradient">
-                  {editingId ? 'Update Daily Log Entry' : 'Create Daily Log Entry'}
-                </h3>
-                {editingId && (
-                  <button 
-                    type="button" 
-                    onClick={resetForm}
-                    className="text-xs text-gray-400 hover:text-white flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-lg transition"
-                  >
-                    Cancel Edit
-                  </button>
-                )}
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
+            {/* LEFT COLUMN: Calendar & Summary */}
+            <div className="lg:col-span-5 space-y-6">
               
-              {/* Form error banner */}
-              {formError && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-300 px-4 py-3 rounded-xl text-sm flex items-start gap-3 animate-fadeIn">
-                  <span className="flex-1 leading-relaxed">{formError}</span>
-                  {duplicateId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const existing = routines.find(r => (r._id || r.id) === duplicateId);
-                        if (existing) { handleEditInit(existing); setFormError(''); }
-                      }}
-                      className="shrink-0 px-3 py-1.5 bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold rounded-lg hover:bg-blue-500/30 transition"
-                    >
-                      Edit Existing
-                    </button>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-hero font-extrabold text-white">Routine</h2>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => { setSelectedDate(new Date()); setCurrentMonth(new Date()); }} className="text-sm font-bold text-cyan hover:text-white">Today</button>
+                  <div className="flex items-center text-cyan font-bold gap-2">
+                    <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="hover:text-white"><ChevronLeft className="w-4 h-4" /></button>
+                    <span className="text-sm min-w-[80px] text-center">{format(currentMonth, 'MMMM yyyy')}</span>
+                    <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="hover:text-white"><ChevronRight className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Calendar Grid Card */}
+              <div className="glass p-4 card-3d">
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map(day => (
+                    <div key={day} className="text-center text-[10px] font-bold text-gray-500 tracking-wider">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                {renderCalendar()}
+              </div>
+
+              {/* Summary Card below calendar */}
+              <div className="glass p-5 flex items-center gap-4 card-3d">
+                <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center border-2 ${
+                  selectedRoutine ? 'bg-cyan/10 border-cyan/30 text-cyan' : 'bg-carbon border-smoke text-gray-600'
+                }`}>
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-hero font-extrabold text-white">{format(selectedDate, 'EEEE, MMM d, yyyy')}</h3>
+                  {selectedRoutine ? (
+                    <p className="text-sm text-cyan font-bold">{habitsCompletedCount} of {totalHabitsCount} habits completed</p>
+                  ) : (
+                    <p className="text-sm text-gray-500 font-bold">No log for this date.</p>
                   )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* RIGHT COLUMN: Habits & Metrics */}
+            <div className="lg:col-span-7 space-y-8 pl-0 lg:pl-6">
+              
+              {!selectedRoutine ? (
+                <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                    <CalendarIcon className="w-8 h-8 text-gray-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-300 mb-2">No Routine Logged</h3>
+                  <p className="text-gray-500 mb-6 text-sm max-w-sm">You haven't logged any habits or metrics for {format(selectedDate, 'MMMM d, yyyy')}. Start tracking your progress!</p>
+                  <button 
+                    onClick={openNewForm}
+                    className="flex items-center gap-2 px-6 py-3 rounded-full bg-cyan/10 text-cyan font-bold hover:bg-cyan/20 transition-all border border-cyan/20"
+                  >
+                    <Plus className="w-4 h-4" /> Log Day Now
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-8 animate-fadeIn">
+                  
+                  {/* Actions Bar for the specific log */}
+                  <div className="flex justify-between items-center glass p-3 border-smoke shadow-md">
+                    <div className="px-3">
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Entry Options</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEditInit(selectedRoutine)} className="px-4 py-2 bg-plasma/10 text-plasma hover:bg-plasma/20 rounded-xl text-xs font-bold flex items-center gap-2 transition">
+                        <Edit2 className="w-3.5 h-3.5" /> Edit
+                      </button>
+                      <button onClick={() => handleDelete(selectedRoutine.id || selectedRoutine._id)} className="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl text-xs font-bold flex items-center gap-2 transition">
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Active Habits Section */}
+                  <div>
+                    <h3 className="text-xl font-hero font-extrabold text-white mb-4">Active Habits</h3>
+                    <div className="space-y-3">
+                      {config.coreChecklists.map(chk => {
+                        const isDone = selectedRoutine.coreChecklists?.[chk.id] || false;
+                        return (
+                          <div key={chk.id} className="glass card-3d p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="h-2 w-2 rounded-full bg-cyan"></span>
+                              <span className="font-bold text-white tracking-wide">{chk.title}</span>
+                            </div>
+                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+                              isDone ? 'bg-cyan/10 border-cyan text-cyan' : 'border-smoke text-transparent'
+                            }`}>
+                              <CheckCircle2 className="w-5 h-5" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {/* Custom Habits mapped */}
+                      {selectedRoutine.customLogs && selectedRoutine.customLogs.map((log, idx) => (
+                        <div key={idx} className="glass card-3d p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="h-2 w-2 rounded-full bg-plasma"></span>
+                            <span className="font-bold text-white tracking-wide">{log.title}</span>
+                          </div>
+                          <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+                            log.completed ? 'bg-cyan/10 border-cyan text-cyan' : 'border-smoke text-transparent'
+                          }`}>
+                            <CheckCircle2 className="w-5 h-5" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Metrics Section */}
+                  <div>
+                    <h3 className="text-xl font-hero font-extrabold text-white mb-4">Metrics</h3>
+                    <div className="space-y-3">
+                      {config.coreMetrics.map(met => {
+                        const val = selectedRoutine.coreMetrics?.[met.id] || 0;
+                        let unit = 'Pts';
+                        if (met.title.toLowerCase().includes('hrs') || met.title.toLowerCase().includes('duration') || met.title.toLowerCase().includes('usage')) unit = 'Hrs';
+                        if (met.title.toLowerCase().includes('water')) unit = 'L';
+                        
+                        return (
+                          <div key={met.id} className="glass card-3d p-5">
+                            <p className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-widest">{met.title}</p>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-3xl font-hero font-extrabold text-white">{Number(val).toFixed(1)}</span>
+                              <span className="text-sm font-bold text-cyan">{unit}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Sleep and Notes */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="glass card-3d p-5">
+                      <p className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-widest">Sleep Schedule</p>
+                      <span className="text-lg font-hero font-bold text-white">{selectedRoutine.sleepTime} - {selectedRoutine.wakeTime}</span>
+                    </div>
+                    {selectedRoutine.notes && (
+                      <div className="col-span-2 glass card-3d p-5">
+                        <p className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-widest">Reflection</p>
+                        <p className="text-sm text-gray-300 leading-relaxed italic">"{selectedRoutine.notes}"</p>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               )}
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Date Selection */}
-                <div className="space-y-2">
-                  <label className="text-xs uppercase font-bold text-gray-400">Target Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 transition-all text-sm"
-                  />
-                </div>
-
-                {/* Core Metrics Fields rendering dynamically */}
-                {config.coreMetrics.map((met) => (
-                  <div key={met.id} className="space-y-2">
-                    <label className="text-xs uppercase font-bold text-gray-400">{met.title}</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      max="24"
-                      value={coreMetricsState[met.id] || ''}
-                      onChange={(e) => setCoreMetricsState({
-                        ...coreMetricsState,
-                        [met.id]: Number(e.target.value)
-                      })}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 transition-all text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Predefined checklogs rendering dynamically */}
-              <div className="space-y-2 pt-2">
-                <label className="text-xs uppercase font-bold text-gray-400 block">Core Checklists</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {config.coreChecklists.length === 0 ? (
-                    <div className="col-span-3 text-xs text-gray-500 italic py-2">
-                      No active checklists configured. Go to 'Customization' to add variables!
-                    </div>
-                  ) : (
-                    config.coreChecklists.map((chk) => (
-                      <label key={chk.id} className="flex items-center gap-3 p-4 bg-white/5 border border-white/5 rounded-2xl cursor-pointer hover:border-blue-500/20 transition-all select-none">
-                        <input
-                          type="checkbox"
-                          checked={coreChecklistsState[chk.id] || false}
-                          onChange={(e) => setCoreChecklistsState({
-                            ...coreChecklistsState,
-                            [chk.id]: e.target.checked
-                          })}
-                          className="h-5 w-5 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-0 focus:ring-offset-0"
-                        />
-                        <div>
-                          <span className="font-semibold text-sm block">{chk.title}</span>
-                          <span className="text-[10px] text-gray-400">{chk.description}</span>
-                        </div>
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Dynamic Custom Logs Segment */}
-              <div className="space-y-4 pt-2 border-t border-white/5">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs uppercase font-bold text-gray-400 block">Custom Checklists</label>
-                  <span className="text-[10px] text-gray-500">Add operational operators custom milestones</span>
-                </div>
-
-                {/* Add Custom Log Input */}
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    placeholder="e.g. Completed System Refactoring, Water intake metrics..."
-                    value={newCustomLogTitle}
-                    onChange={(e) => setNewCustomLogTitle(e.target.value)}
-                    className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 transition-all text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddCustomLog}
-                    className="px-5 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 font-semibold text-xs hover:bg-blue-500/20 transition"
-                  >
-                    Add Custom Checkbox
-                  </button>
-                </div>
-
-                {/* Custom Checklist entries list */}
-                {customLogs.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    {customLogs.map((log, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 bg-white/5 border border-white/5 rounded-xl">
-                        <label className="flex items-center gap-3 cursor-pointer select-none flex-1">
-                          <input
-                            type="checkbox"
-                            checked={log.completed}
-                            onChange={() => handleToggleCustomLog(index)}
-                            className="h-4 w-4 rounded bg-white/5 border-white/10 text-blue-500 focus:ring-0 focus:ring-offset-0"
-                          />
-                          <span className="text-sm font-medium text-gray-200">{log.title}</span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCustomLog(index)}
-                          className="text-gray-400 hover:text-red-400 transition p-1"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Sleep & Wake Times */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-white/5">
-                <div className="space-y-2">
-                  <label className="text-xs uppercase font-bold text-gray-400">Sleep Time</label>
-                  <input
-                    type="time"
-                    value={sleepTime}
-                    onChange={(e) => setSleepTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 transition-all text-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs uppercase font-bold text-gray-400">Wake Time</label>
-                  <input
-                    type="time"
-                    value={wakeTime}
-                    onChange={(e) => setWakeTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 transition-all text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div className="space-y-2">
-                <label className="text-xs uppercase font-bold text-gray-400">Daily Reflection & Notes</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Today went exceptionally well..."
-                  rows="3"
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 transition-all text-sm resize-none"
-                ></textarea>
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  type="submit"
-                  className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 font-semibold text-sm shadow-neon hover:opacity-90 transition-all"
-                >
-                  {editingId ? 'Update Entry' : 'Log Entry'}
-                </button>
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="px-6 py-3.5 rounded-xl bg-white/5 border border-white/10 font-semibold text-sm hover:bg-white/10 transition-all"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </form>
-          )}
-
-          {/* Routine list grid */}
-          <div className="space-y-4">
-            <h3 className="font-bold text-xl text-white">Chronological logs</h3>
-
-            {loading ? (
-              <div className="text-center py-12 text-gray-400">Retrieving operational logs...</div>
-            ) : routines.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 bg-white/5 border border-white/5 rounded-2xl">
-                No logs recorded yet. Initialize routine tracking using the 'Log New Day' CTA above.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {routines.map((item) => (
-                  <div key={item.id || item._id} className="glass-card p-6 flex flex-col justify-between border border-white/5 relative overflow-hidden group">
-                    {/* Score badge */}
-                    <div className="absolute top-4 right-4 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full text-xs font-bold text-blue-400">
-                      Productivity: {item.productivityScore}%
-                    </div>
-
-                    <div className="space-y-4">
-                      {/* Date header */}
-                      <div>
-                        <h4 className="font-bold text-lg text-white">
-                          {new Date(item.date).toLocaleDateString(undefined, { 
-                            weekday: 'short', 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
-                          })}
-                        </h4>
-                        <span className="text-[10px] text-gray-400">ID: {item.id || item._id}</span>
-                      </div>
-
-                      {/* Dynamic Core checklists status row inside card */}
-                      <div className="flex flex-wrap gap-2.5">
-                        {config.coreChecklists.map((chk) => {
-                          const isCompleted = item.coreChecklists?.[chk.id] || false;
-                          return (
-                            <div 
-                              key={chk.id} 
-                              className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold ${
-                                isCompleted ? 'bg-green-500/10 text-green-400 border border-green-500/10' : 'bg-white/5 text-gray-500'
-                              }`}
-                            >
-                              {isCompleted ? '✓' : '✗'} {chk.title.split(' ')[0]}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Custom checklist logs rendering inside card */}
-                      {item.customLogs && item.customLogs.length > 0 && (
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] uppercase font-bold text-gray-500 block">Custom Checklists Logged:</span>
-                          <div className="flex flex-wrap gap-2">
-                            {item.customLogs.map((log, idx) => (
-                              <span 
-                                key={idx} 
-                                className={`px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1 ${
-                                  log.completed 
-                                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
-                                    : 'bg-white/5 text-gray-400 border border-white/5'
-                                }`}
-                              >
-                                {log.completed ? '✓' : '✗'} {log.title}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Dynamic Numeric metrics layout inside card */}
-                      <div className="grid grid-cols-3 gap-2 bg-white/5 p-3 rounded-xl text-center text-xs">
-                        {config.coreMetrics.slice(0, 2).map((met) => (
-                          <div key={met.id}>
-                            <span className="block text-gray-400 truncate">{met.title}</span>
-                            <span className="font-bold">{item.coreMetrics?.[met.id] || 0} hrs</span>
-                          </div>
-                        ))}
-                        <div>
-                          <span className="block text-gray-400">Sleep Schedule</span>
-                          <span className="font-bold">{item.sleepTime} - {item.wakeTime}</span>
-                        </div>
-                      </div>
-
-                      {/* Notes reflection */}
-                      {item.notes && (
-                        <p className="text-xs text-gray-400 border-l border-white/10 pl-2 leading-relaxed italic">
-                          "{item.notes}"
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="mt-6 pt-4 border-t border-white/5 flex justify-end gap-3">
-                      <button
-                        onClick={() => handleEditInit(item)}
-                        className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors px-3 py-2 rounded-lg bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/10"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" /> Edit Log
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDelete(item.id || item._id)}
-                        className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors px-3 py-2 rounded-lg bg-red-500/5 hover:bg-red-500/10 border border-red-500/10"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" /> Delete Log
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            </div>
           </div>
         </main>
+        
+        {/* Floating Action Button */}
+        {!showForm && (
+          <button 
+            onClick={openNewForm}
+            className="fixed bottom-8 right-8 w-14 h-14 bg-cyan text-black rounded-2xl shadow-[0_4px_20px_rgba(0,255,255,0.4)] flex items-center justify-center hover:scale-105 transition-transform z-40"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        )}
+
       </div>
+
+      {/* FORM MODAL */}
+      <Modal isOpen={showForm} onClose={() => setShowForm(false)} title={editingId ? 'Edit Daily Log' : 'New Daily Log'}>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {formError && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-300 px-4 py-3 rounded-xl text-sm flex flex-col gap-2">
+              <span className="leading-relaxed">{formError}</span>
+              {duplicateId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const existing = routines.find(r => (r._id || r.id) === duplicateId);
+                    if (existing) { handleEditInit(existing); setFormError(''); }
+                  }}
+                  className="self-start px-3 py-1.5 bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold rounded-lg hover:bg-blue-500/30 transition"
+                >
+                  Edit Existing Instead
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-gray-400 block mb-1">Target Date</label>
+              <input type="date" required value={formDateStr} onChange={(e) => setFormDateStr(e.target.value)}
+                className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 text-sm" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {config.coreMetrics.map((met) => (
+                <div key={met.id}>
+                  <label className="text-xs font-bold text-gray-400 block mb-1">{met.title}</label>
+                  <input type="number" step="0.5" min="0" max="24" value={coreMetricsState[met.id] || ''}
+                    onChange={(e) => setCoreMetricsState({ ...coreMetricsState, [met.id]: Number(e.target.value) })}
+                    className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 text-sm" />
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-400 block mb-2">Core Habits</label>
+              <div className="space-y-2">
+                {config.coreChecklists.map((chk) => (
+                  <label key={chk.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl cursor-pointer hover:bg-white/10">
+                    <span className="text-sm text-gray-200">{chk.title}</span>
+                    <input type="checkbox" checked={coreChecklistsState[chk.id] || false}
+                      onChange={(e) => setCoreChecklistsState({ ...coreChecklistsState, [chk.id]: e.target.checked })}
+                      className="h-4 w-4 rounded bg-white/5 border-white/10 text-blue-500" />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-400 block mb-2">Custom Checklist</label>
+              <div className="flex gap-2 mb-2">
+                <input type="text" placeholder="Add custom item..." value={newCustomLogTitle} onChange={(e) => setNewCustomLogTitle(e.target.value)}
+                  className="flex-1 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm" />
+                <button type="button" onClick={handleAddCustomLog} className="px-3 bg-blue-500/20 text-blue-400 rounded-xl font-bold text-sm">Add</button>
+              </div>
+              <div className="space-y-1">
+                {customLogs.map((log, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={log.completed} onChange={() => handleToggleCustomLog(index)}
+                        className="h-4 w-4 rounded text-blue-500" />
+                      <span className="text-sm">{log.title}</span>
+                    </label>
+                    <button type="button" onClick={() => handleRemoveCustomLog(index)} className="text-red-400 hover:text-red-300 p-1"><X className="w-4 h-4" /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-400 block mb-1">Sleep Time</label>
+                <input type="time" value={sleepTime} onChange={(e) => setSleepTime(e.target.value)}
+                  className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 block mb-1">Wake Time</label>
+                <input type="time" value={wakeTime} onChange={(e) => setWakeTime(e.target.value)}
+                  className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-400 block mb-1">Notes</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows="2"
+                className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm resize-none"></textarea>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-white/5">
+            <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition">
+              Cancel
+            </button>
+            <button type="submit" className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition">
+              {editingId ? 'Save Changes' : 'Create Log'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
     </div>
   );
 };

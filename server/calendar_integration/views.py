@@ -204,7 +204,7 @@ class CalendarCallbackView(APIView):
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
         from django.shortcuts import redirect
         if code:
-            return redirect(f"{frontend_url}/calendar?code={code}")
+            return redirect(f"{frontend_url}/auth/google/callback?code={code}")
         return redirect(f"{frontend_url}/calendar")
 
     def post(self, request):
@@ -394,19 +394,18 @@ class CalendarEventsView(APIView):
         )
 
         # Optionally sync to Google Calendar
-        if data.get('syncToGoogle', False):
-            connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
-            if connection and connection.connected:
-                service = calendar_service(connection)
-                if service:
-                    try:
-                        google_id = push_event_to_google(service, event, connection.calendar_id)
-                        event.google_event_id = google_id
-                        event.synced_to_google = True
-                        event.save(update_fields=['google_event_id', 'synced_to_google'])
-                        SyncLog.objects.create(user=request.user, direction='push', status='success', events_synced=1)
-                    except Exception as exc:
-                        SyncLog.objects.create(user=request.user, direction='push', status='error', error_message=str(exc))
+        connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
+        if connection and connection.connected:
+            service = calendar_service(connection)
+            if service:
+                try:
+                    google_id = push_event_to_google(service, event, connection.calendar_id)
+                    event.google_event_id = google_id
+                    event.synced_to_google = True
+                    event.save(update_fields=['google_event_id', 'synced_to_google'])
+                    SyncLog.objects.create(user=request.user, direction='push', status='success', events_synced=1)
+                except Exception as exc:
+                    SyncLog.objects.create(user=request.user, direction='push', status='error', error_message=str(exc))
 
         return Response({'success': True, 'event': serialize_event(event)}, status=201)
 

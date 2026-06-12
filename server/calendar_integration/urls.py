@@ -21,14 +21,16 @@ from .views import (
 
 urlpatterns = [
     # ── OAuth ─────────────────────────────────────────────────────────────────
-    path('calendar/status', CalendarStatusView.as_view(), name='calendar_status'),
-    path('calendar/status/', CalendarStatusView.as_view()),
-    path('calendar/auth-url', CalendarAuthUrlView.as_view(), name='calendar_auth_url'),
-    path('calendar/auth-url/', CalendarAuthUrlView.as_view()),
-    path('calendar/callback', CalendarCallbackView.as_view(), name='calendar_callback'),
-    path('calendar/callback/', CalendarCallbackView.as_view()),
-    path('calendar/disconnect', CalendarDisconnectView.as_view(), name='calendar_disconnect'),
-    path('calendar/disconnect/', CalendarDisconnectView.as_view()),
+    path('calendar/google/status/', CalendarStatusView.as_view(), name='calendar_status'),
+    path('calendar/google/connect/', CalendarAuthUrlView.as_view(), name='calendar_auth_url'),
+    path('calendar/google/callback/', CalendarCallbackView.as_view(), name='calendar_callback'),
+    path('calendar/google/disconnect/', CalendarDisconnectView.as_view(), name='calendar_disconnect'),
+    
+    # Keep old paths for backward compatibility just in case
+    path('calendar/status', CalendarStatusView.as_view()),
+    path('calendar/auth-url', CalendarAuthUrlView.as_view()),
+    path('calendar/callback', CalendarCallbackView.as_view()),
+    path('calendar/disconnect', CalendarDisconnectView.as_view()),
 
     # ── Sync ──────────────────────────────────────────────────────────────────
     path('calendar/sync', CalendarSyncView.as_view(), name='calendar_sync'),

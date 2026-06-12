@@ -1,118 +1,91 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Zap, Sparkles, BrainCircuit, Activity, BarChart3 } from 'lucide-react';
+import { Zap, Shield, Sparkles, CheckCircle, ArrowRight, BarChart3, Clock, Smartphone } from 'lucide-react';
 
-const LandingPage = () => {
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background bg-grid-pattern relative overflow-hidden flex flex-col items-center justify-between py-12 px-6">
-      
-      {/* Decorative Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] -z-10 animate-pulse"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-[120px] -z-10 animate-pulse"></div>
+    <div className="min-h-screen bg-void text-white overflow-hidden selection:bg-cyan/30">
+      {/* Background Effects */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-cyan/10 blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-plasma/10 blur-[120px]" />
+        <div className="absolute top-[40%] left-[60%] w-[30%] h-[30%] rounded-full bg-cyan/10 blur-[120px]" />
+        <div className="absolute inset-0 bg-grid-pattern opacity-30" />
+      </div>
 
-      {/* Header */}
-      <header className="w-full max-w-6xl flex justify-between items-center mb-12">
-        <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-2xl shadow-neon">
-            <Zap className="h-6 w-6 text-white" />
+      {/* Navbar */}
+      <nav className="relative z-10 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-cyan flex items-center justify-center shadow-glow-cyan">
+            <Zap className="w-4 h-4 text-black" />
           </div>
-          <span className="font-extrabold text-xl tracking-wider text-white">Productivity Tracker</span>
+          <span className="font-black text-lg tracking-tight">Productive<span className="text-cyan">AI</span></span>
         </div>
-        <div className="flex gap-4">
-          <Link to="/login" className="px-5 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 font-semibold text-sm transition-all duration-300">
-            Sign In
-          </Link>
-          <Link to="/signup" className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 font-semibold text-sm shadow-neon hover:opacity-90 transition-all duration-300">
+        <div className="flex items-center gap-4 text-sm font-semibold">
+          <Link to="/login" className="text-gray-300 hover:text-white transition-colors">Sign In</Link>
+          <Link to="/signup" className="px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition-all backdrop-blur-md">
             Get Started
           </Link>
         </div>
-      </header>
+      </nav>
 
-      {/* Hero Section */}
-      <main className="max-w-4xl text-center space-y-8 flex-1 flex flex-col justify-center items-center">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-semibold uppercase tracking-widest"
-        >
-          <Sparkles className="h-4 w-4 animate-spin" /> Hyper-Personalized AI Optimization
-        </motion.div>
-
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1 }}
-          className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight"
-        >
-          Optimize Your Life. <br />
-
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.3 }}
-          className="text-gray-400 text-lg md:text-xl max-w-2xl leading-relaxed"
-        >
-          Track routines, optimize sleep patterns, earn XP points, build consistent habit streaks, and generate personalized, hyper-optimized schedules with advanced AI models.
-        </motion.p>
-
-        {/* Feature Cards Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mt-12"
-        >
-          <div className="glass-card p-6 space-y-4 text-left">
-            <div className="bg-blue-500/10 p-3 rounded-xl w-fit">
-              <BrainCircuit className="h-6 w-6 text-blue-400" />
-            </div>
-            <h3 className="font-semibold text-lg text-white">AI Assistant</h3>
-            <p className="text-sm text-gray-400">Generate schedules, receive feedback, and study smarter using AI.</p>
+      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-32">
+        {/* Hero Section */}
+        <div className="text-center max-w-3xl mx-auto space-y-8 animate-fadeInUp">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-cyan mx-auto">
+            <Sparkles className="w-3.5 h-3.5" /> Introducing Offline-First Mode
           </div>
-
-          <div className="glass-card p-6 space-y-4 text-left">
-            <div className="bg-purple-500/10 p-3 rounded-xl w-fit">
-              <Activity className="h-6 w-6 text-purple-400" />
-            </div>
-            <h3 className="font-semibold text-lg text-white">Routine Tracking</h3>
-            <p className="text-sm text-gray-400">Log workout, sleep, mobile usage, and custom study sessions daily.</p>
+          <h1 className="text-5xl md:text-7xl font-hero font-black tracking-tight leading-[1.1]">
+            Your Second Brain for <span className="text-cyan">Peak Performance</span>
+          </h1>
+          <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+            AI-powered task management, Pomodoro timers, and daily routines all in one unified ecosystem.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+            <Link to="/signup" className="w-full sm:w-auto px-8 py-4 rounded-xl bg-cyan text-black font-bold shadow-glow-cyan hover:opacity-90 transition-all flex items-center justify-center gap-2">
+              Start For Free <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link to="/login" className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all flex items-center justify-center">
+              Sign In
+            </Link>
           </div>
+        </div>
 
-          <div className="glass-card p-6 space-y-4 text-left">
-            <div className="bg-orange-500/10 p-3 rounded-xl w-fit">
-              <BarChart3 className="h-6 w-6 text-orange-400" />
-            </div>
-            <h3 className="font-semibold text-lg text-white">Advanced Analytics</h3>
-            <p className="text-sm text-gray-400">Inspect interactive graphs matching weekly routine consistency.</p>
-          </div>
-        </motion.div>
+        {/* Feature Grid */}
+        <div className="mt-32 grid md:grid-cols-3 gap-6">
+          <FeatureCard 
+            icon={<Clock className="w-6 h-6 text-cyan" />}
+            title="Deep Focus"
+            desc="Built-in Pomodoro timers and distraction blocking to keep you in the flow state."
+            bg="bg-cyan/10" border="border-cyan/20"
+          />
+          <FeatureCard 
+            icon={<BarChart3 className="w-6 h-6 text-cyan" />}
+            title="Smart Analytics"
+            desc="Track your productivity scores, focus hours, and task completion rates over time."
+            bg="bg-cyan/10" border="border-cyan/20"
+          />
+          <FeatureCard 
+            icon={<Smartphone className="w-6 h-6 text-plasma" />}
+            title="Seamless Sync"
+            desc="Use it on Web or Mobile. Everything syncs perfectly in real-time."
+            bg="bg-plasma/10" border="border-plasma/20"
+          />
+        </div>
 
-        {/* Main CTA */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.6 }}
-          className="pt-8"
-        >
-          <Link
-            to="/signup"
-            className="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 font-bold text-lg shadow-neon hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] hover:scale-105 transition-all duration-300 text-white"
-          >
-            Deploy Your AI Coach
-          </Link>
-        </motion.div>
       </main>
-
-      {/* Footer */}
-      <footer className="w-full text-center text-xs text-gray-500 mt-12 border-t border-white/5 pt-6 max-w-6xl">
-        &copy; {new Date().getFullYear()} Productivity Tracker Platform. Built for peak potential.
-      </footer>
     </div>
   );
-};
+}
 
-export default LandingPage;
+function FeatureCard({ icon, title, desc, bg, border }) {
+  return (
+    <div className="glass card-3d p-8 group hover:-translate-y-1 transition-all duration-300">
+      <div className={`w-12 h-12 rounded-2xl ${bg} border ${border} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+        {icon}
+      </div>
+      <h3 className="text-xl font-bold text-white mb-3">{title}</h3>
+      <p className="text-gray-400 leading-relaxed text-sm">{desc}</p>
+    </div>
+  );
+}

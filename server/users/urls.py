@@ -5,6 +5,7 @@ from .views import (
     CustomConfigView, LoginView, MeView, RegisterView,
     ForgotPasswordView, ResetPasswordView,
     SendOTPView, VerifyOTPView, OTPRegisterView,
+    AchievementsView,
 )
 from .sync_views import (
     SyncTasksView, SyncDailyLogsView, SyncRoutinesView,
@@ -51,4 +52,6 @@ urlpatterns = [
     path('auth/verify-otp/', VerifyOTPView.as_view(), name='verify_otp_slash'),
     path('auth/complete-registration', OTPRegisterView.as_view(), name='otp_register'),
     path('auth/complete-registration/', OTPRegisterView.as_view(), name='otp_register_slash'),
+    path('achievements', AchievementsView.as_view(), name='achievements'),
+    path('achievements/', AchievementsView.as_view(), name='achievements_slash'),
 ]

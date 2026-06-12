@@ -1,140 +1,80 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { forgotPassword } from '../services/api';
-import { Zap, Mail, ArrowRight, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Mail, ArrowRight, LockKeyhole } from 'lucide-react';
+import { apiFetch } from '../services/api';
 
-const ForgotPassword = () => {
+export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [cooldown, setCooldown] = useState(0);
-
-  useEffect(() => {
-    let timer;
-    if (cooldown > 0) {
-      timer = setInterval(() => {
-        setCooldown((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [cooldown]);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (cooldown > 0) return;
-
-    setLoading(true);
-    setSuccessMessage('');
-    setErrorMessage('');
-
+    setLoading(true); setError('');
     try {
-      const res = await forgotPassword(email);
-      if (res.success || res.message) {
-        setSuccessMessage(res.message || 'If an account exists, a reset link has been sent.');
-        setCooldown(60); // Start 60s cooldown timer
-      } else {
-        setErrorMessage(res.error || 'System anomaly. Reset transmission aborted.');
-      }
+      await apiFetch('/auth/password/reset/', { method: 'POST', body: JSON.stringify({ email }) });
+      setSuccess(true);
     } catch (err) {
-      setErrorMessage(err.message || 'Transmission error. Neural link unavailable.');
+      setError(err.message || 'Failed to send reset link');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background bg-grid-pattern flex items-center justify-center py-12 px-6 relative overflow-hidden">
-      {/* Cyberpunk Neon Background Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-blue-500/10 rounded-full blur-[100px] -z-10 animate-pulse"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px] -z-10 animate-pulse"></div>
+  const inputClass = `w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white
+    placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:bg-white/8 transition-all`;
 
-      <div className="w-full max-w-md glass-card p-8 space-y-8 border border-white/10 shadow-glass">
-        {/* Brand logo & header */}
-        <div className="text-center space-y-2">
-          <Link to="/" className="inline-flex items-center gap-2 mb-4">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-xl text-white shadow-neon">
-              <Zap className="h-5 w-5" />
-            </div>
-            <span className="font-extrabold text-lg text-white">Productivity Tracker</span>
-          </Link>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Key Bypass Protocol</h2>
-          <p className="text-sm text-gray-400">Initialize security override transmission</p>
+  return (
+    <div className="min-h-screen bg-[#050816] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-grid-pattern opacity-30" />
+
+      <div className="relative w-full max-w-md animate-fadeInUp">
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto mb-4 shadow-xl glow-blue">
+            <LockKeyhole className="w-7 h-7 text-white" />
+          </div>
+          <h1 className="text-3xl font-black text-white">Reset Password</h1>
+          <p className="text-gray-400 mt-2 text-sm">Enter your email to receive a reset link</p>
         </div>
 
-        {successMessage && (
-          <div className="bg-blue-950/40 border border-blue-500/30 text-blue-300 p-4 rounded-xl text-xs font-semibold flex items-start gap-3 animate-fade-in shadow-[0_0_15px_rgba(59,130,246,0.15)]">
-            <ShieldCheck className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold text-white uppercase tracking-wider mb-1">Transmission Success</p>
-              <p className="text-gray-300 leading-relaxed">{successMessage}</p>
+        <div className="glass-card-premium p-8 space-y-5">
+          {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm text-center">{error}</div>}
+          
+          {success ? (
+            <div className="text-center space-y-4">
+              <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                If an account exists with {email}, you will receive a password reset link shortly.
+              </div>
+              <Link to="/login" className="block w-full py-3 rounded-xl bg-white/5 text-white font-bold text-sm hover:bg-white/10 transition-all">
+                Return to Login
+              </Link>
             </div>
-          </div>
-        )}
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-400">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  <input type="email" required className={`${inputClass} pl-10`} placeholder="you@example.com"
+                    value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
+              </div>
 
-        {errorMessage && (
-          <div className="bg-red-950/40 border border-red-500/30 text-red-400 p-4 rounded-xl text-xs font-semibold flex items-start gap-3 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.15)]">
-            <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold text-white uppercase tracking-wider mb-1">Protocol Anomaly</p>
-              <p className="text-gray-300 leading-relaxed">{errorMessage}</p>
-            </div>
-          </div>
-        )}
+              <button type="submit" disabled={loading}
+                className="w-full py-3 rounded-xl bg-gradient-primary text-white font-bold text-sm hover:opacity-90 transition-all glow-blue disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading ? <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : <>Send Reset Link <ArrowRight className="w-4 h-4" /></>}
+              </button>
+            </form>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email input */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">Security Email Address</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
-                <Mail className="h-4 w-4" />
-              </span>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="operator@productive.ai"
-                disabled={loading}
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300 disabled:opacity-50"
-              />
-            </div>
-          </div>
-
-          {/* Submit Button with loader & cooldown */}
-          <button
-            type="submit"
-            disabled={loading || cooldown > 0}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 font-semibold text-sm shadow-neon hover:opacity-90 transition-all duration-300 text-white flex items-center justify-center gap-2 disabled:opacity-55 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
-                <span>Broadcasting Override Link...</span>
-              </>
-            ) : cooldown > 0 ? (
-              <span>Resend Cooldown ({cooldown}s)</span>
-            ) : (
-              <>
-                <span>Transmit Override Sequence</span>
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
-        </form>
-
-        <div className="text-center pt-2">
-          <p className="text-xs text-gray-400">
-            Remembered your access key?{' '}
-            <Link to="/login" className="text-blue-400 font-semibold hover:underline">
-              Decrypt Operator
-            </Link>
+          <p className="text-center text-sm text-gray-500">
+            Remember your password?{' '}
+            <Link to="/login" className="text-blue-400 font-semibold hover:text-blue-300 transition-colors">Sign in →</Link>
           </p>
         </div>
       </div>
     </div>
   );
-};
-
-export default ForgotPassword;
+}

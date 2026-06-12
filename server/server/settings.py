@@ -146,7 +146,7 @@ REST_FRAMEWORK = {
     ],
 
     'DEFAULT_THROTTLE_RATES': {
-        'user': '60/min',
+        'user': '300/min',
         'ai': '5/min',
     },
 }

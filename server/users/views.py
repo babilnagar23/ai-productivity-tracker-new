@@ -393,3 +393,76 @@ class OTPRegisterView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
+
+class AchievementsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        profile = user.profile
+        
+        # Determine stats
+        streak = profile.streak
+        xp = profile.xp
+        level = (xp // 100) + 1
+        
+        # We can dynamically define some basic achievements based on these stats
+        achievements = [
+            {
+                "id": "first_streak",
+                "category": "streak",
+                "title": "Getting Started",
+                "description": "Start a streak of 3 days.",
+                "progress": min(streak, 3),
+                "goal": 3,
+                "earned": streak >= 3
+            },
+            {
+                "id": "streak_7",
+                "category": "streak",
+                "title": "One Week Dedicated",
+                "description": "Achieve a 7-day streak.",
+                "progress": min(streak, 7),
+                "goal": 7,
+                "earned": streak >= 7
+            },
+            {
+                "id": "streak_30",
+                "category": "streak",
+                "title": "Monthly Master",
+                "description": "Maintain a 30-day streak.",
+                "progress": min(streak, 30),
+                "goal": 30,
+                "earned": streak >= 30
+            },
+            {
+                "id": "level_5",
+                "category": "general",
+                "title": "Level 5 Apprentice",
+                "description": "Reach level 5.",
+                "progress": min(level, 5),
+                "goal": 5,
+                "earned": level >= 5
+            },
+            {
+                "id": "level_10",
+                "category": "general",
+                "title": "Level 10 Adept",
+                "description": "Reach level 10.",
+                "progress": min(level, 10),
+                "goal": 10,
+                "earned": level >= 10
+            },
+            {
+                "id": "first_focus",
+                "category": "focus",
+                "title": "Focus Pioneer",
+                "description": "Complete your first focus session.",
+                "progress": 1 if xp > 0 else 0, # proxy
+                "goal": 1,
+                "earned": xp > 0
+            }
+        ]
+        
+        return Response({'success': True, 'data': achievements}, status=status.HTTP_200_OK)
+

@@ -1,308 +1,394 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { apiFetch } from '../services/api';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
+import { apiFetch, aiApi, calendarApi, todosApi, focusApi } from '../services/api';
+import AppLayout from '../components/layout/AppLayout';
+import StatCard from '../components/ui/StatCard';
+import ProgressRing from '../components/ui/ProgressRing';
+import Badge from '../components/ui/Badge';
 import DailyLogPopup from '../components/DailyLogPopup';
-import { 
-  Zap, 
-  Flame, 
-  Target, 
-  Award,
-  Sparkles, 
-  TrendingUp, 
-  Clock, 
-  CheckCircle2,
-  Smartphone,
-  CalendarCheck2
+import {
+  Flame, Sparkles, Timer, CheckSquare, Calendar,
+  TrendingUp, RotateCcw, Trophy, ArrowRight, Clock,
+  BookOpen, BarChart3, Zap, Target, CalendarCheck2, Plus
 } from 'lucide-react';
+import { format, isToday, isTomorrow, parseISO } from 'date-fns';
 
-/* Module-level variable to track if the user skipped the check-in popup
-   during this active SPA session. Survives in-app navigation, but resets
-   to false on full page refresh/reload. */
 let inAppSkippedThisSession = false;
 
 const localToday = () => {
-  const date = new Date();
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().split('T')[0];
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split('T')[0];
 };
 
-const Dashboard = () => {
-  const { user } = useAuth();
-  const [routines, setRoutines]         = useState([]);
-  const [aiAdvice, setAiAdvice]         = useState('Fetching real-time neural insights...');
-  const [loading, setLoading]           = useState(true);
+const formatEventTime = (dt) => {
+  try { return format(parseISO(dt), 'h:mm a'); } catch { return dt || ''; }
+};
 
-  /* ── Popup state ────────────────────────────────────────────── */
-  // skipped: uses in-memory session tracking. Cleared completely on page reload.
-  const [skipped, setSkippedState]       = useState(inAppSkippedThisSession);
-  const setSkipped = (val) => {
-    inAppSkippedThisSession = val;
-    setSkippedState(val);
-  };
-  // hasTodayEntry: true if the user already has a log for today
+const formatUpcomingDate = (dt) => {
+  try {
+    const d = parseISO(dt);
+    if (isToday(d)) return `Today, ${format(d, 'h:mm a')}`;
+    if (isTomorrow(d)) return `Tomorrow, ${format(d, 'h:mm a')}`;
+    return format(d, 'MMM d, h:mm a');
+  } catch { return dt; }
+};
+
+const QuickAction = ({ to, icon: Icon, label, color, bg }) => (
+  <Link
+    to={to}
+    className="group glass card-3d p-4 flex flex-col items-center gap-2.5 text-center"
+  >
+    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg}`}>
+      <Icon className="w-5 h-5" style={{ color }} />
+    </div>
+    <span className="text-xs font-semibold text-gray-300 group-hover:text-white transition-colors">{label}</span>
+  </Link>
+);
+
+export default function Dashboard() {
+  const { user } = useAuth();
+  const [routines, setRoutines] = useState([]);
+  const [todayEvents, setTodayEvents] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [todos, setTodos] = useState([]);
+  const [focusSessions, setFocusSessions] = useState([]);
+  const [achievements, setAchievements] = useState([]);
+  const [aiAdvice, setAiAdvice] = useState('');
+  const [loading, setLoading] = useState(true);
   const [hasTodayEntry, setHasTodayEntry] = useState(false);
-  // popupReady: don't show until we've confirmed the above
-  const [popupReady, setPopupReady]     = useState(false);
+  const [popupReady, setPopupReady] = useState(false);
+  const [skipped, setSkippedState] = useState(inAppSkippedThisSession);
+
+  const setSkipped = (v) => { inAppSkippedThisSession = v; setSkippedState(v); };
+  const showPopup = popupReady && !skipped && !hasTodayEntry;
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const res = await apiFetch('/routines');
-        if (res.success) {
-          setRoutines(res.data);
+    const load = async () => {
+      const todayStr = localToday();
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+      const endOfWeek = new Date(now.getTime() + 7 * 86400000).toISOString();
 
-          /* Check if any entry matches today's local date */
-          const todayStr = localToday();
-          const todayEntry = res.data.find(r => {
-            const entryDate = r.date ? r.date.split('T')[0] : '';
-            return entryDate === todayStr;
-          });
+      try {
+        const [routineRes, todayEvRes, upcomingEvRes, todoRes, focusRes, aiRes] = await Promise.allSettled([
+          apiFetch('/routines'),
+          calendarApi.list({ start: startOfDay, end: endOfDay }),
+          calendarApi.list({ start: endOfDay, end: endOfWeek }),
+          todosApi.list({ completed: false }),
+          focusApi.list(),
+          aiApi.analyze(),
+        ]);
+
+        if (routineRes.status === 'fulfilled') {
+          const data = routineRes.value?.data || routineRes.value || [];
+          setRoutines(Array.isArray(data) ? data : []);
+          const todayEntry = Array.isArray(data) && data.find(r => (r.date || '').split('T')[0] === todayStr);
           setHasTodayEntry(!!todayEntry);
         }
 
-        /* Fetch quick advice */
-        const adviceRes = await apiFetch('/ai/analyze', { method: 'POST' });
-        if (adviceRes.success) setAiAdvice(adviceRes.data);
+        if (todayEvRes.status === 'fulfilled') {
+          const evs = todayEvRes.value?.data || todayEvRes.value?.results || todayEvRes.value || [];
+          setTodayEvents(Array.isArray(evs) ? evs : []);
+        }
+
+        if (upcomingEvRes.status === 'fulfilled') {
+          const evs = upcomingEvRes.value?.data || upcomingEvRes.value?.results || upcomingEvRes.value || [];
+          setUpcomingEvents(Array.isArray(evs) ? evs.slice(0, 5) : []);
+        }
+
+        if (todoRes.status === 'fulfilled') {
+          const data = todoRes.value?.data || todoRes.value?.results || todoRes.value || [];
+          setTodos(Array.isArray(data) ? data.slice(0, 5) : []);
+        }
+
+        if (focusRes.status === 'fulfilled') {
+          const data = focusRes.value?.data || focusRes.value?.results || focusRes.value || [];
+          setFocusSessions(Array.isArray(data) ? data : []);
+        }
+
+        if (aiRes.status === 'fulfilled') {
+          setAiAdvice(aiRes.value?.data || aiRes.value || '');
+        }
       } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setAiAdvice('AI Assistant currently resting. Maintain study metrics manually.');
+        console.error('Dashboard load error:', err);
       } finally {
         setLoading(false);
-        setPopupReady(true); // we now know if today is logged or not
+        setPopupReady(true);
       }
     };
-
-    fetchDashboardData();
+    load();
   }, []);
 
-  /* Show popup when: ready, not skipped this session, no entry for today */
-  const showPopup = popupReady && !loading && !skipped && !hasTodayEntry;
+  // Stats
+  const totalRoutines = routines.length;
+  const avgProductivity = totalRoutines
+    ? Math.round(routines.reduce((s, r) => s + (r.productivityScore || r.productivity_score || 0), 0) / totalRoutines)
+    : 0;
+  const avgStudy = totalRoutines
+    ? (routines.reduce((s, r) => s + (r.studyHours || r.study_hours || r.coreMetrics?.studyHours || 0), 0) / totalRoutines).toFixed(1)
+    : '0';
+  const todayFocusMins = focusSessions
+    .filter(s => (s.created_at || s.start_time || '').startsWith(localToday()))
+    .reduce((s, session) => s + (session.durationMinutes || session.duration_minutes || 0), 0);
+  const streak = user?.streak || 0;
+  const level = Math.floor((user?.xp || 0) / 100) + 1;
+  const xpProgress = (user?.xp || 0) % 100;
 
-  /* Compute stats */
-  const totalRoutines        = routines.length;
-  const averageProductivity  = totalRoutines 
-    ? Math.round(routines.reduce((acc, curr) => acc + (curr.productivityScore || 0), 0) / totalRoutines)
-    : 0;
-  const averageStudyHours    = totalRoutines
-    ? (routines.reduce((acc, curr) => acc + (curr.coreMetrics?.studyHours || curr.studyHours || 0), 0) / totalRoutines).toFixed(1)
-    : 0;
-  const averageMobileUsage   = totalRoutines
-    ? (routines.reduce((acc, curr) => acc + (curr.coreMetrics?.mobileUsage || curr.mobileUsage || 0), 0) / totalRoutines).toFixed(1)
-    : 0;
+  const todayRoutine = routines.find(r => (r.date || '').split('T')[0] === localToday());
+  const routineScore = todayRoutine?.productivityScore || todayRoutine?.productivity_score || 0;
 
   return (
-    <div className="flex bg-background min-h-screen text-white">
-
-      {/* ── Daily Log Popup ────────────────────────────────────── */}
+    <AppLayout title="Dashboard">
       {showPopup && (
         <DailyLogPopup
           onClose={() => setSkipped(true)}
-          onLogged={() => {
-            setHasTodayEntry(true);
-            setSkipped(false);
-          }}
+          onLogged={() => { setHasTodayEntry(true); setSkipped(false); }}
         />
       )}
 
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        <Navbar />
-        
-        <main className="p-8 space-y-8 flex-1">
-          {/* Welcome section */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">
-                Welcome back, <span className="text-gradient font-black">{user?.name}</span>
-              </h1>
-              <p className="text-sm text-gray-400">Neural mainframe active. Ready to monitor daily consistency.</p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {/* Today's log status badge */}
-              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border ${
-                hasTodayEntry
-                  ? 'bg-green-500/10 border-green-500/20 text-green-400'
-                  : 'bg-orange-500/10 border-orange-500/20 text-orange-400'
-              }`}>
-                <CalendarCheck2 className="h-4 w-4" />
-                <div>
-                  <p className="text-[10px] uppercase font-bold leading-none">Today's Log</p>
-                  <p className="text-xs font-semibold">
-                    {hasTodayEntry ? 'Completed ✓' : 'Not logged yet'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Daily Streak */}
-              <div className="flex items-center gap-2 bg-white/5 border border-white/5 px-4 py-2.5 rounded-2xl">
-                <Flame className="h-5 w-5 text-orange-500 animate-bounce" />
-                <div>
-                  <p className="text-[10px] uppercase font-semibold text-gray-400 leading-none">Daily Streak</p>
-                  <p className="text-sm font-bold text-orange-400">{user?.streak || 0} Days</p>
-                </div>
-              </div>
-            </div>
+      <div className="space-y-6 max-w-7xl mx-auto animate-fadeInUp">
+        {/* ── Welcome Header ──────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div>
+            <h1 className="text-2xl font-hero font-extrabold text-white">
+              Welcome back, <span className="text-cyan">{user?.name || user?.username}</span> 👋
+            </h1>
+            <p className="text-sm text-gray-400 mt-1">
+              {format(new Date(), "EEEE, MMMM do yyyy")} · Your productivity command center
+            </p>
           </div>
 
-          {/* Today not logged — inline nudge (when popup was skipped) */}
-          {!hasTodayEntry && skipped && !loading && (
-            <div className="glass-card p-4 border border-orange-500/20 bg-orange-500/5 flex items-center justify-between gap-4 animate-fadeIn">
-              <div className="flex items-center gap-3">
-                <CalendarCheck2 className="h-5 w-5 text-orange-400 flex-shrink-0" />
-                <p className="text-sm text-gray-300">
-                  <span className="font-semibold text-orange-300">No entry for today yet.</span>{' '}
-                  Log your daily routine to maintain your streak.
-                </p>
-              </div>
-              <button
-                onClick={() => setSkipped(false)}
-                className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl
-                           bg-orange-500/15 border border-orange-500/20 text-orange-400
-                           text-xs font-bold hover:bg-orange-500/25 transition"
-              >
-                <Zap className="h-3.5 w-3.5" /> Log Now
-              </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Log status */}
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold
+              ${hasTodayEntry
+                ? 'bg-green-500/10 border-green-500/20 text-green-400'
+                : 'bg-orange-500/10 border-orange-500/20 text-orange-400'
+              }`}>
+              <CalendarCheck2 className="w-4 h-4" />
+              {hasTodayEntry ? 'Today logged ✓' : 'Not logged yet'}
             </div>
-          )}
 
-          {/* AI Quick Insight Banner */}
-          <div className="glass-card p-6 border-l-4 border-blue-500 flex gap-4 items-start relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -z-10" />
-            <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-400">
-              <Sparkles className="h-6 w-6" />
+            {/* Streak */}
+            <div className="flex items-center gap-2 glass px-3 py-2">
+              <Flame className="w-4 h-4 text-orange-400 animate-bounce" />
+              <span className="text-sm font-bold text-orange-400">{streak} day streak</span>
             </div>
-            <div>
-              <h3 className="font-bold text-white mb-1">AI Habit Synthesis</h3>
-              <p className="text-sm text-gray-300 leading-relaxed italic">
-                "{aiAdvice}"
+          </div>
+        </div>
+
+        {/* Nudge if skipped */}
+        {!hasTodayEntry && skipped && !loading && (
+          <div className="glass card-3d p-4 border border-orange-500/20 bg-orange-500/5 flex items-center justify-between gap-4 animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <CalendarCheck2 className="w-5 h-5 text-orange-400 flex-shrink-0" />
+              <p className="text-sm text-gray-300">
+                <span className="font-semibold text-orange-300">No entry for today.</span>{' '}
+                Log your daily routine to maintain your streak.
               </p>
             </div>
+            <button
+              onClick={() => setSkipped(false)}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500/15 border border-orange-500/20 text-orange-400 text-xs font-bold hover:bg-orange-500/25 transition"
+            >
+              <Zap className="w-3.5 h-3.5" /> Log Now
+            </button>
           </div>
+        )}
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="glass-card p-6 space-y-4">
-              <div className="flex justify-between items-start">
-                <span className="text-sm text-gray-400 font-medium">Productivity Index</span>
-                <TrendingUp className="h-5 w-5 text-green-400" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-3xl font-extrabold">{averageProductivity}%</h3>
-                <p className="text-xs text-gray-500">Avg across logged routines</p>
-              </div>
-            </div>
-
-            <div className="glass-card p-6 space-y-4">
-              <div className="flex justify-between items-start">
-                <span className="text-sm text-gray-400 font-medium">Study Focus</span>
-                <Clock className="h-5 w-5 text-blue-400" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-3xl font-extrabold">{averageStudyHours} hrs</h3>
-                <p className="text-xs text-gray-500">Average Daily Study Hours</p>
-              </div>
-            </div>
-
-            <div className="glass-card p-6 space-y-4">
-              <div className="flex justify-between items-start">
-                <span className="text-sm text-gray-400 font-medium">Mobile Downtime</span>
-                <Smartphone className="h-5 w-5 text-purple-400" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-3xl font-extrabold">{averageMobileUsage} hrs</h3>
-                <p className="text-xs text-gray-500">Average daily screen time</p>
-              </div>
-            </div>
-
-            <div className="glass-card p-6 space-y-4">
-              <div className="flex justify-between items-start">
-                <span className="text-sm text-gray-400 font-medium">Neural Milestones</span>
-                <Award className="h-5 w-5 text-yellow-400" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-3xl font-extrabold">{totalRoutines} Done</h3>
-                <p className="text-xs text-gray-500">Routines submitted in system</p>
-              </div>
-            </div>
+        {/* ── AI Insight Banner ────────────────────────────────────── */}
+        <div className="glass card-3d p-5 flex gap-4 items-start relative overflow-hidden border-l-4 border-cyan/60">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-cyan/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="p-2.5 bg-cyan/15 rounded-xl text-cyan flex-shrink-0">
+            <Sparkles className="w-5 h-5" />
           </div>
+          <div className="min-w-0">
+            <h3 className="font-bold text-white text-sm mb-1">AI Habit Synthesis</h3>
+            <p className="text-sm text-gray-300 leading-relaxed italic">
+              {aiAdvice
+                ? `"${aiAdvice}"`
+                : loading
+                  ? 'Analyzing your patterns...'
+                  : 'Connect to the AI for personalized productivity insights.'}
+            </p>
+          </div>
+        </div>
 
-          {/* Subpanels */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Active Config variables */}
-            <div className="glass-card p-6 space-y-4">
-              <h3 className="font-bold text-lg text-white">Active Variables Summary</h3>
-              <p className="text-xs text-gray-400">Core checklists and numerical inputs dynamically tracked in your forms</p>
-              
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="p-4 bg-white/5 border border-white/5 rounded-2xl space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-blue-400">Core Checklists</span>
-                  <div className="text-xs text-white space-y-1 font-semibold">
-                    {user?.customConfig?.coreChecklists?.length > 0 ? (
-                      user.customConfig.coreChecklists.slice(0, 3).map((chk, idx) => (
-                        <div key={chk.id || idx} className="truncate">✓ {chk.title}</div>
-                      ))
-                    ) : (
-                      <div className="text-gray-500 italic">None active</div>
-                    )}
-                    {user?.customConfig?.coreChecklists?.length > 3 && (
-                      <div className="text-[9px] text-gray-400 font-normal italic">
-                        + {user.customConfig.coreChecklists.length - 3} more checklists
-                      </div>
-                    )}
-                  </div>
+        {/* ── Stats Grid ───────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="Productivity Index"
+            value={`${avgProductivity}%`}
+            sub="Average across routines"
+            icon={TrendingUp}
+            color="#00FFFF"
+            gradient="from-cyan/5"
+            ring={avgProductivity}
+          />
+          <StatCard
+            label="Study Focus"
+            value={`${avgStudy}h`}
+            sub="Average daily study hours"
+            icon={Clock}
+            color="#3B82F6"
+            gradient="from-blue-500/5"
+          />
+          <StatCard
+            label="Focus Today"
+            value={`${Math.floor(todayFocusMins / 60)}h ${todayFocusMins % 60}m`}
+            sub="Deep work sessions"
+            icon={Timer}
+            color="#BF5AF2"
+            gradient="from-plasma/5"
+          />
+          <StatCard
+            label="Daily Streak"
+            value={`${streak} Days`}
+            sub={`Level ${level} · ${xpProgress}/100 XP`}
+            icon={Flame}
+            color="#F59E0B"
+            gradient="from-orange-500/5"
+          />
+        </div>
+
+        {/* ── Main Content Grid ────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Today's Schedule */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="glass card-3d p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-cyan" />
+                  <h2 className="font-bold text-white">Today's Schedule</h2>
                 </div>
-
-                <div className="p-4 bg-white/5 border border-white/5 rounded-2xl space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-purple-400">Core Metrics</span>
-                  <div className="text-xs text-white space-y-1 font-semibold">
-                    {user?.customConfig?.coreMetrics?.length > 0 ? (
-                      user.customConfig.coreMetrics.slice(0, 3).map((met, idx) => (
-                        <div key={met.id || idx} className="truncate">📊 {met.title}</div>
-                      ))
-                    ) : (
-                      <div className="text-gray-500 italic">None active</div>
-                    )}
-                    {user?.customConfig?.coreMetrics?.length > 3 && (
-                      <div className="text-[9px] text-gray-400 font-normal italic">
-                        + {user.customConfig.coreMetrics.length - 3} more metrics
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <Link to="/calendar" className="text-xs text-cyan hover:text-white flex items-center gap-1">
+                  Open Calendar <ArrowRight className="w-3 h-3" />
+                </Link>
               </div>
+              {loading ? (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => <div key={i} className="h-10 rounded-lg bg-white/4 animate-shimmer" />)}
+                </div>
+              ) : todayEvents.length === 0 ? (
+                <div className="py-8 text-center text-sm text-gray-500">No events today.{' '}
+                  <Link to="/calendar" className="text-blue-400 hover:underline">Add one →</Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {todayEvents.slice(0, 6).map((ev, i) => (
+                    <div key={ev.id || i} className="flex items-center gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/5 transition-colors">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{ev.title}</p>
+                        {ev.start_time && <p className="text-xs text-gray-500">{formatEventTime(ev.start_time)}</p>}
+                      </div>
+                      {ev.color && (
+                        <span className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ background: ev.color === 'blue' ? '#3B82F6' : ev.color === 'green' ? '#10B981' : ev.color === 'purple' ? '#8B5CF6' : '#F59E0B' }}
+                        />
+                      )}
+                    </div>
+                  ))}
+                  {todayEvents.length > 6 && (
+                    <Link to="/calendar" className="block text-xs text-blue-400 text-center py-2 hover:underline">
+                      +{todayEvents.length - 6} more events
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Quick Actions / Shortcuts */}
-            <div className="glass-card p-6 space-y-4">
-              <h3 className="font-bold text-lg text-white">System Actions</h3>
-              <p className="text-xs text-gray-400">Access primary operation control segments instantly</p>
-              
-              <div className="space-y-3 pt-2">
-                <a href="/routines" className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl hover:border-blue-500/30 hover:bg-white/10 transition-all text-left">
-                  <div>
-                    <h4 className="font-semibold text-sm">Update Daily Routines</h4>
-                    <p className="text-xs text-gray-400">Log study hours and exercise progress</p>
-                  </div>
-                  <CheckCircle2 className="h-5 w-5 text-blue-400" />
-                </a>
+            {/* Tasks Preview */}
+            <div className="glass card-3d p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-green-400" />
+                  <h2 className="font-bold text-white">Pending Tasks</h2>
+                </div>
+                <Link to="/todos" className="text-xs text-cyan hover:text-white flex items-center gap-1">
+                  View All <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+              {loading ? (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => <div key={i} className="h-10 rounded-lg bg-white/4 animate-shimmer" />)}
+                </div>
+              ) : todos.length === 0 ? (
+                <div className="py-6 text-center text-sm text-gray-500">
+                  All tasks complete! 🎉{' '}
+                  <Link to="/todos" className="text-blue-400 hover:underline">Add new →</Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {todos.map((t, i) => (
+                    <div key={t.id || i} className="flex items-center gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/5 transition-colors">
+                      <div className="w-4 h-4 rounded border border-white/20 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{t.title}</p>
+                        {t.due_date && (
+                          <p className="text-xs text-gray-500">Due {format(parseISO(t.due_date), 'MMM d')}</p>
+                        )}
+                      </div>
+                      {t.priority && (
+                        <Badge variant={t.priority === 'high' ? 'rose' : t.priority === 'medium' ? 'orange' : 'gray'} size="xs">
+                          {t.priority}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
-                <a href="/ai-coach" className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl hover:border-purple-500/30 hover:bg-white/10 transition-all text-left">
-                  <div>
-                    <h4 className="font-semibold text-sm">Consult AI Coach</h4>
-                    <p className="text-xs text-gray-400">Generate high-efficiency exam routine</p>
-                  </div>
-                  <Sparkles className="h-5 w-5 text-purple-400 animate-pulse" />
-                </a>
+          {/* Right column */}
+          <div className="space-y-6">
+
+
+            {/* Upcoming Events */}
+            <div className="glass card-3d p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-plasma" />
+                  <h2 className="font-bold text-white text-sm">Upcoming</h2>
+                </div>
+                <Link to="/calendar" className="text-xs text-cyan hover:underline">View all</Link>
+              </div>
+              {upcomingEvents.length === 0 ? (
+                <p className="text-xs text-gray-500 py-4 text-center">No upcoming events</p>
+              ) : (
+                <div className="space-y-2">
+                  {upcomingEvents.map((ev, i) => (
+                    <div key={ev.id || i} className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white/3 transition-colors">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0 mt-1.5" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-white truncate">{ev.title}</p>
+                        <p className="text-[10px] text-gray-500">{formatUpcomingDate(ev.start_time)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h2 className="font-bold text-white text-sm mb-3 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-400" /> Quick Actions
+              </h2>
+              <div className="grid grid-cols-2 gap-2">
+                <QuickAction to="/daily-log" icon={BookOpen} label="Log Today" color="#00FFFF" bg="bg-cyan/10" />
+                <QuickAction to="/focus" icon={Timer} label="Focus" color="#BF5AF2" bg="bg-plasma/10" />
+                <QuickAction to="/todos" icon={Plus} label="Add Task" color="#3B82F6" bg="bg-blue-500/10" />
+                <QuickAction to="/analytics" icon={BarChart3} label="Analytics" color="#F59E0B" bg="bg-orange-500/10" />
               </div>
             </div>
           </div>
-        </main>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
-};
-
-export default Dashboard;
+}
