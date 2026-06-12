@@ -32,11 +32,9 @@ void main() async {
   await NotificationService.initialize();
   ConnectivityService().initialize();
   
-  // Hydrate initial sync if possible
-  SyncEngine().syncNow();
+  // SyncEngine will be triggered by AuthNotifier after DB is initialized
 
-  final firstLoginDone =
-      await SecureStorageService.getFlag('first_login_done') == 'true';
+
   final initialThemeMode = await loadPersistedThemeMode();
 
   AppColors.setThemeMode(_effectiveMode(initialThemeMode));
@@ -49,7 +47,6 @@ void main() async {
   runApp(
     ProviderScope(
       overrides: [
-        firstLoginDoneProvider.overrideWith((ref) => firstLoginDone),
         initialThemeModeProvider.overrideWithValue(initialThemeMode),
       ],
       child: const ProductivityAIApp(),

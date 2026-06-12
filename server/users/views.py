@@ -100,13 +100,9 @@ class MeView(APIView):
 
         avatar = request.data.get('avatar')
 
-        if avatar is not None:
-             request.user.profile.avatar = avatar
-             request.user.profile.save(update_fields=['avatar'])
-        
-        if 'hasSelectedTemplate' in data:
-            request.user.profile.has_selected_template = bool(data['hasSelectedTemplate'])
-            request.user.profile.save(update_fields=['has_selected_template'])
+        if 'customConfig' in data:
+            request.user.profile.custom_config = data['customConfig']
+            request.user.profile.save(update_fields=['custom_config'])
 
         if 'email' in data:
             new_email = str(data['email']).lower().strip()

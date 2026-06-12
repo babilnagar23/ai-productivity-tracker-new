@@ -294,8 +294,8 @@ def _process_calendar_sync(user, records, last_sync_dt):
     from calendar_integration.models import GoogleCalendarConnection
     from calendar_integration.views import calendar_service, push_event_to_google, pull_google_calendar_events
     
-    # Try to pull latest events from Google Calendar first
-    pull_google_calendar_events(user)
+    # NOTE: pull_google_calendar_events should ideally be called outside transaction.atomic() 
+    # to avoid locking the DB during network requests. It's now handled in SyncBatchView directly.
     
     synced_ids = []
     conflicts = []
@@ -641,6 +641,14 @@ class SyncBatchView(APIView):
         client_calendar = request.data.get('calendar_events', [])
         client_notifications = request.data.get('notifications', [])
         
+        # Prevent database locks: Call external network APIs OUTSIDE the atomic transaction!
+        from calendar_integration.views import pull_google_calendar_events
+        try:
+            pull_google_calendar_events(request.user)
+        except Exception as e:
+            # Continue sync even if Google fails
+            pass
+
         with transaction.atomic():
             task_synced, task_conflicts, task_updates = _process_todo_sync(request.user, client_tasks, last_sync_dt)
             routine_synced, routine_conflicts, routine_updates = _process_routine_sync(request.user, client_routines, last_sync_dt)

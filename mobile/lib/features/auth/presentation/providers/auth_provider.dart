@@ -5,6 +5,7 @@ import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../../../core/sync/sync_engine.dart';
 
 // ── Auth State ────────────────────────────────────────────────────────────────
 
@@ -55,31 +56,40 @@ class AuthNotifier extends StateNotifier<AuthState> {
     debugPrint('[AUTH] Initialising — checking stored tokens');
     final hasToken = await SecureStorageService.hasTokens();
     if (hasToken) {
-      debugPrint('[AUTH] Token found — restoring cached profile if available');
-      final cachedJson = await SecureStorageService.getCachedUserProfile();
-      if (cachedJson != null) {
-        try {
-          final decoded = jsonDecode(cachedJson) as Map<String, dynamic>;
-          final user = UserModel.fromJson(decoded);
-          state = state.copyWith(user: user, isAuthenticated: true);
-          debugPrint('[AUTH] Restored cached session offline for: ${user.email}');
-        } catch (e) {
-          debugPrint('[AUTH] Failed to decode cached profile: $e');
+      final activeUserId = await SecureStorageService.getActiveUserId();
+      if (activeUserId != null) {
+        debugPrint('[AUTH] Token found — switching to DB for user: $activeUserId');
+        await DatabaseHelper.switchUser(activeUserId);
+
+        final cachedJson = await SecureStorageService.getCachedUserProfile(activeUserId);
+        if (cachedJson != null) {
+          try {
+            final decoded = jsonDecode(cachedJson) as Map<String, dynamic>;
+            final user = UserModel.fromJson(decoded);
+            state = state.copyWith(user: user, isAuthenticated: true);
+            debugPrint('[AUTH] Restored cached session offline for: ${user.email}');
+            SyncEngine().syncNow();
+          } catch (e) {
+            debugPrint('[AUTH] Failed to decode cached profile: $e');
+          }
         }
       }
 
       try {
         final user = await _repository.getMe();
+        await DatabaseHelper.switchUser(user.id);
+        await SecureStorageService.saveActiveUserId(user.id);
         state = state.copyWith(user: user, isAuthenticated: true);
-        await SecureStorageService.saveUserProfile(jsonEncode(user.toJson()));
+        await SecureStorageService.saveUserProfile(user.id, jsonEncode(user.toJson()));
         debugPrint('[AUTH] Session refreshed from server: ${user.email}');
+        SyncEngine().syncNow();
       } catch (e) {
         debugPrint('[AUTH] Background revalidation failed: $e');
         final isAuthError = e.toString().contains('401') || e.toString().contains('403');
         if (isAuthError) {
           debugPrint('[AUTH] Auth error — clearing session');
+          await DatabaseHelper.closeDatabase();
           await SecureStorageService.clearAll();
-          await DatabaseHelper().clearAllCache();
           state = const AuthState();
         }
       }
@@ -95,7 +105,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _repository.login(email, password);
-      await SecureStorageService.saveUserProfile(jsonEncode(user.toJson()));
+      await DatabaseHelper.switchUser(user.id);
+      await SecureStorageService.saveActiveUserId(user.id);
+      await SecureStorageService.saveUserProfile(user.id, jsonEncode(user.toJson()));
       state = state.copyWith(
         user: user,
         isAuthenticated: true,
@@ -103,6 +115,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       debugPrint('[AUTH] State updated — isAuthenticated = true');
       debugPrint('[AUTH] Authenticated = ${state.isAuthenticated}');
+      SyncEngine().syncNow();
       return true;
     } catch (e) {
       debugPrint('[AUTH] Login failed: $e');
@@ -153,7 +166,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final userJson = data['user'] as Map<String, dynamic>?;
       if (userJson != null) {
         final user = UserModel.fromJson(userJson);
-        await SecureStorageService.saveUserProfile(jsonEncode(user.toJson()));
+        await DatabaseHelper.switchUser(user.id);
+        await SecureStorageService.saveActiveUserId(user.id);
+        await SecureStorageService.saveUserProfile(user.id, jsonEncode(user.toJson()));
         state = state.copyWith(
           user: user,
           isAuthenticated: true,
@@ -161,6 +176,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         debugPrint(
             '[AUTH] Registration complete — auto-logged in as ${user.email}');
+        SyncEngine().syncNow();
       } else {
         state = state.copyWith(isLoading: false);
       }
@@ -209,7 +225,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       await _repository.updateProfile(data);
       final user = await _repository.getMe();
-      await SecureStorageService.saveUserProfile(jsonEncode(user.toJson()));
+      await SecureStorageService.saveUserProfile(user.id, jsonEncode(user.toJson()));
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
@@ -223,7 +239,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     debugPrint('[AUTH] Logout');
     await _repository.logout();
-    await DatabaseHelper().clearAllCache();
+    await DatabaseHelper.closeDatabase();
+    await SecureStorageService.clearAll();
     state = const AuthState();
   }
 

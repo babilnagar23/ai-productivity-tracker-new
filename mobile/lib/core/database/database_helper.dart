@@ -10,18 +10,46 @@ class DatabaseHelper {
   DatabaseHelper._internal();
 
   static Database? _database;
+  static String? _activeUserId;
+
+  static String? get currentUserId => _activeUserId;
+
+  static Future<void> switchUser(String userId) async {
+    if (_activeUserId == userId && _database != null) return;
+    
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+    
+    _activeUserId = userId;
+    _database = await _instance._initDatabase(userId);
+  }
+
+  static Future<void> closeDatabase() async {
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+    _activeUserId = null;
+  }
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDatabase();
+    if (_activeUserId == null) {
+      throw Exception('DatabaseHelper: No active user set. Call switchUser(userId) before accessing the database.');
+    }
+    _database = await _initDatabase(_activeUserId!);
     return _database!;
   }
 
-  Future<Database> _initDatabase() async {
+  Future<Database> _initDatabase(String userId) async {
+    final dbName = 'ai_productivity_tracker_user_$userId.db';
+
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
       return await databaseFactory.openDatabase(
-        'ai_productivity_tracker.db',
+        dbName,
         options: OpenDatabaseOptions(
           version: 3,
           onCreate: _onCreate,
@@ -36,7 +64,7 @@ class DatabaseHelper {
     }
 
     final dbPath = await databaseFactory.getDatabasesPath();
-    final path = join(dbPath, 'ai_productivity_tracker.db');
+    final path = join(dbPath, dbName);
 
     return await databaseFactory.openDatabase(
       path,
@@ -293,15 +321,4 @@ class DatabaseHelper {
     return await db.query(table, where: where, whereArgs: whereArgs, orderBy: orderBy, limit: limit);
   }
 
-  Future<void> clearAllCache() async {
-    final db = await database;
-    await db.delete('todos_cache');
-    await db.delete('routines_cache');
-    await db.delete('focus_sessions_cache');
-    await db.delete('calendar_events_cache');
-    await db.delete('notifications_cache');
-    await db.delete('achievements_cache');
-    await db.delete('analytics_snapshots_cache');
-    await db.delete('pending_mutations');
-  }
 }

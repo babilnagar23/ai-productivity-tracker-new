@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 import '../../../../core/api/api_client.dart';
 import '../../../../core/api/api_endpoints.dart';
@@ -207,6 +208,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   CalendarViewMode _viewMode = CalendarViewMode.month;
   bool _fabExpanded = false;
   bool _isSyncing = false;
+  bool _isConnecting = false;
 
   _DateRange get _visibleRange {
     switch (_viewMode) {
@@ -729,7 +731,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         fontWeight: FontWeight.w600)))
           else
             ElevatedButton(
-                onPressed: _connectGoogle,
+                onPressed: _isConnecting ? null : _connectGoogle,
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.blue,
                     shape: RoundedRectangleBorder(
@@ -737,11 +739,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     minimumSize: Size.zero),
-                child: Text('Connect',
-                    style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600))),
+                child: _isConnecting 
+                    ? const SizedBox(
+                        width: 14, height: 14, 
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text('Connect',
+                        style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600))),
         ]),
         if (connected) ...[
           const SizedBox(height: 12),
@@ -842,22 +848,46 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   // ── Google connect / sync ──────────────────────────────────────────────────
   Future<void> _connectGoogle() async {
+    if (_isConnecting) return;
+    setState(() => _isConnecting = true);
+
     try {
-      final r = await apiClient.dio.get(ApiEndpoints.calendarAuthUrl);
+      final r = await apiClient.dio.get('${ApiEndpoints.calendarAuthUrl}?client=mobile');
       final data = r.data as Map<String, dynamic>;
       final url = data['authUrl'] as String? ??
           data['auth_url'] as String? ??
           data['url'] as String?;
-      if (url != null && url.isNotEmpty) {
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
+          
+      if (url == null || url.isEmpty) {
+        throw Exception("Failed to retrieve authentication URL.");
       }
+
+      final result = await FlutterWebAuth2.authenticate(
+        url: url,
+        callbackUrlScheme: "productivityapp",
+      );
+
+      final uri = Uri.parse(result);
+      final code = uri.queryParameters['code'];
+      
+      if (code == null) {
+        throw Exception("Google authentication was canceled or failed.");
+      }
+
+      await apiClient.dio.post(ApiEndpoints.calendarCallback, data: {'code': code});
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google Calendar connected successfully!')));
+          
+      await _refresh();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'), backgroundColor: AppColors.error));
+          content: Text('Failed to connect Google Calendar: $e'), 
+          backgroundColor: AppColors.error));
+    } finally {
+      if (mounted) setState(() => _isConnecting = false);
     }
   }
 

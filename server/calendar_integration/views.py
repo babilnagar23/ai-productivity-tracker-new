@@ -189,6 +189,17 @@ class CalendarAuthUrlView(APIView):
             include_granted_scopes='true',
             prompt='consent',
         )
+
+        # Bypass for Mobile App deep linking
+        if request.query_params.get('client') == 'mobile':
+            from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+            parsed = urlparse(auth_url)
+            query = parse_qs(parsed.query)
+            if 'state' in query:
+                query['state'][0] += '_mobile'
+                parsed = parsed._replace(query=urlencode(query, doseq=True))
+                auth_url = urlunparse(parsed)
+
         request.session['google_oauth_state'] = state
         return Response({'success': True, 'authUrl': auth_url})
 
@@ -201,8 +212,15 @@ class CalendarCallbackView(APIView):
 
     def get(self, request):
         code = request.GET.get('code')
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        state = request.GET.get('state', '')
         from django.shortcuts import redirect
+
+        if state.endswith('_mobile'):
+            if code:
+                return redirect(f"productivityapp://calendar/callback?code={code}")
+            return redirect("productivityapp://calendar")
+
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
         if code:
             return redirect(f"{frontend_url}/auth/google/callback?code={code}")
         return redirect(f"{frontend_url}/calendar")

@@ -113,7 +113,6 @@ def profile_summary(user):
     return {
         'xp': getattr(profile, 'xp', 0),
         'streak': getattr(profile, 'streak', 0),
-        'has_selected_template': getattr(profile, 'has_selected_template', False),
         'custom_config': custom_config,
     }
 

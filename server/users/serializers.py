@@ -21,7 +21,6 @@ def public_user(user):
         'streak': profile.streak,
         'xp': profile.xp,
         'customConfig': profile.custom_config or default_config(),
-        'hasSelectedTemplate': profile.has_selected_template,
     }
 
 

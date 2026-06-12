@@ -15,7 +15,7 @@ class UserModel {
   final int streak;
   final int xp;
   final Map<String, dynamic> customConfig;
-  final bool hasSelectedTemplate;
+  final String? profilePictureUrl;
 
   const UserModel({
     required this.id,
@@ -25,7 +25,7 @@ class UserModel {
     this.streak = 0,
     this.xp = 0,
     this.customConfig = const {},
-    this.hasSelectedTemplate = false,
+    this.profilePictureUrl,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -37,6 +37,7 @@ class UserModel {
       streak: (json['streak'] as num?)?.toInt() ?? 0,
       xp: (json['xp'] as num?)?.toInt() ?? 0,
       customConfig: json['customConfig'] as Map<String, dynamic>? ?? const {},
+      profilePictureUrl: json['profilePictureUrl'] as String?,
     );
   }
 

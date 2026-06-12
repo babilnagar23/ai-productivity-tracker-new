@@ -40,12 +40,24 @@ class SyncEngine {
 
   Future<void> syncNow() async {
     if (_isSyncing) return;
+
+    final activeUserId = await SecureStorageService.getActiveUserId();
+    if (activeUserId == null) {
+      debugPrint('[SyncEngine] Aborting sync: No active user set in storage.');
+      return;
+    }
+
+    if (DatabaseHelper.currentUserId != activeUserId) {
+      debugPrint('[SyncEngine] CRITICAL: Aborting sync. Storage user ($activeUserId) does not match DB user (${DatabaseHelper.currentUserId}).');
+      return;
+    }
+
     _isSyncing = true;
     onSyncStatusChanged?.call(true);
 
     try {
       // 1. Fetch last sync time
-      final lastSyncTimeStr = await SecureStorageService.getFlag('last_sync_time');
+      final lastSyncTimeStr = await SecureStorageService.getFlag('last_sync_time_$activeUserId');
 
       // 2. Fetch all local records with syncStatus = 'pending'
       final pendingTodos = await _dbHelper.query('todos_cache', where: "syncStatus = 'pending'");
@@ -423,7 +435,7 @@ class SyncEngine {
         });
 
         final newSyncTime = responseData['sync_time'] ?? DateTime.now().toIso8601String();
-        await SecureStorageService.saveFlag('last_sync_time', newSyncTime);
+        await SecureStorageService.saveFlag('last_sync_time_$activeUserId', newSyncTime);
 
         // Clean up traditional pending mutations since they're fully processed
         await _dbHelper.delete('pending_mutations', '1 = 1', []);

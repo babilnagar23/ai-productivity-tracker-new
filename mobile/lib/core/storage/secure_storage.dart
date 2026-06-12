@@ -14,6 +14,7 @@ class SecureStorageService {
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _userEmailKey = 'user_email';
+  static const _activeUserIdKey = 'active_user_id';
 
   // ── Write ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,16 @@ class SecureStorageService {
       await prefs.setString(_userEmailKey, email);
     } else {
       await _storage.write(key: _userEmailKey, value: email);
+    }
+  }
+
+  static Future<void> saveActiveUserId(String userId) async {
+    debugPrint('[STORAGE] Save active user ID');
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_activeUserIdKey, userId);
+    } else {
+      await _storage.write(key: _activeUserIdKey, value: userId);
     }
   }
 
@@ -79,6 +90,14 @@ class SecureStorageService {
     return _storage.read(key: _userEmailKey);
   }
 
+  static Future<String?> getActiveUserId() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_activeUserIdKey);
+    }
+    return _storage.read(key: _activeUserIdKey);
+  }
+
   // ── Delete ─────────────────────────────────────────────────────────────────
 
   static Future<void> clearAll() async {
@@ -88,8 +107,14 @@ class SecureStorageService {
       await prefs.remove(_accessTokenKey);
       await prefs.remove(_refreshTokenKey);
       await prefs.remove(_userEmailKey);
+      await prefs.remove(_activeUserIdKey);
+      await prefs.remove('cached_user_profile'); // Clear legacy cache
     } else {
-      await _storage.deleteAll();
+      await _storage.delete(key: _accessTokenKey);
+      await _storage.delete(key: _refreshTokenKey);
+      await _storage.delete(key: _userEmailKey);
+      await _storage.delete(key: _activeUserIdKey);
+      await _storage.delete(key: 'cached_user_profile'); // Clear legacy cache
     }
     debugPrint('[STORAGE] Tokens cleared');
   }
@@ -101,12 +126,12 @@ class SecureStorageService {
 
   static const _userProfileKey = 'cached_user_profile';
 
-  static Future<void> saveUserProfile(String profileJson) async {
-    await saveFlag(_userProfileKey, profileJson);
+  static Future<void> saveUserProfile(String userId, String profileJson) async {
+    await saveFlag('${_userProfileKey}_$userId', profileJson);
   }
 
-  static Future<String?> getCachedUserProfile() async {
-    return await getFlag(_userProfileKey);
+  static Future<String?> getCachedUserProfile(String userId) async {
+    return await getFlag('${_userProfileKey}_$userId');
   }
 
   // ── Generic flags ──────────────────────────────────────────────────────────
