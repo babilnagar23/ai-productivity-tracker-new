@@ -1,4 +1,3 @@
-import React from 'react';
 import ProgressRing from './ProgressRing';
 
 export default function StatCard({ label, value, sub, icon: Icon, color = '#3B82F6', gradient = 'from-blue-500/10', ring, trend }) {

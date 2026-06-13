@@ -1,6 +1,5 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, WifiOff, RefreshCw, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Wifi, WifiOff, RefreshCw, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 const SyncStatus = ({ connected, googleEmail, lastSynced, isSyncing, onSync, onConnect }) => {

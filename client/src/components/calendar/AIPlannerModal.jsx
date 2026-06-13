@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Loader2, ArrowRight, Calendar, Info } from 'lucide-react';
 import { generateAISchedule, applyAISchedule } from '../../services/calendarService';
-import { format, parseISO } from 'date-fns';
 import { COLOR_PALETTE, CATEGORY_ICONS } from '../../services/calendarService';
 
 const AIPlannerModal = ({ isOpen, onClose, onScheduleApplied }) => {

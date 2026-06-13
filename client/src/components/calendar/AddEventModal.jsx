@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Clock, MapPin, Users, Bell, RefreshCw, Tag, Wifi } from 'lucide-react';
 import { format } from 'date-fns';
@@ -17,9 +17,9 @@ const CATEGORIES = ['study', 'work', 'exercise', 'personal', 'meeting', 'break']
 const AddEventModal = ({ isOpen, onClose, onSave, initialDate, initialEvent }) => {
   const isEdit = !!initialEvent;
   const defaultStart = initialDate ? format(new Date(initialDate), "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm");
-  const defaultEnd = initialDate
+  const [defaultEnd] = useState(() => initialDate
     ? format(new Date(new Date(initialDate).getTime() + 60 * 60000), "yyyy-MM-dd'T'HH:mm")
-    : format(new Date(Date.now() + 60 * 60000), "yyyy-MM-dd'T'HH:mm");
+    : format(new Date(Date.now() + 60 * 60000), "yyyy-MM-dd'T'HH:mm"));
 
   const [form, setForm] = useState({
     title: '',

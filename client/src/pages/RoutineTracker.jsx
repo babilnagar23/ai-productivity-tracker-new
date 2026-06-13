@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import  { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../services/api';
 import Navbar from '../components/Navbar';
@@ -27,8 +27,7 @@ import {
   isSameMonth, 
   isSameDay, 
   addDays, 
-  parseISO,
-  isToday
+  parseISO
 } from 'date-fns';
 import Modal from '../components/ui/Modal';
 
@@ -43,7 +42,7 @@ const RoutineTracker = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [routines, setRoutines] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [ setLoading] = useState(true);
   
   // New States for UI
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -169,7 +168,7 @@ const RoutineTracker = () => {
     setFormDateStr(selectedDateStr);
   };
 
-  const handleEditInit = (item) => {
+  function handleEditInit(item) {
     setEditingId(item.id || item._id);
     setFormDateStr(new Date(item.date).toISOString().split('T')[0]);
     
@@ -262,11 +261,10 @@ const RoutineTracker = () => {
     const rows = [];
     let days = [];
     let day = startDate;
-    let formattedDate = '';
     
     while (day <= endDate) {
       for (let i = 0; i < 7; i++) {
-        formattedDate = format(day, 'd');
+        const formattedDate = format(day, 'd');
         const cloneDay = day;
         const dateStr = format(day, 'yyyy-MM-dd');
         const hasLog = routines.some(r => r.date.split('T')[0] === dateStr);

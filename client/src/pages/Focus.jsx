@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import  { useState, useEffect, useRef, useCallback } from 'react';
 import AppLayout from '../components/layout/AppLayout';
-import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import ProgressRing from '../components/ui/ProgressRing';
 import StatCard from '../components/ui/StatCard';
 import { focusApi } from '../services/api';
 import {
   Timer, Play, Pause, Square, RotateCcw, Clock,
-  Target, Trophy, Zap, Plus, History
+  Target, Trophy, Zap, History
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -29,7 +28,7 @@ export default function Focus() {
   const [label, setLabel] = useState('Focus Session');
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [ setSaving] = useState(false);
   const [sessionStart, setSessionStart] = useState(null);
   const intervalRef = useRef(null);
 
@@ -79,7 +78,7 @@ export default function Focus() {
     setSessionStart(null);
   };
 
-  const handleSessionEnd = async (durationMins) => {
+  async function handleSessionEnd(durationMins) {
     setSaving(true);
     try {
       await focusApi.create({

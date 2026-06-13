@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, CheckSquare, RotateCcw, Timer, Calendar,
-  BookOpen, BarChart3, Bell, Trophy, Settings, User,
+  LayoutDashboard, CheckSquare, RotateCcw, Timer, Calendar, BarChart3, Bell, Trophy, Settings, User,
   Sparkles, ChevronLeft, ChevronRight, Zap, LogOut
 } from 'lucide-react';
 

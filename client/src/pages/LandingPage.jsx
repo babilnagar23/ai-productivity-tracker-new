@@ -1,6 +1,5 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { Zap, Shield, Sparkles, CheckCircle, ArrowRight, BarChart3, Clock, Smartphone } from 'lucide-react';
+import { Zap, Sparkles, ArrowRight, BarChart3, Clock, Smartphone } from 'lucide-react';
 
 export default function LandingPage() {
   return (

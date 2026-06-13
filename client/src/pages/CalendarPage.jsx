@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import  { useState, useEffect, useCallback } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -11,7 +11,7 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [ setError] = useState('');
   const [googleStatus, setGoogleStatus] = useState({ connected: false, email: '' });
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
@@ -79,7 +79,7 @@ export default function CalendarPage() {
         setGoogleStatus({ connected: res.connected, email: res.googleEmail });
         console.log("Google Status:", res);
       } catch (err) {
-        console.error("Failed to fetch Google Calendar status", err);
+        console.error("Failed to fetch Google Calendar status");
       }
     };
     fetchGoogleStatus();
@@ -94,7 +94,7 @@ export default function CalendarPage() {
         window.location.href = res.authUrl;
       }
     } catch (err) {
-      console.error("Failed to get Google OAuth URL:", err);
+      console.error("Failed to get Google OAuth URL:");
       setError("Failed to connect to Google Calendar.");
     }
   };
@@ -105,7 +105,7 @@ export default function CalendarPage() {
       setGoogleStatus({ connected: false, email: '' });
       console.log("Google Status: Disconnected");
     } catch (err) {
-      console.error("Failed to disconnect Google Calendar:", err);
+      console.error("Failed to disconnect Google Calendar:");
       setError("Failed to disconnect.");
     }
   };

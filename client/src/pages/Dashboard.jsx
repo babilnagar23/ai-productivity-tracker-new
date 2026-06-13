@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import  { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, aiApi, calendarApi, todosApi, focusApi } from '../services/api';
 import AppLayout from '../components/layout/AppLayout';
 import StatCard from '../components/ui/StatCard';
-import ProgressRing from '../components/ui/ProgressRing';
 import Badge from '../components/ui/Badge';
 import DailyLogPopup from '../components/DailyLogPopup';
 import {
   Flame, Sparkles, Timer, CheckSquare, Calendar,
-  TrendingUp, RotateCcw, Trophy, ArrowRight, Clock,
+  TrendingUp, ArrowRight, Clock,
   BookOpen, BarChart3, Zap, Target, CalendarCheck2, Plus
 } from 'lucide-react';
 import { format, isToday, isTomorrow, parseISO } from 'date-fns';
@@ -54,7 +53,7 @@ export default function Dashboard() {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [todos, setTodos] = useState([]);
   const [focusSessions, setFocusSessions] = useState([]);
-  const [achievements, setAchievements] = useState([]);
+  const [ setAchievements] = useState([]);
   const [aiAdvice, setAiAdvice] = useState('');
   const [loading, setLoading] = useState(true);
   const [hasTodayEntry, setHasTodayEntry] = useState(false);

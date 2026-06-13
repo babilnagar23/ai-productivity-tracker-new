@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import  { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { format, parseISO, eachDayOfInterval, subDays } from 'date-fns';
+import { format, eachDayOfInterval, subDays } from 'date-fns';
 
 const ProductivityHeatmap = ({ heatmap = {}, eventDensity = {}, days = 30 }) => {
   const dateRange = useMemo(() => {

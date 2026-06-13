@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import StatCard from '../components/ui/StatCard';
 import { analyticsApi } from '../services/api';
 import { BarChart3, TrendingUp, Target, Focus, CalendarDays, Award } from 'lucide-react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 export default function Analytics() {
   const [data, setData] = useState(null);

@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import  { useState, useEffect } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import Button from '../components/ui/Button';
 import StatCard from '../components/ui/StatCard';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
-import { X, User, Mail, Lock, Camera, Trophy, Flame, Timer, CheckSquare, Save, AlertCircle } from 'lucide-react';
+import { X, User, Lock, Camera, Trophy, Flame, Timer, CheckSquare, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AVATARS = [

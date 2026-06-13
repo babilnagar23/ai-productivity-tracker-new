@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { COLOR_PALETTE, CATEGORY_ICONS, formatDuration } from '../../services/calendarService';
 

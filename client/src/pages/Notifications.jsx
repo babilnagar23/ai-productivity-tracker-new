@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import  { useState, useEffect, useCallback } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
-import Modal from '../components/ui/Modal';
 import EmptyState from '../components/ui/EmptyState';
-import { apiFetch } from '../services/api';
 import { notificationsApi } from '../services/api';
-import { Bell, Check, CheckCheck, Trash2, Info, Calendar, Trophy, RotateCcw, Zap, AlertCircle } from 'lucide-react';
-import { format, parseISO, formatDistanceToNow } from 'date-fns';
+import { Bell, Check, CheckCheck, Trash2, Calendar, Trophy, RotateCcw, Zap } from 'lucide-react';
+import {  parseISO, formatDistanceToNow } from 'date-fns';
 
 const TYPE_ICONS = {
   todo: CheckCheck,

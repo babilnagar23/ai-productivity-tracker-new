@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import  { useState, useEffect, useRef } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import Button from '../components/ui/Button';
 import { aiApi } from '../services/api';

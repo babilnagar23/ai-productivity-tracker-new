@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import  { useState, useEffect, useCallback } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
@@ -7,8 +6,7 @@ import Badge from '../components/ui/Badge';
 import EmptyState from '../components/ui/EmptyState';
 import { todosApi } from '../services/api';
 import {
-  Plus, Search, CheckSquare, Trash2, Edit3, Calendar,
-  Filter, AlertCircle, ChevronDown, X, Check
+  Plus, Search, CheckSquare, Trash2, Edit3, Calendar, AlertCircle, X, Check
 } from 'lucide-react';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 

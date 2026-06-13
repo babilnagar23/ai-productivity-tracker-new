@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Search, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Search, Check } from 'lucide-react';
 import SyncStatus from './SyncStatus';
 
 const CalendarSidebar = ({
-  currentDate,
+  
   onDateChange,
   calendars = [],
   onToggleCalendar,

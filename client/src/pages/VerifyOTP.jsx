@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import  { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Zap, ArrowRight, ShieldCheck } from 'lucide-react';
+import {  ArrowRight, ShieldCheck } from 'lucide-react';
 import { verifyOTP } from '../services/api';
 
 export default function VerifyOTP() {

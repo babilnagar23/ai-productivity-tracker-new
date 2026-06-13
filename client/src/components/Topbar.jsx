@@ -1,8 +1,7 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Bell, Sun, Moon, Search, User } from 'lucide-react';
+import { Bell, Sun, Moon } from 'lucide-react';
 
 export default function Topbar({ title, unreadCount = 0 }) {
   const { user } = useAuth();

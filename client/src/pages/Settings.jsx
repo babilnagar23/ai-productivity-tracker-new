@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import Button from '../components/ui/Button';
 import { useTheme } from '../context/ThemeContext';
 import { Settings as SettingsIcon, Sun, Moon, Bell, Calendar, Shield, Palette, Check } from 'lucide-react';
 
 export default function Settings() {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const {  toggleTheme, isDark } = useTheme();
   const [notifications, setNotifications] = useState({
     tasks: true, calendar: true, achievements: true,
     dailyReminder: true,

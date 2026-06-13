@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import  { useState, useEffect, useCallback } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import Badge from '../components/ui/Badge';
 import EmptyState from '../components/ui/EmptyState';
 import { achievementsApi } from '../services/api';
-import { Trophy, Lock, Star, Target, Flame, Timer, RotateCcw, CheckSquare, Zap } from 'lucide-react';
+import { Trophy, Lock, Star, Flame, Timer, RotateCcw, CheckSquare } from 'lucide-react';
 
 const CATEGORY_ICONS = { focus: Timer, routine: RotateCcw, tasks: CheckSquare, streak: Flame, general: Star };
 const CATEGORY_COLORS = { focus: '#8B5CF6', routine: '#14B8A6', tasks: '#3B82F6', streak: '#F59E0B', general: '#10B981' };
