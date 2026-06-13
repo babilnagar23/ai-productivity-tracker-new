@@ -1,5 +1,5 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { apiFetch } from '../services/api';
+import React, { createContext, useState, useEffect, useContext, useRef, useCallback } from 'react';
+import { apiFetch, logout as apiLogout } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -8,7 +8,10 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const fetchUser = async () => {
+  // Guard against StrictMode double-mount
+  const fetchGuard = useRef(false);
+
+  const fetchUser = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -28,11 +31,21 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // Prevent StrictMode double-fetch on initial mount
+    if (fetchGuard.current) return;
+    fetchGuard.current = true;
     fetchUser();
-  }, []);
+  }, [fetchUser]);
+
+  // Helper: set user state directly from a login/register response
+  const setAuthFromResponse = (resData) => {
+    setUser(resData.user);
+    setIsAuthenticated(true);
+    setLoading(false);
+  };
 
   const login = async (email, password) => {
     setLoading(true);
@@ -41,16 +54,21 @@ export const AuthProvider = ({ children }) => {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      if (res.success && res.token) {
-        localStorage.setItem('token', res.token);
-        if (res.refresh) localStorage.setItem('refreshToken', res.refresh);
-        await fetchUser();
-        return { success: true };
+      if (res.success && res.data?.token) {
+        localStorage.setItem('token', res.data.token);
+        // Use user data from login response directly — no extra /auth/me call
+        if (res.data.user) {
+          setAuthFromResponse(res.data);
+        } else {
+          await fetchUser();
+        }
+        return { success: true, user: res.data.user };
       }
-      return { success: false, error: 'Login failed' };
+      setLoading(false);
+      return { success: false, error: res.message || 'Login failed' };
     } catch (err) {
       setLoading(false);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Login failed' };
     }
   };
 
@@ -61,16 +79,21 @@ export const AuthProvider = ({ children }) => {
         method: 'POST',
         body: JSON.stringify({ name, email, password }),
       });
-      if (res.success && res.token) {
-        localStorage.setItem('token', res.token);
-        if (res.refresh) localStorage.setItem('refreshToken', res.refresh);
-        await fetchUser();
-        return { success: true };
+      if (res.success && res.data?.token) {
+        localStorage.setItem('token', res.data.token);
+        // Use user data from register response directly
+        if (res.data.user) {
+          setAuthFromResponse(res.data);
+        } else {
+          await fetchUser();
+        }
+        return { success: true, user: res.data.user };
       }
-      return { success: false, error: 'Registration failed' };
+      setLoading(false);
+      return { success: false, error: res.message || 'Registration failed' };
     } catch (err) {
       setLoading(false);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Registration failed' };
     }
   };
 
@@ -81,24 +104,34 @@ export const AuthProvider = ({ children }) => {
         method: 'POST',
         body: JSON.stringify({ email, password, confirm_password }),
       });
-      if (res.success && res.token) {
-        localStorage.setItem('token', res.token);
-        if (res.refresh) localStorage.setItem('refreshToken', res.refresh);
-        await fetchUser();
-        return { success: true };
+      if (res.success && res.data?.token) {
+        localStorage.setItem('token', res.data.token);
+        // Use user data from registration response directly
+        if (res.data.user) {
+          setAuthFromResponse(res.data);
+        } else {
+          await fetchUser();
+        }
+        return { success: true, user: res.data.user };
       }
-      return { success: false, error: 'Registration failed' };
+      setLoading(false);
+      return { success: false, error: res.message || 'Registration failed' };
     } catch (err) {
       setLoading(false);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Registration failed' };
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    setUser(null);
-    setIsAuthenticated(false);
+  const logout = async () => {
+    try {
+      await apiLogout();
+    } catch (err) {
+      console.error("Logout error", err);
+    } finally {
+      localStorage.removeItem('token');
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   };
 
   return (

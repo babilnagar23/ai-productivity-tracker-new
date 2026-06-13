@@ -30,6 +30,10 @@ class Routine(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['user', 'date'], name='unique_routine_per_user_day'),
         ]
+        indexes = [
+            models.Index(fields=['date'], name='routine_date_idx'),
+            models.Index(fields=['user', '-date'], name='routine_user_date_idx'),
+        ]
 
     def __str__(self):
         return f'{self.user.email} routine {self.date}'

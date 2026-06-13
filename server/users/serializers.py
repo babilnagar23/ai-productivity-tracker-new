@@ -9,7 +9,9 @@ User = get_user_model()
 
 
 def public_user(user):
-    profile, _ = user.profile.__class__.objects.get_or_create(user=user)
+    # Use the reverse OneToOne relation directly — profile is auto-created via signal.
+    # No need for get_or_create; avoids an extra DB query on every call.
+    profile = user.profile
     name = user.get_full_name() or user.first_name or user.username
     return {
         'id': str(user.id),
@@ -20,6 +22,7 @@ def public_user(user):
         'avatar': profile.avatar or '',
         'streak': profile.streak,
         'xp': profile.xp,
+        'has_selected_template': profile.has_selected_template,
         'customConfig': profile.custom_config or default_config(),
     }
 

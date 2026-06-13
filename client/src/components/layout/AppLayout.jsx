@@ -1,25 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../Sidebar';
 import Topbar from '../Topbar';
 import { notificationsApi } from '../../services/api';
 
+// Module-level cache so navigating between pages doesn't re-fetch
+let _cachedUnreadCount = 0;
+let _lastFetchTime = 0;
+const CACHE_TTL = 30_000; // 30 seconds
+
 export default function AppLayout({ children, title }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(_cachedUnreadCount);
+  const fetchGuard = useRef(false);
 
   useEffect(() => {
-    const fetchUnread = async () => {
+    // Prevent StrictMode double-fetch
+    if (fetchGuard.current) return;
+    fetchGuard.current = true;
+
+    const fetchUnread = async (force = false) => {
+      const now = Date.now();
+      // Skip if cache is still fresh and not forced
+      if (!force && now - _lastFetchTime < CACHE_TTL) {
+        setUnreadCount(_cachedUnreadCount);
+        return;
+      }
       try {
         const data = await notificationsApi.list();
         const items = data?.data || data?.results || data || [];
         const unread = Array.isArray(items) ? items.filter(n => !n.read && !n.read_at).length : 0;
+        _cachedUnreadCount = unread;
+        _lastFetchTime = Date.now();
         setUnreadCount(unread);
       } catch {
         // Silently fail — not critical
       }
     };
+
     fetchUnread();
-    const interval = setInterval(fetchUnread, 60000); // Refresh every minute
+    const interval = setInterval(() => fetchUnread(true), 60000); // Force refresh every minute
     return () => clearInterval(interval);
   }, []);
 

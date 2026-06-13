@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, aiApi, calendarApi, todosApi, focusApi } from '../services/api';
@@ -64,7 +64,14 @@ export default function Dashboard() {
   const setSkipped = (v) => { inAppSkippedThisSession = v; setSkippedState(v); };
   const showPopup = popupReady && !skipped && !hasTodayEntry;
 
+  // Guard against StrictMode double-mount
+  const loadGuard = useRef(false);
+
+  // ── Core data load (fast — no AI) ──────────────────────────────
   useEffect(() => {
+    if (loadGuard.current) return;
+    loadGuard.current = true;
+
     const load = async () => {
       const todayStr = localToday();
       const now = new Date();
@@ -73,13 +80,12 @@ export default function Dashboard() {
       const endOfWeek = new Date(now.getTime() + 7 * 86400000).toISOString();
 
       try {
-        const [routineRes, todayEvRes, upcomingEvRes, todoRes, focusRes, aiRes] = await Promise.allSettled([
+        const [routineRes, todayEvRes, upcomingEvRes, todoRes, focusRes] = await Promise.allSettled([
           apiFetch('/routines'),
           calendarApi.list({ start: startOfDay, end: endOfDay }),
           calendarApi.list({ start: endOfDay, end: endOfWeek }),
           todosApi.list({ completed: false }),
           focusApi.list(),
-          aiApi.analyze(),
         ]);
 
         if (routineRes.status === 'fulfilled') {
@@ -108,10 +114,6 @@ export default function Dashboard() {
           const data = focusRes.value?.data || focusRes.value?.results || focusRes.value || [];
           setFocusSessions(Array.isArray(data) ? data : []);
         }
-
-        if (aiRes.status === 'fulfilled') {
-          setAiAdvice(aiRes.value?.data || aiRes.value || '');
-        }
       } catch (err) {
         console.error('Dashboard load error:', err);
       } finally {
@@ -120,6 +122,36 @@ export default function Dashboard() {
       }
     };
     load();
+  }, []);
+
+  // ── AI insight loaded lazily AFTER page renders ────────────────
+  useEffect(() => {
+    const AI_CACHE_KEY = 'dashboard_ai_advice';
+    const AI_CACHE_TS_KEY = 'dashboard_ai_advice_ts';
+    const AI_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    const loadAI = async () => {
+      // Check sessionStorage cache first
+      const cached = sessionStorage.getItem(AI_CACHE_KEY);
+      const cachedTs = Number(sessionStorage.getItem(AI_CACHE_TS_KEY) || '0');
+      if (cached && Date.now() - cachedTs < AI_CACHE_TTL) {
+        setAiAdvice(cached);
+        return;
+      }
+
+      try {
+        const aiRes = await aiApi.analyze();
+        const advice = aiRes?.data || aiRes || '';
+        if (advice) {
+          setAiAdvice(advice);
+          sessionStorage.setItem(AI_CACHE_KEY, typeof advice === 'string' ? advice : JSON.stringify(advice));
+          sessionStorage.setItem(AI_CACHE_TS_KEY, String(Date.now()));
+        }
+      } catch {
+        // AI insight is non-critical — fail silently
+      }
+    };
+    loadAI();
   }, []);
 
   // Stats

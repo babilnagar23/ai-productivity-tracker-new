@@ -47,7 +47,9 @@ class FullAnalyticsView(APIView):
 
     def get(self, request):
         config = user_config(request.user)
-        routines = list(Routine.objects.filter(user=request.user).order_by('-date', '-created_at'))
+        # Limit to last 90 days to keep the query bounded as data grows
+        cutoff = timezone.localdate() - timedelta(days=90)
+        routines = list(Routine.objects.filter(user=request.user, date__gte=cutoff).order_by('-date', '-created_at'))
         serialized = RoutineSerializer(routines, many=True, context={'request': request}).data
         total = len(routines)
         avg_score = round(sum(routine.productivity_score for routine in routines) / total, 1) if total else 0

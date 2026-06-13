@@ -24,3 +24,5 @@ gunicorn==23.0.0
 
 
 whitenoise==6.9.0
+
+django-ratelimit==4.1.0

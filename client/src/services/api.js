@@ -11,6 +11,7 @@ export const API_URL = getApiUrl();
 
 export const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -26,18 +27,36 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    const refreshToken = localStorage.getItem('refreshToken');
+    
+    const excludedRoutes = [
+      '/auth/login',
+      '/auth/login/',
+      '/auth/register',
+      '/auth/register/',
+      '/auth/send-otp',
+      '/auth/send-otp/',
+      '/auth/verify-otp',
+      '/auth/verify-otp/',
+      '/auth/forgot-password',
+      '/auth/forgot-password/',
+      '/auth/reset-password',
+      '/auth/reset-password/',
+      '/auth/token/refresh',
+      '/auth/token/refresh/',
+    ];
+    
+    // Check if the current request URL matches any excluded route
+    const isExcluded = excludedRoutes.some(route => originalRequest.url?.includes(route));
 
-    if (error.response?.status === 401 && refreshToken && !originalRequest._retry) {
+    if (error.response?.status === 401 && !isExcluded && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const { data } = await axios.post(`${API_URL}/auth/token/refresh`, { refresh: refreshToken });
-        localStorage.setItem('token', data.access);
-        originalRequest.headers.Authorization = `Bearer ${data.access}`;
+        const { data } = await axios.post(`${API_URL}/auth/token/refresh`, {}, { withCredentials: true });
+        localStorage.setItem('token', data.data.token);
+        originalRequest.headers.Authorization = `Bearer ${data.data.token}`;
         return api(originalRequest);
       } catch {
         localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
         window.location.href = '/login';
       }
     }
@@ -58,13 +77,15 @@ export const apiFetch = async (endpoint, options = {}) => {
     return response.data;
   } catch (err) {
     const data = err.response?.data || {};
-    const apiError = new Error(data.error || data.detail || data.message || 'Something went wrong');
+    const apiError = new Error(data.message || data.error || data.detail || 'Something went wrong');
     Object.assign(apiError, data);
     throw apiError;
   }
 };
 
 // ─── Auth endpoints ───────────────────────────────────────────────
+export const checkEmail = (email) => api.post('/auth/check-email', { email }).then(r => r.data);
+export const logout = () => api.post('/auth/logout').then(r => r.data);
 export const forgotPassword = (email) => api.post('/auth/forgot-password', { email }).then(r => r.data);
 export const resetPassword = (uid, token, password) => api.post('/auth/reset-password', { uid, token, password }).then(r => r.data);
 export const sendOTP = (email) => api.post('/auth/send-otp', { email }).then(r => r.data);

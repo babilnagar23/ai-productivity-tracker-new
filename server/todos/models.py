@@ -24,6 +24,10 @@ class Todo(models.Model):
 
     class Meta:
         ordering = ['due_date', '-created_at']
+        indexes = [
+            models.Index(fields=['user', 'completed'], name='todo_user_completed_idx'),
+            models.Index(fields=['due_date'], name='todo_due_date_idx'),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.client_uuid:

@@ -535,25 +535,11 @@ class ChatCoachView(APIView):
             })
 
         prompt = build_prompt(context)
-        logger.info('[AI] Prompt generated — creating job')
-
+        logger.info('[AI] Prompt generated — calling Groq')
         try:
-            job = AiJob.objects.create(
-                user=request.user,
-                prompt=prompt,
-                status='pending',
-            )
-
-            process_ai_job.delay(job.id)
-
-            return Response(
-                {
-                    'success': True,
-                    'job_id': job.id,
-                    'status': 'pending',
-                },
-                status=202,
-            )
+            reply = generate_ai_response(prompt, clean=True)
+            logger.info('[AI] Response received')
+            return Response({'success': True, 'reply': reply, 'data': reply})
         except Exception as exc:
             logger.exception('[AI] Error: %s', exc)
             return Response({'success': False, 'error': str(exc)}, status=500)
