@@ -56,7 +56,7 @@ def set_jwt_cookie(response, refresh_token):
         expires=max_age,
         secure=not getattr(settings, 'DEBUG', False),
         httponly=True,
-        samesite='Lax',
+        samesite='None' if not getattr(settings, 'DEBUG', False) else 'Lax',
         path='/api/auth/'
     )
 

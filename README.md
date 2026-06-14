@@ -97,6 +97,35 @@ GROQ_API_KEY=your_groq_api_key_here
 
 Leave `POSTGRES_DB` empty to use SQLite. Fill the `POSTGRES_*` values for PostgreSQL.
 
+## Production Deployment
+
+This project is configured to be deployed across Render (Backend), Vercel (Frontend), and Supabase (Database).
+
+### 1. Supabase (Database)
+- Create a new project on Supabase.
+- Go to Project Settings -> Database and copy the **Connection String (URI)**.
+- Make sure you replace `[YOUR-PASSWORD]` with your database password.
+
+### 2. Render (Django Backend)
+- Connect your GitHub repository to Render and create a new **Blueprint Instance** (or Web Service).
+- Render will automatically use the `render.yaml` configuration.
+- Add the following Environment Variables in the Render dashboard:
+  - `DATABASE_URL`: Your Supabase connection string.
+  - `DJANGO_SECRET_KEY`: A secure random string.
+  - `DEBUG`: `False`
+  - `ALLOWED_HOSTS`: Your Render backend URL (e.g., `ai-productivity-backend.onrender.com`).
+  - `CORS_ALLOWED_ORIGINS`: Your Vercel frontend URL (e.g., `https://my-frontend.vercel.app`).
+  - `FRONTEND_URL`: Your Vercel frontend URL.
+
+### 3. Vercel (React Frontend)
+- Import the `client` directory as a new project in Vercel.
+- The framework preset should be automatically detected as **Vite**.
+- Add the following Environment Variable:
+  - `VITE_API_URL`: Your Render backend URL (e.g., `https://ai-productivity-backend.onrender.com/api`).
+- Deploy! Vercel will build the React app and automatically handle SPA routing using the `vercel.json` file.
+
+> **Note on File Uploads**: Render uses ephemeral file systems. Any files (like avatars) uploaded to the local disk will be cleared on the next deploy. If your app relies heavily on file uploads, consider integrating an external object storage like Supabase Storage or AWS S3.
+
 ## Main API Endpoints
 
 | Method | Endpoint | Description |

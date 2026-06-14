@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "AI-powered Daily Routine Productivity Web Application — React + Django REST Framework",
   "scripts": {
-    "install-all": "npm install && npm install --prefix client && server\\venv\\Scripts\\pip.exe install -r server\\requirements.txt",
-    "server": "server\\venv\\Scripts\\python.exe server/manage.py runserver 127.0.0.1:8000",
+    "install-all": "npm install && npm install --prefix client && pip install -r server/requirements.txt",
+    "server": "python server/manage.py runserver 127.0.0.1:8000",
     "client": "npm run dev --prefix client",
     "dev": "concurrently --names \"DJANGO,VITE\" --prefix-colors \"blue,green\" \"npm run server\" \"npm run client\""
   },

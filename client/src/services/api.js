@@ -51,13 +51,18 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isExcluded && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const { data } = await axios.post(`${API_URL}/auth/token/refresh`, {}, { withCredentials: true });
-        localStorage.setItem('token', data.data.token);
-        originalRequest.headers.Authorization = `Bearer ${data.data.token}`;
-        return api(originalRequest);
-      } catch {
+        const { data } = await axios.post(`${API_URL}/auth/token/refresh/`, {}, { withCredentials: true });
+        if (data?.data?.token) {
+          localStorage.setItem('token', data.data.token);
+          originalRequest.headers.Authorization = `Bearer ${data.data.token}`;
+          return api(originalRequest);
+        } else {
+          throw new Error('Refresh failed, no token');
+        }
+      } catch (err) {
         localStorage.removeItem('token');
         window.location.href = '/login';
+        return Promise.reject(err);
       }
     }
     return Promise.reject(error);
