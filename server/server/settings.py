@@ -82,9 +82,7 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip() for origin in CORS_ALLOWED_ORIGINS
-]
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 APPEND_SLASH = False
 
