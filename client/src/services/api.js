@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const getApiUrl = () => {
+  console.log("VITE_API_URL =", import.meta.env.VITE_API_URL);
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://127.0.0.1:8000/api'
@@ -27,7 +28,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    
+
     const excludedRoutes = [
       '/auth/login',
       '/auth/login/',
@@ -44,7 +45,7 @@ api.interceptors.response.use(
       '/auth/token/refresh',
       '/auth/token/refresh/',
     ];
-    
+
     // Check if the current request URL matches any excluded route
     const isExcluded = excludedRoutes.some(route => originalRequest.url?.includes(route));
 
@@ -127,7 +128,7 @@ export const calendarApi = {
   delete: (id) => api.delete(`/calendar/events/${id}/`).then(r => r.data),
   status: () => api.get('/calendar/status/').then(r => r.data),
   sync: () => api.post('/calendar/sync-from-google/').then(r => r.data),
-  
+
   // Google OAuth integration
   googleConnect: () => api.get('/calendar/google/connect/').then(r => r.data),
   googleCallback: (code) => api.post('/calendar/google/callback/', { code }).then(r => r.data),
