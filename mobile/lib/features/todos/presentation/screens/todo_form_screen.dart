@@ -109,7 +109,7 @@ class _TodoFormScreenState extends ConsumerState<TodoFormScreen> {
             IconButton(
               onPressed: () async {
                 await ref.read(todoProvider.notifier).deleteTodo(widget.todo!);
-                if (mounted) Navigator.pop(context);
+                if (context.mounted) Navigator.pop(context);
               },
               icon: const Icon(Icons.delete_outline_rounded),
               color: AppColors.error,

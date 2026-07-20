@@ -38,9 +38,10 @@ class AuthRepository {
       },
     );
     final data = response.data as Map<String, dynamic>;
+    final payloadData = data['data'] as Map<String, dynamic>? ?? {};
     // Registration also returns tokens — save them so the user is logged in
-    final access = data['access'] as String?;
-    final refresh = data['refresh'] as String?;
+    final access = payloadData['token'] as String?;
+    final refresh = payloadData['refresh'] as String?;
     if (access != null && refresh != null) {
       await SecureStorageService.saveTokens(
         accessToken: access,
@@ -61,9 +62,10 @@ class AuthRepository {
         data: {'email': email, 'password': password},
       );
       final data = response.data as Map<String, dynamic>;
+      final payloadData = data['data'] as Map<String, dynamic>? ?? {};
 
-      final access = data['access'] as String?;
-      final refresh = data['refresh'] as String?;
+      final access = payloadData['token'] as String?;
+      final refresh = payloadData['refresh'] as String?;
 
       if (access == null || refresh == null) {
         throw Exception('Server did not return tokens');
@@ -77,7 +79,7 @@ class AuthRepository {
       debugPrint('[JWT] Access token saved');
       debugPrint('[JWT] Refresh token saved');
 
-      final userJson = data['user'] as Map<String, dynamic>?;
+      final userJson = payloadData['user'] as Map<String, dynamic>?;
       if (userJson == null) {
         throw Exception('Server did not return user data');
       }

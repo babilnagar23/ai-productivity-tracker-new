@@ -8,9 +8,9 @@ import '../storage/secure_storage.dart';
 /// Android Emulator     → http://10.0.2.2:8000/api
 /// Physical Device      → change _emulatorUrl below to your machine's LAN IP
 ///                        e.g. http://192.168.1.5:8000/api
-const String _mobileUrl = 'http://192.168.31.102:8000/api';
+const String _mobileUrl = 'http://10.58.159.176:8000/api';
 
-const String _webUrl = 'http://192.168.31.102:8000/api';
+const String _webUrl = 'http://127.0.0.1:8000/api';
 
 String get kBaseUrl {
   if (kIsWeb) {
@@ -93,7 +93,8 @@ class _AuthInterceptor extends Interceptor {
           options: Options(headers: {'Authorization': null}),
         );
 
-        final newToken = response.data['access'] as String;
+        // Backend returns: { success: true, data: { token: '...' } }
+        final newToken = response.data['data']['token'] as String;
         await SecureStorageService.saveTokens(
           accessToken: newToken,
           refreshToken: refreshToken,

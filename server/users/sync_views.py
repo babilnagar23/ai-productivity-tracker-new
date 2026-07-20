@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from todos.models import Todo
 from routines.models import Routine
 from focus.models import FocusSession
-from calendar_integration.models import CalendarEvent
+from calendar_integration.models import CalendarEvent, SyncLog
 from notifications.models import NotificationRecord
 
 # ─────────────────────────────────────────────────────────────────────────────

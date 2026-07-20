@@ -11,7 +11,7 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [ setError] = useState('');
+  const [error, setError] = useState('');
   const [googleStatus, setGoogleStatus] = useState({ connected: false, email: '' });
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
@@ -39,8 +39,8 @@ export default function CalendarPage() {
 
       const payload = {
         title: newEvent.title,
-        start: startDateTime.toISOString(),
-        end: endDateTime.toISOString(),
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
       };
 
       // Depending on API, it could be `apiFetch('/calendar/events/', {method: 'POST', body: ...})`

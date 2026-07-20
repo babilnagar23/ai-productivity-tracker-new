@@ -34,7 +34,8 @@ class _CreatePasswordScreenState extends ConsumerState<CreatePasswordScreen> {
           password: _passwordCtrl.text,
           confirmPassword: _confirmCtrl.text,
         );
-    if (success && mounted) {
+    if (!mounted) return;
+    if (success) {
       context.go('/dashboard');
     } else {
       final error = ref.read(authStateProvider).error;

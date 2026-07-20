@@ -6,6 +6,7 @@ from django.db import IntegrityError, transaction
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.conf import settings
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 from rest_framework import status
@@ -84,7 +85,7 @@ class RegisterView(APIView):
         user = serializer.save()
         tokens = token_payload(user)
         response = Response(
-            {'success': True, 'message': 'Registration successful', 'data': {'token': tokens['access'], 'user': public_user(user)}},
+            {'success': True, 'message': 'Registration successful', 'data': {'token': tokens['access'], 'refresh': tokens['refresh'], 'user': public_user(user)}},
             status=status.HTTP_201_CREATED,
         )
         set_jwt_cookie(response, tokens['refresh'])
@@ -106,7 +107,7 @@ class LoginView(APIView):
         logger.info('[AUTH] Login success for %s', user.email)
         
         tokens = token_payload(user)
-        response = Response({'success': True, 'message': 'Login successful', 'data': {'token': tokens['access'], 'user': public_user(user)}})
+        response = Response({'success': True, 'message': 'Login successful', 'data': {'token': tokens['access'], 'refresh': tokens['refresh'], 'user': public_user(user)}})
         set_jwt_cookie(response, tokens['refresh'])
         return response
 
@@ -130,7 +131,7 @@ class LogoutView(APIView):
 
 class CookieTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get('refresh_token')
+        refresh_token = request.COOKIES.get('refresh_token') or request.data.get('refresh')
         if not refresh_token:
             return Response({'success': False, 'code': 'NO_REFRESH_TOKEN', 'message': 'Refresh token missing'}, status=status.HTTP_401_UNAUTHORIZED)
             
@@ -433,7 +434,7 @@ class OTPRegisterView(APIView):
         tokens = token_payload(user)
 
         response = Response(
-            {'success': True, 'message': 'Registration complete', 'data': {'token': tokens['access'], 'user': public_user(user)}},
+            {'success': True, 'message': 'Registration complete', 'data': {'token': tokens['access'], 'refresh': tokens['refresh'], 'user': public_user(user)}},
             status=status.HTTP_201_CREATED,
         )
         set_jwt_cookie(response, tokens['refresh'])
@@ -508,3 +509,111 @@ class AchievementsView(APIView):
         ]
         
         return Response({'success': True, 'message': 'Achievements retrieved', 'data': achievements}, status=status.HTTP_200_OK)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        current_password = request.data.get('current_password', '')
+        new_password = request.data.get('new_password', '')
+
+        if not current_password or not new_password:
+            return Response(
+                {'success': False, 'code': 'VALIDATION_ERROR', 'message': 'Current and new passwords are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not user.check_password(current_password):
+            return Response(
+                {'success': False, 'code': 'WRONG_PASSWORD', 'message': 'Current password is incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate new password against Django validators
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            validate_password(new_password, user)
+        except DjangoValidationError as e:
+            return Response(
+                {'success': False, 'code': 'WEAK_PASSWORD', 'message': e.messages[0] if e.messages else 'Password too weak.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(new_password)
+        user.save()
+        return Response({'success': True, 'message': 'Password changed successfully.', 'data': {}}, status=status.HTTP_200_OK)
+
+
+class ExportDataView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        from todos.models import Todo
+        from routines.models import Routine
+        from focus.models import FocusSession
+        from calendar_integration.models import CalendarEvent
+        from notifications.models import NotificationRecord
+
+        def serialize_qs(qs, fields):
+            return list(qs.values(*fields))
+
+        data = {
+            'user': {
+                'email': user.email,
+                'name': f'{user.first_name} {user.last_name}'.strip(),
+                'date_joined': user.date_joined.isoformat() if user.date_joined else None,
+            },
+            'todos': serialize_qs(
+                Todo.objects.filter(user=user),
+                ['id', 'title', 'description', 'completed', 'priority', 'due_date', 'created_at', 'updated_at']
+            ),
+            'routines': serialize_qs(
+                Routine.objects.filter(user=user),
+                ['id', 'title', 'description', 'frequency', 'time_of_day', 'created_at', 'updated_at']
+            ),
+            'focus_sessions': serialize_qs(
+                FocusSession.objects.filter(user=user),
+                ['id', 'duration_minutes', 'started_at', 'ended_at', 'status', 'created_at']
+            ),
+            'calendar_events': serialize_qs(
+                CalendarEvent.objects.filter(user=user),
+                ['id', 'title', 'description', 'start_time', 'end_time', 'all_day', 'category', 'color', 'created_at']
+            ),
+            'notifications': serialize_qs(
+                NotificationRecord.objects.filter(user=user),
+                ['id', 'type', 'title', 'body', 'read_at', 'created_at']
+            ),
+            'exported_at': timezone.now().isoformat(),
+        }
+
+        return Response({'success': True, 'message': 'Data exported', 'data': data}, status=status.HTTP_200_OK)
+
+
+class DeleteAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        password = request.data.get('password', '')
+
+        if not password:
+            return Response(
+                {'success': False, 'code': 'VALIDATION_ERROR', 'message': 'Password is required to delete your account.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not user.check_password(password):
+            return Response(
+                {'success': False, 'code': 'WRONG_PASSWORD', 'message': 'Password is incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Delete user — CASCADE will handle related models
+        user.delete()
+        response = Response({'success': True, 'message': 'Account deleted successfully.', 'data': {}}, status=status.HTTP_200_OK)
+        response.delete_cookie('refresh_token', path='/api/auth/')
+        return response

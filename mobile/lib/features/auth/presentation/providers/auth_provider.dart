@@ -163,7 +163,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         confirmPassword: confirmPassword,
       );
       // If the backend returned a user object, parse it and mark authenticated
-      final userJson = data['user'] as Map<String, dynamic>?;
+      final payloadData = data['data'] as Map<String, dynamic>? ?? {};
+      final userJson = payloadData['user'] as Map<String, dynamic>?;
       if (userJson != null) {
         final user = UserModel.fromJson(userJson);
         await DatabaseHelper.switchUser(user.id);

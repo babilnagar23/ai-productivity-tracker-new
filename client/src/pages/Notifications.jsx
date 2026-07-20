@@ -39,7 +39,7 @@ export default function Notifications() {
   const markRead = async (n) => {
     try {
       await notificationsApi.markRead(n.id);
-      setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true, read_at: new Date().toISOString() } : x));
+      setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x));
     } catch { /* silent */ }
   };
 
@@ -47,7 +47,7 @@ export default function Notifications() {
     setMarking(true);
     try {
       await notificationsApi.markAllRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications(prev => prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
     } catch { /* silent */ } finally { setMarking(false); }
   };
 
@@ -60,12 +60,12 @@ export default function Notifications() {
 
   const FILTERS = ['all', 'unread', 'todo', 'calendar', 'achievement'];
   const filtered = notifications.filter(n => {
-    if (filter === 'unread') return !n.read && !n.read_at;
+    if (filter === 'unread') return !n.read_at;
     if (filter !== 'all') return n.type === filter;
     return true;
   });
 
-  const unreadCount = notifications.filter(n => !n.read && !n.read_at).length;
+  const unreadCount = notifications.filter(n => !n.read_at).length;
 
   return (
     <AppLayout title="Notifications">
@@ -113,7 +113,7 @@ export default function Notifications() {
             filtered.map(n => {
               const Icon = TYPE_ICONS[n.type] || TYPE_ICONS.default;
               const color = TYPE_COLORS[n.type] || 'gray';
-              const isUnread = !n.read && !n.read_at;
+              const isUnread = !n.read_at;
               const relTime = n.created_at ? formatDistanceToNow(parseISO(n.created_at), { addSuffix: true }) : '';
 
               return (

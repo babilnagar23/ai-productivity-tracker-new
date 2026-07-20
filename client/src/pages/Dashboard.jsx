@@ -51,9 +51,9 @@ export default function Dashboard() {
   const [routines, setRoutines] = useState([]);
   const [todayEvents, setTodayEvents] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [achievements, setAchievements] = useState([]);
   const [todos, setTodos] = useState([]);
   const [focusSessions, setFocusSessions] = useState([]);
-  const [ setAchievements] = useState([]);
   const [aiAdvice, setAiAdvice] = useState('');
   const [loading, setLoading] = useState(true);
   const [hasTodayEntry, setHasTodayEntry] = useState(false);
@@ -411,7 +411,7 @@ export default function Dashboard() {
                 <Zap className="w-4 h-4 text-yellow-400" /> Quick Actions
               </h2>
               <div className="grid grid-cols-2 gap-2">
-                <QuickAction to="/daily-log" icon={BookOpen} label="Log Today" color="#00FFFF" bg="bg-cyan/10" />
+                <QuickAction to="/routines" icon={BookOpen} label="Log Today" color="#00FFFF" bg="bg-cyan/10" />
                 <QuickAction to="/focus" icon={Timer} label="Focus" color="#BF5AF2" bg="bg-plasma/10" />
                 <QuickAction to="/todos" icon={Plus} label="Add Task" color="#3B82F6" bg="bg-blue-500/10" />
                 <QuickAction to="/analytics" icon={BarChart3} label="Analytics" color="#F59E0B" bg="bg-orange-500/10" />

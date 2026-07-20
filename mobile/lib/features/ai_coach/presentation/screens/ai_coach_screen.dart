@@ -69,7 +69,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
     try {
       final response = await apiClient.dio.post(ApiEndpoints.aiChat, data: {'message': userMsg});
       final int jobId = response.data['job_id'];
-      print('Job ID received: $jobId');
+      debugPrint('Job ID received: $jobId');
 
       setState(() {
         _messages.add(_ChatMessage(text: 'Generating response...', isUser: false));
@@ -91,14 +91,14 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
     while (mounted) {
       await Future.delayed(const Duration(seconds: 2));
       try {
-        print('jobId received: $jobId');
-        print('polling URL: $pollingUrl');
+        debugPrint('jobId received: $jobId');
+        debugPrint('polling URL: $pollingUrl');
         final response = await apiClient.dio.get(pollingUrl);
-        print('status code: ${response.statusCode}');
-        print('response.data: ${response.data}');
+        debugPrint('status code: ${response.statusCode}');
+        debugPrint('response.data: ${response.data}');
 
         if (response.data == null || response.data is! Map) {
-          print('JSON parsing error: Response is not a JSON Map. Raw body: ${response.data}');
+          debugPrint('JSON parsing error: Response is not a JSON Map. Raw body: ${response.data}');
           setState(() {
             if (_messages.isNotEmpty) {
               _messages.removeLast();
@@ -110,7 +110,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
         }
 
         final status = response.data['status'];
-        print('Status: $status');
+        debugPrint('Status: $status');
 
         if (status == 'done') {
           final result = response.data['result'] as String? ?? 'No response result found.';
@@ -136,9 +136,9 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
           return;
         }
       } on DioException catch (e) {
-        print('DioException in polling: $e');
-        print('DioException response: ${e.response}');
-        print('DioException error detail: ${e.error}');
+        debugPrint('DioException in polling: $e');
+        debugPrint('DioException response: ${e.response}');
+        debugPrint('DioException error detail: ${e.error}');
 
         final statusCode = e.response?.statusCode;
         final responseData = e.response?.data;
@@ -155,7 +155,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
         }
 
         if (statusCode == 404) {
-          print('404 URL mismatch. Polled URL: $pollingUrl, Status Code: $statusCode');
+          debugPrint('404 URL mismatch. Polled URL: $pollingUrl, Status Code: $statusCode');
           setState(() {
             if (_messages.isNotEmpty) {
               _messages.removeLast();
@@ -167,7 +167,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
         }
 
         if (responseData != null && responseData is! Map) {
-          print('Raw response body: $responseData');
+          debugPrint('Raw response body: $responseData');
         }
 
         setState(() {
@@ -179,8 +179,8 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
         });
         return;
       } catch (e, s) {
-        print('General exception in polling: $e');
-        print(s);
+        debugPrint('General exception in polling: $e');
+        debugPrint(s.toString());
         setState(() {
           if (_messages.isNotEmpty) {
             _messages.removeLast();
@@ -574,3 +574,4 @@ class _TypingIndicator extends StatelessWidget {
     );
   }
 }
+

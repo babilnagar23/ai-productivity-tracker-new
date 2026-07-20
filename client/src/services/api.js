@@ -127,7 +127,7 @@ export const calendarApi = {
   update: (id, data) => api.patch(`/calendar/events/${id}/`, data).then(r => r.data),
   delete: (id) => api.delete(`/calendar/events/${id}/`).then(r => r.data),
   status: () => api.get('/calendar/status/').then(r => r.data),
-  sync: () => api.post('/calendar/sync-from-google/').then(r => r.data),
+  sync: () => api.post('/calendar/fetch-google/').then(r => r.data),
 
   // Google OAuth integration
   googleConnect: () => api.get('/calendar/google/connect/').then(r => r.data),
@@ -146,7 +146,7 @@ export const analyticsApi = {
 // ─── Notifications ────────────────────────────────────────────────
 export const notificationsApi = {
   list: () => api.get('/notifications/').then(r => r.data),
-  markRead: (id) => api.patch(`/notifications/${id}/`, { read: true }).then(r => r.data),
+  markRead: (id) => api.patch(`/notifications/${id}/`, { read_at: new Date().toISOString() }).then(r => r.data),
   markAllRead: () => api.post('/notifications/mark-all-read/').then(r => r.data),
   delete: (id) => api.delete(`/notifications/${id}/`).then(r => r.data),
 };

@@ -6,6 +6,7 @@ from .views import (
     ForgotPasswordView, ResetPasswordView,
     SendOTPView, VerifyOTPView, OTPRegisterView,
     AchievementsView, CheckEmailView, LogoutView, CookieTokenRefreshView,
+    ChangePasswordView, ExportDataView, DeleteAccountView,
 )
 from .sync_views import (
     SyncTasksView, SyncDailyLogsView, SyncRoutinesView,
@@ -58,4 +59,10 @@ urlpatterns = [
     path('auth/complete-registration/', OTPRegisterView.as_view(), name='otp_register_slash'),
     path('achievements', AchievementsView.as_view(), name='achievements'),
     path('achievements/', AchievementsView.as_view(), name='achievements_slash'),
+    path('auth/change-password', ChangePasswordView.as_view(), name='change_password'),
+    path('auth/change-password/', ChangePasswordView.as_view(), name='change_password_slash'),
+    path('auth/export-data', ExportDataView.as_view(), name='export_data'),
+    path('auth/export-data/', ExportDataView.as_view(), name='export_data_slash'),
+    path('auth/delete-account', DeleteAccountView.as_view(), name='delete_account'),
+    path('auth/delete-account/', DeleteAccountView.as_view(), name='delete_account_slash'),
 ]

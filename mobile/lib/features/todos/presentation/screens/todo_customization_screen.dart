@@ -39,7 +39,9 @@ class TodoCustomizationScreen extends ConsumerWidget {
             children: [
               RadioListTile<TodoCompletionStyle>(
                 value: TodoCompletionStyle.checkmark,
+                // ignore: deprecated_member_use
                 groupValue: style,
+                // ignore: deprecated_member_use
                 onChanged: (value) {
                   if (value != null) notifier.setStyle(value);
                 },
@@ -48,7 +50,9 @@ class TodoCustomizationScreen extends ConsumerWidget {
               ),
               RadioListTile<TodoCompletionStyle>(
                 value: TodoCompletionStyle.strikethrough,
+                // ignore: deprecated_member_use
                 groupValue: style,
+                // ignore: deprecated_member_use
                 onChanged: (value) {
                   if (value != null) notifier.setStyle(value);
                 },
