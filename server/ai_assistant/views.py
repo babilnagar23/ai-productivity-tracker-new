@@ -4,6 +4,8 @@ from datetime import date, datetime, timedelta
 
 from django.conf import settings
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -441,6 +443,7 @@ def build_local_reply(context):
 
 # ── Views ─────────────────────────────────────────────────────────────────────
 
+@method_decorator(ratelimit(key='user_or_ip', rate='5/min', block=True), name='dispatch')
 class GeneratePlanView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -472,6 +475,7 @@ class GeneratePlanView(APIView):
             return Response({'success': False, 'error': str(exc)}, status=500)
 
 
+@method_decorator(ratelimit(key='user_or_ip', rate='5/min', block=True), name='dispatch')
 class AnalyzeHabitsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -507,6 +511,7 @@ class AnalyzeHabitsView(APIView):
             return Response({'success': False, 'error': str(exc)}, status=500)
 
 
+@method_decorator(ratelimit(key='user_or_ip', rate='10/min', block=True), name='dispatch')
 class ChatCoachView(APIView):
     permission_classes = [IsAuthenticated]
 

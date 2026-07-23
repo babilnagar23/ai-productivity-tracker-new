@@ -11,4 +11,7 @@ urlpatterns = [
     path('api/todos/', include('todos.urls')),
     path('api/focus-sessions/', include('focus.urls')),
     path('api/notifications/', include('notifications.urls')),
+    # Health endpoint for deployment platform monitoring (public)
+    path('health/', include('health.urls')),
+    path('health', include('health.urls')),  # also match without trailing slash
 ]

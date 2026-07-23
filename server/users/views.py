@@ -264,7 +264,7 @@ class ForgotPasswordView(APIView):
         except User.DoesNotExist:
             pass
         except Exception as e:
-            print(f"Password reset email failed: {str(e)}")
+            logger.error('[AUTH] Password reset email failed for %s: %s', email, str(e))
             
         return Response({
             'success': True,

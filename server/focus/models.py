@@ -19,6 +19,10 @@ class FocusSession(models.Model):
 
     class Meta:
         ordering = ['-start_time']
+        indexes = [
+            models.Index(fields=['user', '-start_time'], name='focus_user_start_idx'),
+            models.Index(fields=['user', 'completed'], name='focus_user_completed_idx'),
+        ]
 
     def __str__(self):
         return f"{self.user.email} - {self.label} ({self.duration_minutes}m)"

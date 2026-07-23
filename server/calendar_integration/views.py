@@ -1,148 +1,57 @@
-import json
-from datetime import datetime, timedelta
+"""
+calendar_integration views — thin view layer.
+
+Each view:
+1. Validates the incoming request
+2. Delegates business logic to a service
+3. Returns a standardized API response
+
+No raw Google API code, sync logic, or AI prompt building belongs here.
+"""
+import logging
+from datetime import timedelta
 
 from django.conf import settings
+from django.shortcuts import redirect
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from common.groq_client import generate_ai_json
-from routines.models import Routine
-
+from .exceptions import (
+    AIScheduleError,
+    CalendarSyncError,
+    EventNotFound,
+    GoogleAuthError,
+    GoogleDependencyMissing,
+)
 from .models import (
-    AISchedule,
-    CalendarEvent,
     GoogleCalendarConnection,
     NotificationSettings,
-    ProductivityInsight,
     SyncLog,
 )
+from .services.ai_schedule_service import apply_ai_schedule, generate_ai_schedule
+from .services.event_service import (
+    create_event,
+    delete_event,
+    list_events,
+    serialize_event,
+    update_event,
+)
+from .services.insight_service import generate_fresh_insights, get_cached_insights
+from .services.oauth_service import (
+    disconnect,
+    exchange_code_for_tokens,
+    generate_auth_url,
+    save_connection,
+)
+from .services.sync_service import pull_google_events_to_local, sync_routines_to_google
 
-SCOPES = [
-    'https://www.googleapis.com/auth/calendar.events',
-    'https://www.googleapis.com/auth/calendar.readonly',
-    'https://www.googleapis.com/auth/userinfo.email',
-    'openid',
-]
-
-COLOR_MAP = {
-    'blue': '#3B82F6',
-    'purple': '#8B5CF6',
-    'green': '#10B981',
-    'pink': '#EC4899',
-    'orange': '#F59E0B',
-    'cyan': '#06B6D4',
-    'red': '#EF4444',
-}
-
-GOOGLE_COLOR_MAP = {
-    'blue': '9',
-    'purple': '3',
-    'green': '2',
-    'pink': '4',
-    'orange': '6',
-    'cyan': '7',
-    'red': '11',
-}
+logger = logging.getLogger('calendar')
 
 
-from django.utils.dateparse import parse_datetime
-
-def parse_iso_datetime(value):
-    if not value:
-        return None
-    dt = parse_datetime(value)
-    if dt is None:
-        try:
-            if isinstance(value, str) and value.endswith('Z'):
-                value = value[:-1] + '+00:00'
-            dt = datetime.fromisoformat(value)
-        except Exception:
-            raise ValueError(f"Invalid isoformat string: '{value}'")
-    return dt
-
-
-def optional_google_imports():
-    try:
-        from google.oauth2.credentials import Credentials
-        from google_auth_oauthlib.flow import Flow
-        from googleapiclient.discovery import build
-        return Credentials, Flow, build
-    except Exception:
-        return None, None, None
-
-
-def calendar_service(connection):
-    Credentials, _, build = optional_google_imports()
-    if not Credentials or not build:
-        return None
-    credentials = Credentials(
-        token=connection.access_token,
-        refresh_token=connection.refresh_token,
-        token_uri=connection.token_uri,
-        client_id=settings.GOOGLE_CLIENT_ID,
-        client_secret=settings.GOOGLE_CLIENT_SECRET,
-        scopes=connection.scopes or SCOPES,
-    )
-    return build('calendar', 'v3', credentials=credentials)
-
-
-def serialize_event(event):
-    return {
-        'id': event.id,
-        'googleEventId': event.google_event_id,
-        'title': event.title,
-        'description': event.description,
-        'start': event.start_time.isoformat(),
-        'end': event.end_time.isoformat(),
-        'allDay': event.all_day,
-        'color': COLOR_MAP.get(event.color, '#3B82F6'),
-        'colorKey': event.color,
-        'category': event.category,
-        'location': event.location,
-        'attendees': event.attendees,
-        'recurrence': event.recurrence,
-        'reminders': event.reminders,
-        'syncedToGoogle': event.synced_to_google,
-        'isAiGenerated': event.is_ai_generated,
-        'completed': event.completed,
-        'createdAt': event.created_at.isoformat(),
-    }
-
-
-def push_event_to_google(service, event, calendar_id='primary'):
-    """Push a CalendarEvent to Google Calendar and return google_event_id."""
-    body = {
-        'summary': event.title,
-        'description': event.description,
-        'location': event.location,
-        'start': {'dateTime': event.start_time.isoformat(), 'timeZone': settings.TIME_ZONE},
-        'end': {'dateTime': event.end_time.isoformat(), 'timeZone': settings.TIME_ZONE},
-        'colorId': GOOGLE_COLOR_MAP.get(event.color, '9'),
-        'reminders': {
-            'useDefault': False,
-            'overrides': [{'method': 'popup', 'minutes': r} for r in (event.reminders or [10])],
-        },
-    }
-    if event.recurrence:
-        body['recurrence'] = event.recurrence
-    if event.attendees:
-        body['attendees'] = [{'email': a} for a in event.attendees]
-
-    if event.google_event_id:
-        result = service.events().update(
-            calendarId=calendar_id, eventId=event.google_event_id, body=body
-        ).execute()
-    else:
-        result = service.events().insert(calendarId=calendar_id, body=body).execute()
-    return result.get('id', '')
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Existing Views (preserved + enhanced)
-# ─────────────────────────────────────────────────────────────────────────────
+# ── OAuth ──────────────────────────────────────────────────────────────────────
 
 class CalendarStatusView(APIView):
     permission_classes = [IsAuthenticated]
@@ -162,46 +71,14 @@ class CalendarAuthUrlView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        _, Flow, _ = optional_google_imports()
-        if not Flow:
-            return Response(
-                {'success': False, 'error': 'Install google-api-python-client and google-auth-oauthlib to enable Google Calendar OAuth.'},
-                status=501,
-            )
-        if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
-            return Response({'success': False, 'error': 'Google OAuth credentials are not configured.'}, status=400)
-
-        flow = Flow.from_client_config(
-            {
-                'web': {
-                    'client_id': settings.GOOGLE_CLIENT_ID,
-                    'client_secret': settings.GOOGLE_CLIENT_SECRET,
-                    'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
-                    'token_uri': 'https://oauth2.googleapis.com/token',
-                    'redirect_uris': [settings.GOOGLE_REDIRECT_URI],
-                }
-            },
-            scopes=SCOPES,
-            redirect_uri=settings.GOOGLE_REDIRECT_URI,
-        )
-        auth_url, state = flow.authorization_url(
-            access_type='offline',
-            include_granted_scopes='true',
-            prompt='consent',
-        )
-
-        # Bypass for Mobile App deep linking
-        if request.query_params.get('client') == 'mobile':
-            from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-            parsed = urlparse(auth_url)
-            query = parse_qs(parsed.query)
-            if 'state' in query:
-                query['state'][0] += '_mobile'
-                parsed = parsed._replace(query=urlencode(query, doseq=True))
-                auth_url = urlunparse(parsed)
-
-        request.session['google_oauth_state'] = state
-        return Response({'success': True, 'authUrl': auth_url})
+        try:
+            for_mobile = request.query_params.get('client') == 'mobile'
+            auth_url = generate_auth_url(for_mobile=for_mobile)
+            return Response({'success': True, 'authUrl': auth_url})
+        except GoogleDependencyMissing as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        except GoogleAuthError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CalendarCallbackView(APIView):
@@ -211,125 +88,127 @@ class CalendarCallbackView(APIView):
         return [IsAuthenticated()]
 
     def get(self, request):
+        """HTTP GET callback from Google — redirect to the appropriate frontend/mobile URL."""
         code = request.GET.get('code')
         state = request.GET.get('state', '')
-        from django.shortcuts import redirect
 
         if state.endswith('_mobile'):
             if code:
-                return redirect(f"productivityapp://calendar/callback?code={code}")
-            return redirect("productivityapp://calendar")
+                return redirect(f'productivityapp://calendar/callback?code={code}')
+            return redirect('productivityapp://calendar')
 
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
         if code:
-            return redirect(f"{frontend_url}/auth/google/callback?code={code}")
-        return redirect(f"{frontend_url}/calendar")
+            return redirect(f'{frontend_url}/auth/google/callback?code={code}')
+        return redirect(f'{frontend_url}/calendar')
 
     def post(self, request):
+        """Exchange the OAuth code for tokens and store the connection."""
         code = request.data.get('code')
         if not code:
-            return Response({'success': False, 'error': 'OAuth code is required.'}, status=400)
-
-        _, Flow, build = optional_google_imports()
-        if not Flow:
-            return Response({'success': False, 'error': 'Google OAuth dependencies are not installed.'}, status=501)
-
-        flow = Flow.from_client_config(
-            {
-                'web': {
-                    'client_id': settings.GOOGLE_CLIENT_ID,
-                    'client_secret': settings.GOOGLE_CLIENT_SECRET,
-                    'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
-                    'token_uri': 'https://oauth2.googleapis.com/token',
-                    'redirect_uris': [settings.GOOGLE_REDIRECT_URI],
-                }
-            },
-            scopes=SCOPES,
-            redirect_uri=settings.GOOGLE_REDIRECT_URI,
-        )
-        flow.fetch_token(code=code)
-        credentials = flow.credentials
-
-        # Fetch Google user email
-        google_email = ''
+            return Response(
+                {'success': False, 'error': 'OAuth code is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
-            from googleapiclient.discovery import build as g_build
-            user_info_service = g_build('oauth2', 'v2', credentials=credentials)
-            user_info = user_info_service.userinfo().get().execute()
-            google_email = user_info.get('email', '')
-        except Exception:
-            pass
-
-        expiry = credentials.expiry
-        if expiry and timezone.is_naive(expiry):
-            expiry = timezone.make_aware(expiry)
-
-        GoogleCalendarConnection.objects.update_or_create(
-            user=request.user,
-            defaults={
-                'access_token': credentials.token or '',
-                'refresh_token': credentials.refresh_token or '',
-                'token_uri': credentials.token_uri or 'https://oauth2.googleapis.com/token',
-                'scopes': list(credentials.scopes or SCOPES),
-                'expiry': expiry,
-                'google_email': google_email,
-            },
-        )
-        return Response({'success': True, 'connected': True, 'googleEmail': google_email})
+            token_data = exchange_code_for_tokens(code)
+            connection = save_connection(request.user, token_data)
+            logger.info('[Calendar] OAuth completed for user %s', request.user.id)
+            return Response({
+                'success': True,
+                'connected': True,
+                'googleEmail': connection.google_email,
+            })
+        except GoogleDependencyMissing as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        except GoogleAuthError as exc:
+            logger.warning('[Calendar] OAuth failed for user %s: %s', request.user.id, exc)
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CalendarDisconnectView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        GoogleCalendarConnection.objects.filter(user=request.user).delete()
+        disconnect(request.user)
         return Response({'success': True, 'connected': False})
 
+
+# ── Sync ───────────────────────────────────────────────────────────────────────
 
 class CalendarSyncView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
-        if not connection:
-            return Response({'success': False, 'error': 'Google Calendar is not connected.'}, status=400)
-        service = calendar_service(connection)
-        if not service:
-            return Response({'success': False, 'error': 'Google Calendar client dependencies are not installed.'}, status=501)
-
+        from routines.models import Routine
         routines = Routine.objects.filter(user=request.user).order_by('-date')[:14]
-        created = 0
-        for routine in routines:
-            try:
-                start = datetime.combine(routine.date, datetime.strptime(routine.wake_time, '%H:%M').time())
-                start = timezone.make_aware(start) if timezone.is_naive(start) else start
-                end = start + timedelta(minutes=30)
-                event_body = {
-                    'summary': 'Productivity Tracker Daily Routine Review',
-                    'description': f'Score: {routine.productivity_score}%. Notes: {routine.notes}',
-                    'start': {'dateTime': start.isoformat()},
-                    'end': {'dateTime': end.isoformat()},
-                    'reminders': {'useDefault': False, 'overrides': [{'method': 'popup', 'minutes': 10}]},
+        try:
+            created = sync_routines_to_google(request.user, routines)
+            return Response({'success': True, 'created': created})
+        except CalendarSyncError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except GoogleDependencyMissing as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
+
+
+class CalendarFetchGoogleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            result = pull_google_events_to_local(request.user)
+            return Response({'success': True, **result})
+        except CalendarSyncError as exc:
+            err = str(exc)
+            status_code = status.HTTP_400_BAD_REQUEST if 'not connected' in err.lower() else status.HTTP_500_INTERNAL_SERVER_ERROR
+            return Response({'success': False, 'error': err}, status=status_code)
+        except GoogleDependencyMissing as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
+
+
+class SyncLogsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        logs = SyncLog.objects.filter(user=request.user).order_by('-synced_at')[:20]
+        return Response({
+            'success': True,
+            'logs': [
+                {
+                    'id': l.id,
+                    'direction': l.direction,
+                    'status': l.status,
+                    'eventsSynced': l.events_synced,
+                    'errorMessage': l.error_message,
+                    'syncedAt': l.synced_at.isoformat(),
                 }
-                service.events().insert(calendarId=connection.calendar_id, body=event_body).execute()
-                created += 1
-            except Exception:
-                continue
+                for l in logs
+            ],
+        })
 
-        SyncLog.objects.create(user=request.user, direction='push', status='success', events_synced=created)
-        return Response({'success': True, 'created': created})
 
+# ── Reminders ─────────────────────────────────────────────────────────────────
 
 class ReminderView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        from datetime import datetime
+        from .services.google_calendar_service import build_calendar_service
+        from .exceptions import CalendarSyncError, GoogleDependencyMissing
+
         connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
-        if not connection:
-            return Response({'success': False, 'error': 'Google Calendar is not connected.'}, status=400)
-        service = calendar_service(connection)
-        if not service:
-            return Response({'success': False, 'error': 'Google Calendar client dependencies are not installed.'}, status=501)
+        if not connection or not connection.connected:
+            return Response(
+                {'success': False, 'error': 'Google Calendar is not connected.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            service = build_calendar_service(connection)
+        except GoogleDependencyMissing as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        except CalendarSyncError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         title = request.data.get('title', 'Productivity reminder')
         date = request.data.get('date') or timezone.localdate().isoformat()
@@ -346,261 +225,84 @@ class ReminderView(APIView):
                 'overrides': [{'method': 'popup', 'minutes': int(request.data.get('minutesBefore', 10))}],
             },
         }
-        result = service.events().insert(calendarId=connection.calendar_id, body=event_body).execute()
-        return Response({'success': True, 'eventId': result.get('id'), 'htmlLink': result.get('htmlLink')})
+        try:
+            result = service.events().insert(calendarId=connection.calendar_id, body=event_body).execute()
+            logger.info('[Calendar] Reminder created for user %s: %s', request.user.id, result.get('id'))
+            return Response({'success': True, 'eventId': result.get('id'), 'htmlLink': result.get('htmlLink')})
+        except Exception as exc:
+            logger.error('[Calendar] Reminder creation failed for user %s: %s', request.user.id, exc)
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# NEW: CalendarEvent CRUD
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Events CRUD ───────────────────────────────────────────────────────────────
 
 class CalendarEventsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """List events for a date range or specific date. Params: start, end, date (ISO strings)."""
-        start_str = request.query_params.get('start')
-        end_str = request.query_params.get('end')
-        date_str = request.query_params.get('date')
-        qs = CalendarEvent.objects.filter(user=request.user)
-        if date_str:
-            # Filter events that overlap with the given date
-            try:
-                qs = qs.filter(start_time__date=date_str)
-            except Exception:
-                pass
-        if start_str:
-            try:
-                qs = qs.filter(start_time__gte=start_str)
-            except Exception:
-                pass
-        if end_str:
-            try:
-                qs = qs.filter(end_time__lte=end_str)
-            except Exception:
-                pass
+        qs = list_events(
+            user=request.user,
+            start_str=request.query_params.get('start'),
+            end_str=request.query_params.get('end'),
+            date_str=request.query_params.get('date'),
+        )
         return Response({'success': True, 'events': [serialize_event(e) for e in qs]})
 
     def post(self, request):
-        """Create a new calendar event."""
-        data = request.data
         try:
-            start_time = parse_iso_datetime(data['start'])
-            end_time = parse_iso_datetime(data['end'])
+            has_google = GoogleCalendarConnection.objects.filter(
+                user=request.user,
+            ).values_list('refresh_token', 'access_token').first()
+            push = bool(has_google and any(has_google))
+            event = create_event(request.user, request.data, push_to_google=push)
+            return Response({'success': True, 'event': serialize_event(event)}, status=status.HTTP_201_CREATED)
         except (KeyError, ValueError) as exc:
-            return Response({'success': False, 'error': f'Invalid dates: {exc}'}, status=400)
-
-        if timezone.is_naive(start_time):
-            start_time = timezone.make_aware(start_time)
-        if timezone.is_naive(end_time):
-            end_time = timezone.make_aware(end_time)
-
-        event = CalendarEvent.objects.create(
-            user=request.user,
-            title=data.get('title', 'Untitled'),
-            description=data.get('description', ''),
-            start_time=start_time,
-            end_time=end_time,
-            all_day=data.get('allDay', False),
-            color=data.get('color', 'blue'),
-            category=data.get('category', 'personal'),
-            location=data.get('location', ''),
-            attendees=data.get('attendees', []),
-            recurrence=data.get('recurrence', []),
-            reminders=data.get('reminders', [10]),
-            is_ai_generated=data.get('isAiGenerated', False),
-        )
-
-        # Optionally sync to Google Calendar
-        connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
-        if connection and connection.connected:
-            service = calendar_service(connection)
-            if service:
-                try:
-                    google_id = push_event_to_google(service, event, connection.calendar_id)
-                    event.google_event_id = google_id
-                    event.synced_to_google = True
-                    event.save(update_fields=['google_event_id', 'synced_to_google'])
-                    SyncLog.objects.create(user=request.user, direction='push', status='success', events_synced=1)
-                except Exception as exc:
-                    SyncLog.objects.create(user=request.user, direction='push', status='error', error_message=str(exc))
-
-        return Response({'success': True, 'event': serialize_event(event)}, status=201)
+            return Response({'success': False, 'error': f'Invalid dates: {exc}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CalendarEventDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def _get_event(self, request, pk):
-        try:
-            return CalendarEvent.objects.get(pk=pk, user=request.user)
-        except CalendarEvent.DoesNotExist:
-            return None
-
     def get(self, request, pk):
-        event = self._get_event(request, pk)
-        if not event:
-            return Response({'success': False, 'error': 'Event not found'}, status=404)
-        return Response({'success': True, 'event': serialize_event(event)})
+        try:
+            from .models import CalendarEvent
+            event = CalendarEvent.objects.get(pk=pk, user=request.user)
+            return Response({'success': True, 'event': serialize_event(event)})
+        except Exception:
+            return Response({'success': False, 'error': 'Event not found'}, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, pk):
-        event = self._get_event(request, pk)
-        if not event:
-            return Response({'success': False, 'error': 'Event not found'}, status=404)
-
-        data = request.data
-        for field, attr in [
-            ('title', 'title'), ('description', 'description'), ('location', 'location'),
-            ('color', 'color'), ('category', 'category'), ('allDay', 'all_day'),
-            ('attendees', 'attendees'), ('recurrence', 'recurrence'), ('reminders', 'reminders'),
-            ('completed', 'completed'),
-        ]:
-            if field in data:
-                setattr(event, attr, data[field])
-
-        if 'start' in data:
-            st = parse_iso_datetime(data['start'])
-            event.start_time = timezone.make_aware(st) if timezone.is_naive(st) else st
-        if 'end' in data:
-            et = parse_iso_datetime(data['end'])
-            event.end_time = timezone.make_aware(et) if timezone.is_naive(et) else et
-
-        event.save()
-
-        # Sync update to Google
-        connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
-        if connection and connection.connected and event.synced_to_google:
-            service = calendar_service(connection)
-            if service:
-                try:
-                    push_event_to_google(service, event, connection.calendar_id)
-                    SyncLog.objects.create(user=request.user, direction='push', status='success', events_synced=1)
-                except Exception as exc:
-                    SyncLog.objects.create(user=request.user, direction='push', status='error', error_message=str(exc))
-
-        return Response({'success': True, 'event': serialize_event(event)})
+        return self._update(request, pk)
 
     def patch(self, request, pk):
-        """PATCH is identical to PUT — both do partial updates."""
-        return self.put(request, pk)
+        return self._update(request, pk)
+
+    def _update(self, request, pk):
+        try:
+            has_google = GoogleCalendarConnection.objects.filter(
+                user=request.user,
+            ).values_list('refresh_token', 'access_token').first()
+            push = bool(has_google and any(has_google))
+            event = update_event(request.user, pk, request.data, push_to_google=push)
+            return Response({'success': True, 'event': serialize_event(event)})
+        except EventNotFound:
+            return Response({'success': False, 'error': 'Event not found'}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        event = self._get_event(request, pk)
-        if not event:
-            return Response({'success': False, 'error': 'Event not found'}, status=404)
-
-        # Delete from Google Calendar too
-        if event.synced_to_google and event.google_event_id:
-            connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
-            if connection and connection.connected:
-                service = calendar_service(connection)
-                if service:
-                    try:
-                        service.events().delete(
-                            calendarId=connection.calendar_id, eventId=event.google_event_id
-                        ).execute()
-                    except Exception:
-                        pass
-
-        event.delete()
-        return Response({'success': True, 'deleted': True})
+        try:
+            has_google = GoogleCalendarConnection.objects.filter(
+                user=request.user,
+            ).values_list('refresh_token', 'access_token').first()
+            delete_from_google = bool(has_google and any(has_google))
+            delete_event(request.user, pk, delete_from_google=delete_from_google)
+            return Response({'success': True, 'deleted': True})
+        except EventNotFound:
+            return Response({'success': False, 'error': 'Event not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# NEW: Pull events from Google Calendar into DB
-# ─────────────────────────────────────────────────────────────────────────────
-
-def pull_google_calendar_events(user):
-    connection = GoogleCalendarConnection.objects.filter(user=user).first()
-    if not connection or not connection.connected:
-        return 0, 'Google Calendar not connected.'
-    service = calendar_service(connection)
-    if not service:
-        return 0, 'Google Calendar dependencies not installed.'
-
-    now = timezone.now()
-    time_min = (now - timedelta(days=30)).isoformat()
-    time_max = (now + timedelta(days=60)).isoformat()
-
-    try:
-        result = service.events().list(
-            calendarId=connection.calendar_id,
-            timeMin=time_min,
-            timeMax=time_max,
-            singleEvents=True,
-            orderBy='startTime',
-            maxResults=250,
-        ).execute()
-        google_events = result.get('items', [])
-    except Exception as exc:
-        SyncLog.objects.create(user=user, direction='pull', status='error', error_message=str(exc))
-        return 0, str(exc)
-
-    imported = 0
-    for g_event in google_events:
-        g_id = g_event.get('id', '')
-        if not g_id:
-            continue
-
-        # Parse start/end
-        start_raw = g_event.get('start', {})
-        end_raw = g_event.get('end', {})
-        all_day = 'date' in start_raw and 'dateTime' not in start_raw
-
-        if all_day:
-            start_dt = datetime.combine(
-                datetime.strptime(start_raw['date'], '%Y-%m-%d').date(),
-                datetime.min.time()
-            )
-            end_dt = datetime.combine(
-                datetime.strptime(end_raw.get('date', start_raw['date']), '%Y-%m-%d').date(),
-                datetime.min.time()
-            )
-        else:
-            try:
-                start_dt = parse_iso_datetime(start_raw.get('dateTime', now.isoformat()))
-                end_dt = parse_iso_datetime(end_raw.get('dateTime', now.isoformat()))
-            except Exception:
-                continue
-
-        if timezone.is_naive(start_dt):
-            start_dt = timezone.make_aware(start_dt)
-        if timezone.is_naive(end_dt):
-            end_dt = timezone.make_aware(end_dt)
-
-        CalendarEvent.objects.update_or_create(
-            user=user,
-            google_event_id=g_id,
-            defaults={
-                'title': g_event.get('summary', 'Untitled'),
-                'description': g_event.get('description', ''),
-                'start_time': start_dt,
-                'end_time': end_dt,
-                'all_day': all_day,
-                'location': g_event.get('location', ''),
-                'attendees': [a.get('email', '') for a in g_event.get('attendees', [])],
-                'recurrence': g_event.get('recurrence', []),
-                'synced_to_google': True,
-                'color': 'blue',
-            },
-        )
-        imported += 1
-
-    SyncLog.objects.create(user=user, direction='pull', status='success', events_synced=imported)
-    return imported, ''
-
-class CalendarFetchGoogleView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        imported, err = pull_google_calendar_events(request.user)
-        if err:
-            return Response({'success': False, 'error': err}, status=400 if 'not connected' in err.lower() else 500)
-        return Response({'success': True, 'imported': imported})
-
-# ─────────────────────────────────────────────────────────────────────────────
-# NEW: AI Scheduler — Gemini-powered plan generation
-# ─────────────────────────────────────────────────────────────────────────────
+# ── AI Scheduler ──────────────────────────────────────────────────────────────
 
 class AISchedulerView(APIView):
     permission_classes = [IsAuthenticated]
@@ -608,279 +310,92 @@ class AISchedulerView(APIView):
     def post(self, request):
         prompt = request.data.get('prompt', '').strip()
         if not prompt:
-            return Response({'success': False, 'error': 'Prompt is required.'}, status=400)
-
+            return Response(
+                {'success': False, 'error': 'Prompt is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not getattr(settings, 'GROQ_API_KEY', ''):
-            return Response({'success': False, 'error': 'GROQ_API_KEY is not configured.'}, status=501)
-
-        # Gather context from user's routines
-        recent_routines = Routine.objects.filter(user=request.user).order_by('-date')[:7]
-        routine_context = '\n'.join([
-            f"- {r.date}: score={r.productivity_score}%, study={r.study_hours}h, exercise={r.exercise_completed}"
-            for r in recent_routines
-        ]) or 'No recent routine data.'
-
-        existing_events = CalendarEvent.objects.filter(
-            user=request.user,
-            start_time__gte=timezone.now(),
-            start_time__lte=timezone.now() + timedelta(days=30),
-        ).order_by('start_time')[:20]
-        event_context = '\n'.join([
-            f"- {e.title} on {e.start_time.strftime('%Y-%m-%d %H:%M')}"
-            for e in existing_events
-        ]) or 'No upcoming events.'
-
-        system_prompt = f"""You are an elite AI productivity scheduler embedded in Productivity Tracker, a futuristic SaaS productivity OS.
-
-User Request: {prompt}
-
-User's recent routine data (last 7 days):
-{routine_context}
-
-User's existing upcoming calendar events:
-{event_context}
-
-Today's date: {timezone.now().strftime('%Y-%m-%d')}
-Current time: {timezone.now().strftime('%H:%M')}
-
-Generate a detailed, realistic scheduling plan. Return ONLY valid JSON in this exact format:
-{{
-  "planTitle": "string — short plan title",
-  "planSummary": "string — 2-3 sentence overview",
-  "insights": ["string", "string"],
-  "events": [
-    {{
-      "title": "string",
-      "description": "string",
-      "date": "YYYY-MM-DD",
-      "startTime": "HH:MM",
-      "endTime": "HH:MM",
-      "category": "study|work|exercise|break|personal",
-      "color": "blue|purple|green|pink|orange|cyan",
-      "reminders": [10],
-      "priority": "high|medium|low"
-    }}
-  ]
-}}
-
-Rules:
-- Avoid conflicts with existing events
-- Balance study, breaks, exercise
-- Consider typical peak productivity hours (morning and evening)
-- Keep sessions 25-90 minutes (Pomodoro-style)
-- Add buffer time between sessions
-- Max 6 events per day
-- Return ONLY the JSON, no markdown, no explanation"""
-
+            return Response(
+                {'success': False, 'error': 'GROQ_API_KEY is not configured.'},
+                status=status.HTTP_501_NOT_IMPLEMENTED,
+            )
         try:
-            plan_data = generate_ai_json(system_prompt, max_tokens=2000)
-        except json.JSONDecodeError as exc:
-            return Response({'success': False, 'error': f'AI returned invalid JSON: {exc}'}, status=500)
-        except Exception as exc:
-            return Response({'success': False, 'error': f'AI generation failed: {exc}'}, status=500)
-
-        # Save AI schedule record
-        ai_schedule = AISchedule.objects.create(
-            user=request.user,
-            prompt=prompt,
-            plan_title=plan_data.get('planTitle', 'AI Schedule'),
-            plan_summary=plan_data.get('planSummary', ''),
-            generated_events=plan_data.get('events', []),
-            status='pending',
-        )
-
-        return Response({
-            'success': True,
-            'scheduleId': ai_schedule.id,
-            'planTitle': plan_data.get('planTitle', ''),
-            'planSummary': plan_data.get('planSummary', ''),
-            'insights': plan_data.get('insights', []),
-            'events': plan_data.get('events', []),
-        })
+            schedule, plan_data = generate_ai_schedule(request.user, prompt)
+            return Response({
+                'success': True,
+                'scheduleId': schedule.id,
+                'planTitle': plan_data.get('planTitle', ''),
+                'planSummary': plan_data.get('planSummary', ''),
+                'insights': plan_data.get('insights', []),
+                'events': plan_data.get('events', []),
+            })
+        except AIScheduleError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AIScheduleApplyView(APIView):
-    """Apply a generated AI schedule — create CalendarEvent records and optionally sync to Google."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request, schedule_id):
-        try:
-            ai_schedule = AISchedule.objects.get(pk=schedule_id, user=request.user)
-        except AISchedule.DoesNotExist:
-            return Response({'success': False, 'error': 'Schedule not found.'}, status=404)
-
         sync_to_google = request.data.get('syncToGoogle', False)
-        connection = None
-        service = None
-        if sync_to_google:
-            connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
-            if connection and connection.connected:
-                service = calendar_service(connection)
-
-        created_events = []
-        for evt in ai_schedule.generated_events:
-            try:
-                date_str = evt['date']
-                start_str = f"{date_str}T{evt['startTime']}:00"
-                end_str = f"{date_str}T{evt['endTime']}:00"
-                start_dt = timezone.make_aware(datetime.fromisoformat(start_str))
-                end_dt = timezone.make_aware(datetime.fromisoformat(end_str))
-            except (KeyError, ValueError):
-                continue
-
-            cal_event = CalendarEvent.objects.create(
-                user=request.user,
-                title=evt.get('title', 'AI Session'),
-                description=evt.get('description', ''),
-                start_time=start_dt,
-                end_time=end_dt,
-                color=evt.get('color', 'purple'),
-                category=evt.get('category', 'study'),
-                reminders=evt.get('reminders', [10]),
-                is_ai_generated=True,
-                ai_metadata={'scheduleId': ai_schedule.id, 'priority': evt.get('priority', 'medium')},
-            )
-
-            if service and connection:
-                try:
-                    g_id = push_event_to_google(service, cal_event, connection.calendar_id)
-                    cal_event.google_event_id = g_id
-                    cal_event.synced_to_google = True
-                    cal_event.save(update_fields=['google_event_id', 'synced_to_google'])
-                except Exception:
-                    pass
-
-            created_events.append(serialize_event(cal_event))
-
-        ai_schedule.status = 'applied'
-        ai_schedule.save(update_fields=['status'])
-
-        if service:
-            SyncLog.objects.create(
-                user=request.user, direction='push', status='success', events_synced=len(created_events)
-            )
-
-        return Response({'success': True, 'created': len(created_events), 'events': created_events})
+        try:
+            created_events = apply_ai_schedule(request.user, schedule_id, sync_to_google=sync_to_google)
+            return Response({
+                'success': True,
+                'created': len(created_events),
+                'events': created_events,
+            })
+        except AIScheduleError as exc:
+            err = str(exc)
+            status_code = status.HTTP_404_NOT_FOUND if 'not found' in err.lower() else status.HTTP_500_INTERNAL_SERVER_ERROR
+            return Response({'success': False, 'error': err}, status=status_code)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# NEW: AI Insights
-# ─────────────────────────────────────────────────────────────────────────────
+# ── AI Insights ───────────────────────────────────────────────────────────────
 
 class AIInsightsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """Return recent cached insights."""
-        insights = ProductivityInsight.objects.filter(user=request.user)[:8]
-        return Response({
-            'success': True,
-            'insights': [
-                {
-                    'id': i.id,
-                    'type': i.insight_type,
-                    'title': i.title,
-                    'body': i.body,
-                    'icon': i.icon,
-                    'score': i.score,
-                    'generatedAt': i.generated_at.isoformat(),
-                }
-                for i in insights
-            ],
-        })
+        insights = get_cached_insights(request.user)
+        return Response({'success': True, 'insights': insights})
 
     def post(self, request):
         """Generate fresh AI insights via Groq."""
-        if not getattr(settings, 'GROQ_API_KEY', ''):
-            return Response({'success': False, 'error': 'GROQ_API_KEY is not configured.'}, status=501)
-
-        routines = Routine.objects.filter(user=request.user).order_by('-date')[:14]
-        if not routines:
-            return Response({'success': True, 'insights': [], 'message': 'No routine data yet.'})
-
-        routine_summary = '\n'.join([
-            f"- {r.date}: score={r.productivity_score}%, study={r.study_hours}h, "
-            f"sleep={r.sleep_time}-{r.wake_time}, mobile={r.mobile_usage}h, exercise={r.exercise_completed}"
-            for r in routines
-        ])
-
-        calendar_events = CalendarEvent.objects.filter(
-            user=request.user,
-            start_time__gte=timezone.now() - timedelta(days=14),
-        ).count()
-
-        system_prompt = f"""Analyze this user's productivity data and generate personalized AI insights.
-
-Routine data (last 14 days):
-{routine_summary}
-
-Calendar events logged: {calendar_events}
-Today: {timezone.now().strftime('%Y-%m-%d')}
-
-Generate exactly 6 unique, actionable insights. Return ONLY valid JSON:
-{{
-  "insights": [
-    {{
-      "type": "peak_hours|burnout_risk|consistency|sleep_impact|exercise_impact|focus_pattern|general",
-      "title": "Short punchy title (max 8 words)",
-      "body": "Detailed insight with specific data reference (max 25 words)",
-      "icon": "zap|brain|moon|flame|heart|clock|trending-up|alert-triangle",
-      "score": null
-    }}
-  ]
-}}
-
-Be specific, data-driven, and motivating. Reference actual numbers from the data."""
-
         try:
-            data = generate_ai_json(system_prompt, max_tokens=2000)
-        except Exception as exc:
-            return Response({'success': False, 'error': str(exc)}, status=500)
-
-        # Clear old insights and save new ones
-        ProductivityInsight.objects.filter(user=request.user).delete()
-        saved = []
-        for ins in data.get('insights', []):
-            obj = ProductivityInsight.objects.create(
-                user=request.user,
-                insight_type=ins.get('type', 'general'),
-                title=ins.get('title', ''),
-                body=ins.get('body', ''),
-                icon=ins.get('icon', 'sparkles'),
-                score=ins.get('score'),
-            )
-            saved.append({
-                'id': obj.id,
-                'type': obj.insight_type,
-                'title': obj.title,
-                'body': obj.body,
-                'icon': obj.icon,
-                'score': obj.score,
-                'generatedAt': obj.generated_at.isoformat(),
-            })
-
-        return Response({'success': True, 'insights': saved})
+            insights = generate_fresh_insights(request.user)
+            if not insights:
+                return Response({
+                    'success': True,
+                    'insights': [],
+                    'message': 'No routine data yet.',
+                })
+            return Response({'success': True, 'insights': insights})
+        except ValueError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        except AIScheduleError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# NEW: Productivity Heatmap Analytics
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Analytics ─────────────────────────────────────────────────────────────────
 
 class ProductivityHeatmapView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Return heatmap data: per-day productivity scores + calendar event density."""
+        """Return per-day productivity scores and calendar event density."""
+        from .models import CalendarEvent
+        from routines.models import Routine
+
         days = int(request.query_params.get('days', 30))
         since = timezone.now() - timedelta(days=days)
 
         routines = Routine.objects.filter(user=request.user, date__gte=since.date())
         events = CalendarEvent.objects.filter(user=request.user, start_time__gte=since)
 
-        # Build heatmap: date → productivity score
-        heatmap = {}
-        for r in routines:
-            heatmap[str(r.date)] = {
+        heatmap = {
+            str(r.date): {
                 'score': r.productivity_score,
                 'studyHours': r.study_hours,
                 'exercise': r.exercise_completed,
@@ -888,20 +403,18 @@ class ProductivityHeatmapView(APIView):
                 'wakeTime': r.wake_time,
                 'mobileUsage': r.mobile_usage,
             }
+            for r in routines
+        }
 
-        # Event density per day
         event_density = {}
         for e in events:
             day_key = str(e.start_time.date())
             event_density[day_key] = event_density.get(day_key, 0) + 1
 
-        # Stats
         scores = [r.productivity_score for r in routines]
         avg_score = round(sum(scores) / len(scores), 1) if scores else 0
         best_day = max(heatmap, key=lambda d: heatmap[d]['score'], default=None)
-        total_events = events.count()
 
-        # Hourly breakdown from events
         hour_counts = [0] * 24
         for e in events:
             hour_counts[e.start_time.hour] += 1
@@ -914,13 +427,14 @@ class ProductivityHeatmapView(APIView):
             'stats': {
                 'avgProductivityScore': avg_score,
                 'bestDay': best_day,
-                'totalEvents': total_events,
+                'totalEvents': events.count(),
                 'peakHour': peak_hour,
                 'streak': self._calc_streak(routines),
             },
         })
 
-    def _calc_streak(self, routines):
+    @staticmethod
+    def _calc_streak(routines):
         if not routines:
             return 0
         dates = sorted({r.date for r in routines}, reverse=True)
@@ -935,28 +449,26 @@ class ProductivityHeatmapView(APIView):
         return streak
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# NEW: Notification Settings
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Notification Settings ─────────────────────────────────────────────────────
 
 class NotificationSettingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        settings_obj, _ = NotificationSettings.objects.get_or_create(user=request.user)
+        obj, _ = NotificationSettings.objects.get_or_create(user=request.user)
         return Response({
             'success': True,
             'settings': {
-                'browserNotifications': settings_obj.browser_notifications,
-                'emailReminders': settings_obj.email_reminders,
-                'eventRemindersMinutes': settings_obj.event_reminders_minutes,
-                'dailySummary': settings_obj.daily_summary,
-                'aiSuggestions': settings_obj.ai_suggestions,
-                # Flutter-compatible field names
-                'daily_summary': settings_obj.daily_summary,
-                'event_reminders': settings_obj.browser_notifications,
-                'event_reminders_minutes': settings_obj.event_reminders_minutes,
-                'ai_suggestions': settings_obj.ai_suggestions,
+                'browserNotifications': obj.browser_notifications,
+                'emailReminders': obj.email_reminders,
+                'eventRemindersMinutes': obj.event_reminders_minutes,
+                'dailySummary': obj.daily_summary,
+                'aiSuggestions': obj.ai_suggestions,
+                # Flutter-compatible snake_case aliases
+                'daily_summary': obj.daily_summary,
+                'event_reminders': obj.browser_notifications,
+                'event_reminders_minutes': obj.event_reminders_minutes,
+                'ai_suggestions': obj.ai_suggestions,
             },
         })
 
@@ -967,63 +479,42 @@ class NotificationSettingsView(APIView):
         return self._update(request)
 
     def _update(self, request):
-        settings_obj, _ = NotificationSettings.objects.get_or_create(user=request.user)
+        obj, _ = NotificationSettings.objects.get_or_create(user=request.user)
         data = request.data
-        # Accept both camelCase and snake_case
+
         if 'browserNotifications' in data:
-            settings_obj.browser_notifications = data['browserNotifications']
+            obj.browser_notifications = data['browserNotifications']
         if 'event_reminders' in data:
-            settings_obj.browser_notifications = data['event_reminders']
+            obj.browser_notifications = data['event_reminders']
         if 'emailReminders' in data:
-            settings_obj.email_reminders = data['emailReminders']
+            obj.email_reminders = data['emailReminders']
         if 'eventRemindersMinutes' in data or 'event_reminders_minutes' in data:
-            settings_obj.event_reminders_minutes = data.get('eventRemindersMinutes', data.get('event_reminders_minutes', settings_obj.event_reminders_minutes))
+            obj.event_reminders_minutes = data.get('eventRemindersMinutes', data.get('event_reminders_minutes', obj.event_reminders_minutes))
         if 'dailySummary' in data or 'daily_summary' in data:
-            settings_obj.daily_summary = data.get('dailySummary', data.get('daily_summary', settings_obj.daily_summary))
+            obj.daily_summary = data.get('dailySummary', data.get('daily_summary', obj.daily_summary))
         if 'aiSuggestions' in data or 'ai_suggestions' in data:
-            settings_obj.ai_suggestions = data.get('aiSuggestions', data.get('ai_suggestions', settings_obj.ai_suggestions))
+            obj.ai_suggestions = data.get('aiSuggestions', data.get('ai_suggestions', obj.ai_suggestions))
         if 'vapidSubscription' in data:
-            settings_obj.vapid_subscription = data['vapidSubscription']
-        settings_obj.save()
+            obj.vapid_subscription = data['vapidSubscription']
+
+        obj.save()
         return Response({'success': True})
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# NEW: Google Webhook (scaffolded for production)
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Webhook ───────────────────────────────────────────────────────────────────
 
 class WebhookView(APIView):
+    """Receive Google Calendar push notifications."""
     permission_classes = []  # Google sends unauthenticated push notifications
 
     def post(self, request):
-        """Receives Google Calendar push notification and triggers a sync."""
-        channel_id = request.headers.get('X-Goog-Channel-Id', '')
         resource_state = request.headers.get('X-Goog-Resource-State', '')
+        channel_id = request.headers.get('X-Goog-Channel-Id', '')
+
+        logger.debug('[Calendar] Webhook received: state=%s channel=%s', resource_state, channel_id)
 
         if resource_state == 'sync':
-            return Response(status=200)
+            return Response(status=status.HTTP_200_OK)
 
-        # In production: look up user by channel_id, trigger pull sync
-        # For now, acknowledge receipt
-        return Response(status=200)
-
-
-class SyncLogsView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        logs = SyncLog.objects.filter(user=request.user)[:20]
-        return Response({
-            'success': True,
-            'logs': [
-                {
-                    'id': l.id,
-                    'direction': l.direction,
-                    'status': l.status,
-                    'eventsSynced': l.events_synced,
-                    'errorMessage': l.error_message,
-                    'syncedAt': l.synced_at.isoformat(),
-                }
-                for l in logs
-            ],
-        })
+        # Production: look up user by channel_id and trigger a pull sync
+        return Response(status=status.HTTP_200_OK)

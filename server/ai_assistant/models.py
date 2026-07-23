@@ -41,5 +41,11 @@ class AiJob(models.Model):
         auto_now=True,
     )
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'status'], name='aijob_user_status_idx'),
+            models.Index(fields=['user', '-created_at'], name='aijob_user_created_idx'),
+        ]
+
     def __str__(self):
         return f'AI Job #{self.id} ({self.status})'

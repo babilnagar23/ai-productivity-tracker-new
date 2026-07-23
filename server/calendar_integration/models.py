@@ -70,6 +70,11 @@ class CalendarEvent(models.Model):
 
     class Meta:
         ordering = ['start_time']
+        indexes = [
+            models.Index(fields=['user', 'start_time'], name='calevent_user_start_idx'),
+            models.Index(fields=['user', '-created_at'], name='calevent_user_created_idx'),
+            models.Index(fields=['google_event_id'], name='calevent_google_id_idx'),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.client_uuid:

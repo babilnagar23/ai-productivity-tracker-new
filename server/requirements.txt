@@ -1,4 +1,4 @@
-﻿Django==4.2.30
+Django==4.2.30
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
 django-cors-headers==4.9.0
@@ -28,3 +28,10 @@ pydantic==2.12.5
 python-dateutil==2.9.0.post0
 
 dj-database-url==2.2.0
+
+# System monitoring (used by health endpoint)
+psutil==6.1.1
+
+# Testing
+pytest==8.3.5
+pytest-django==4.10.0
