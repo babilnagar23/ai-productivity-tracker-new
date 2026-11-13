@@ -124,7 +124,60 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ── OTP Registration ───────────────────────────────────────────────────────
+  // ── Direct OTP-Free Registration ──────────────────────────────────────────
+
+  Future<bool> checkEmail(String email) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final available = await _repository.checkEmail(email);
+      state = state.copyWith(isLoading: false);
+      return available;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _parseError(e));
+      return false;
+    }
+  }
+
+  Future<bool> register({
+    required String email,
+    required String password,
+    required String confirmPassword,
+    String? name,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final data = await _repository.register(
+        email: email,
+        password: password,
+        confirmPassword: confirmPassword,
+        name: name,
+      );
+      final payloadData = data['data'] as Map<String, dynamic>? ?? {};
+      final userJson = payloadData['user'] as Map<String, dynamic>?;
+      if (userJson != null) {
+        final user = UserModel.fromJson(userJson);
+        await DatabaseHelper.switchUser(user.id);
+        await SecureStorageService.saveActiveUserId(user.id);
+        await SecureStorageService.saveUserProfile(user.id, jsonEncode(user.toJson()));
+        state = state.copyWith(
+          user: user,
+          isAuthenticated: true,
+          isLoading: false,
+        );
+        debugPrint('[AUTH] Direct registration complete — auto-logged in as ${user.email}');
+        SyncEngine().syncNow();
+      } else {
+        state = state.copyWith(isLoading: false);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[AUTH] register failed: $e');
+      state = state.copyWith(isLoading: false, error: _parseError(e));
+      return false;
+    }
+  }
+
+  // ── OTP Registration (Legacy / Fallback) ───────────────────────────────────
 
   Future<void> sendOtp(String email) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -286,7 +339,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           case 409:
             return backendMsg ?? 'A conflict occurred. Please try again.';
           case 429:
-            return 'Too many attempts. Please wait a moment and try again.';
+            return backendMsg ?? 'Only one account may be created per 60 seconds from this network. Please wait a moment.';
           case 500:
           case 502:
           case 503:

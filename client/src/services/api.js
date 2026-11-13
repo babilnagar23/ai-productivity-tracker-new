@@ -91,6 +91,8 @@ export const apiFetch = async (endpoint, options = {}) => {
 
 // ─── Auth endpoints ───────────────────────────────────────────────
 export const checkEmail = (email) => api.post('/auth/check-email', { email }).then(r => r.data);
+export const register = (email, password, confirm_password, name) =>
+  api.post('/auth/register', { email, password, confirm_password, name }).then(r => r.data);
 export const logout = () => api.post('/auth/logout').then(r => r.data);
 export const forgotPassword = (email) => api.post('/auth/forgot-password', { email }).then(r => r.data);
 export const resetPassword = (uid, token, password) => api.post('/auth/reset-password', { uid, token, password }).then(r => r.data);

@@ -72,12 +72,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (emailOrData, password, confirm_password, name) => {
+    const payload =
+      typeof emailOrData === 'object' && emailOrData !== null
+        ? emailOrData
+        : {
+            email: emailOrData,
+            password,
+            confirm_password: confirm_password || password,
+            ...(name ? { name } : {}),
+          };
+
     setLoading(true);
     try {
       const res = await apiFetch('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify(payload),
       });
       if (res.success && res.data?.token) {
         localStorage.setItem('token', res.data.token);
@@ -90,10 +100,20 @@ export const AuthProvider = ({ children }) => {
         return { success: true, user: res.data.user };
       }
       setLoading(false);
-      return { success: false, error: res.message || 'Registration failed' };
+      return {
+        success: false,
+        error: res.message || res.error || 'Registration failed',
+        code: res.code,
+        retry_after_seconds: res.retry_after_seconds,
+      };
     } catch (err) {
       setLoading(false);
-      return { success: false, error: err.message || 'Registration failed' };
+      return {
+        success: false,
+        error: err.message || 'Registration failed',
+        code: err.code,
+        retry_after_seconds: err.retry_after_seconds,
+      };
     }
   };
 
@@ -115,10 +135,20 @@ export const AuthProvider = ({ children }) => {
         return { success: true, user: res.data.user };
       }
       setLoading(false);
-      return { success: false, error: res.message || 'Registration failed' };
+      return {
+        success: false,
+        error: res.message || res.error || 'Registration failed',
+        code: res.code,
+        retry_after_seconds: res.retry_after_seconds,
+      };
     } catch (err) {
       setLoading(false);
-      return { success: false, error: err.message || 'Registration failed' };
+      return {
+        success: false,
+        error: err.message || 'Registration failed',
+        code: err.code,
+        retry_after_seconds: err.retry_after_seconds,
+      };
     }
   };
 

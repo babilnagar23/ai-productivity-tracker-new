@@ -1,5 +1,7 @@
 class ApiEndpoints {
   // ── Auth ───────────────────────────────────────────────────────────────────
+  static const checkEmail = '/auth/check-email';
+  static const register = '/auth/register';
   static const sendOtp = '/auth/send-otp';
   static const verifyOtp = '/auth/verify-otp';
   static const completeRegistration = '/auth/complete-registration';

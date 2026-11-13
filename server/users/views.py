@@ -1,4 +1,6 @@
 import logging
+import math
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -9,7 +11,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,7 +19,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
-from .models import EmailOTP
+from .models import EmailOTP, SignupIPCooldown
+from .ip_utils import get_client_ip, hash_ip
 from .serializers import (
     CustomConfigSerializer,
     LoginSerializer,
@@ -32,6 +35,8 @@ from .serializers import (
 )
 from .email_utils import send_password_reset_email, send_otp_email
 from .models import default_config
+
+SIGNUP_COOLDOWN_SECONDS = 60
 
 User = get_user_model()
 logger = logging.getLogger('users.otp')
@@ -82,7 +87,62 @@ class RegisterView(APIView):
                 {'success': False, 'code': 'VALIDATION_ERROR', 'message': error_response(serializer, 'Registration failed')},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        user = serializer.save()
+
+        client_ip = get_client_ip(request)
+        ip_hash = hash_ip(client_ip)
+        now = timezone.now()
+
+        try:
+            with transaction.atomic():
+                # Acquire or create the IP cooldown row atomically
+                try:
+                    cooldown_obj, _ = SignupIPCooldown.objects.get_or_create(
+                        ip_hash=ip_hash,
+                        defaults={'last_signup_at': now - timedelta(seconds=SIGNUP_COOLDOWN_SECONDS + 10)},
+                    )
+                except IntegrityError:
+                    cooldown_obj = SignupIPCooldown.objects.get(ip_hash=ip_hash)
+
+                # Row-level lock to prevent simultaneous account creation from the same IP
+                cooldown_obj = SignupIPCooldown.objects.select_for_update().get(pk=cooldown_obj.pk)
+
+                elapsed = (now - cooldown_obj.last_signup_at).total_seconds()
+                if elapsed < SIGNUP_COOLDOWN_SECONDS:
+                    remaining = int(math.ceil(SIGNUP_COOLDOWN_SECONDS - elapsed))
+                    logger.info('[AUTH] Signup IP cooldown active for %s (%ds remaining)', client_ip, remaining)
+                    msg = f'Only one account may be created every {SIGNUP_COOLDOWN_SECONDS} seconds from this network. Please wait {remaining}s before trying again.'
+                    response = Response(
+                        {
+                            'success': False,
+                            'code': 'SIGNUP_IP_COOLDOWN',
+                            'message': msg,
+                            'error': msg,
+                            'retry_after_seconds': remaining,
+                        },
+                        status=status.HTTP_429_TOO_MANY_REQUESTS,
+                    )
+                    response['Retry-After'] = str(remaining)
+                    return response
+
+                # Create user safely inside the transaction
+                user = serializer.save()
+
+                # Successful creation! Update cooldown timestamp atomically
+                cooldown_obj.last_signup_at = now
+                cooldown_obj.save(update_fields=['last_signup_at', 'updated_at'])
+
+        except serializers.ValidationError as exc:
+            return Response(
+                {'success': False, 'code': 'VALIDATION_ERROR', 'message': error_response(exc, 'Registration failed')},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as exc:
+            logger.error('[AUTH] Registration error: %s', exc)
+            return Response(
+                {'success': False, 'code': 'REGISTRATION_FAILED', 'message': 'Registration failed. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
         tokens = token_payload(user)
         response = Response(
             {'success': True, 'message': 'Registration successful', 'data': {'token': tokens['access'], 'refresh': tokens['refresh'], 'user': public_user(user)}},

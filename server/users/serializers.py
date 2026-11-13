@@ -1,4 +1,6 @@
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -37,21 +39,56 @@ def token_payload(user):
 
 
 class RegisterSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=150)
+    name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=6)
+    password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
 
     def validate_email(self, value):
         email = value.lower().strip()
         if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError('User credentials profile already registered.')
+            raise serializers.ValidationError('An account with this email already exists.')
         return email
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        confirm_password = attrs.get('confirm_password')
+
+        if not confirm_password:
+            raise serializers.ValidationError({'confirm_password': 'Confirm password is required.'})
+
+        if password != confirm_password:
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+
+        # Enforce consistent password strength policy across web, mobile, and backend
+        if len(password) < 8:
+            raise serializers.ValidationError({'password': 'Password must be at least 8 characters long.'})
+        if not any(c.isupper() for c in password):
+            raise serializers.ValidationError({'password': 'Password must contain at least one uppercase letter.'})
+        if not any(c.islower() for c in password):
+            raise serializers.ValidationError({'password': 'Password must contain at least one lowercase letter.'})
+        if not any(c.isdigit() for c in password):
+            raise serializers.ValidationError({'password': 'Password must contain at least one number.'})
+        if not any(c in '!@#$%^&*(),.?":{}|<>' for c in password):
+            raise serializers.ValidationError({'password': 'Password must contain at least one special character.'})
+
+        # Apply standard Django password validators
+        try:
+            validate_password(password)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({'password': list(e.messages)})
+
+        return attrs
 
     @transaction.atomic
     def create(self, validated_data):
-        name = validated_data['name'].strip()
-        email = validated_data['email']
-        first_name, _, last_name = name.partition(' ')
+        email = validated_data['email'].lower().strip()
+        name = validated_data.get('name', '').strip()
+        if name:
+            first_name, _, last_name = name.partition(' ')
+        else:
+            first_name, last_name = email.split('@')[0], ''
+
         try:
             user = User.objects.create_user(
                 username=email,
@@ -61,10 +98,15 @@ class RegisterSerializer(serializers.Serializer):
                 last_name=last_name,
             )
         except IntegrityError as exc:
-            raise serializers.ValidationError({'email': 'User credentials profile already registered.'}) from exc
-        user.profile.custom_config = default_config()
-        user.profile.save(update_fields=['custom_config'])
+            raise serializers.ValidationError({'email': 'An account with this email already exists.'}) from exc
+
+        # Ensure custom_config is set on profile
+        if hasattr(user, 'profile'):
+            user.profile.custom_config = default_config()
+            user.profile.save(update_fields=['custom_config'])
+
         return user
+
 
 
 class LoginSerializer(serializers.Serializer):

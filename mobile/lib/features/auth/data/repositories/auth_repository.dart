@@ -11,6 +11,50 @@ export 'package:dio/dio.dart' show DioException;
 class AuthRepository {
   final Dio _dio = apiClient.dio;
 
+  Future<bool> checkEmail(String email) async {
+    debugPrint('[AUTH] checkEmail → $email');
+    final response = await _dio.post(
+      ApiEndpoints.checkEmail,
+      data: {'email': email},
+    );
+    final data = response.data as Map<String, dynamic>;
+    final payload = data['data'] as Map<String, dynamic>? ?? {};
+    return payload['available'] == true;
+  }
+
+  /// Direct OTP-free registration.
+  /// Backend expects: { email, password, confirm_password, [name] }
+  Future<Map<String, dynamic>> register({
+    required String email,
+    required String password,
+    required String confirmPassword,
+    String? name,
+  }) async {
+    debugPrint('[AUTH] register → $email');
+    final response = await _dio.post(
+      ApiEndpoints.register,
+      data: {
+        'email': email,
+        'password': password,
+        'confirm_password': confirmPassword,
+        if (name != null) 'name': name,
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    final payloadData = data['data'] as Map<String, dynamic>? ?? {};
+    final access = payloadData['token'] as String?;
+    final refresh = payloadData['refresh'] as String?;
+    if (access != null && refresh != null) {
+      await SecureStorageService.saveTokens(
+        accessToken: access,
+        refreshToken: refresh,
+      );
+      await SecureStorageService.saveUserEmail(email);
+      debugPrint('[JWT] Tokens saved after registration');
+    }
+    return data;
+  }
+
   Future<void> sendOtp(String email) async {
     debugPrint('[AUTH] sendOtp → $email');
     await _dio.post(ApiEndpoints.sendOtp, data: {'email': email});

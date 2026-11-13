@@ -76,3 +76,23 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f'{self.user.email} profile'
+
+
+class SignupIPCooldown(models.Model):
+    """
+    Persistent, database-backed cooldown for account creations per client IP.
+    Enforces the rule: One successfully created account per client IP per 60 seconds.
+    Stores an HMAC-SHA256 digest of the client IP to protect user privacy.
+    """
+    ip_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    last_signup_at = models.DateTimeField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Signup IP Cooldown'
+        verbose_name_plural = 'Signup IP Cooldowns'
+
+    def __str__(self):
+        return f'IP Cooldown (last={self.last_signup_at})'
+

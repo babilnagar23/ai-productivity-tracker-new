@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail } from 'lucide-react';
-import { sendOTP, checkEmail } from '../services/api';
+import { checkEmail } from '../services/api';
 import {
   AuthLayout,
   AuthCard,
@@ -32,7 +32,7 @@ export default function Signup() {
     return true;
   };
 
-  const handleOTPSignup = async (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -41,19 +41,19 @@ export default function Signup() {
     const trimmedEmail = email.trim().toLowerCase();
     setLoading(true);
     try {
-      // Step 1: Check if email is already registered
+      // Check if email is already registered
       const emailCheck = await checkEmail(trimmedEmail);
       if (!emailCheck.data?.available) {
-        setFieldError('This email already has an account');
+        setFieldError('This email is already registered.');
         setLoading(false);
         return;
       }
 
-      // Step 2: Send OTP
-      await sendOTP(trimmedEmail);
-      navigate('/verify-otp', { state: { email: trimmedEmail } });
+      // Email is available — store temporarily and proceed directly to password creation (OTP-free)
+      sessionStorage.setItem('pendingSignupEmail', trimmedEmail);
+      navigate('/create-password', { state: { email: trimmedEmail } });
     } catch (err) {
-      setError(err.message || 'Failed to send verification code. Please try again.');
+      setError(err.message || 'Failed to verify email availability. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -66,14 +66,14 @@ export default function Signup() {
           title="Create your account"
           subtitle="Start building better habits today."
           step={1}
-          totalSteps={3}
+          totalSteps={2}
           stepLabel="Enter email"
         />
 
         <AuthCard>
           {error && <AuthAlert type="error" message={error} />}
 
-          <form onSubmit={handleOTPSignup} className="space-y-4" noValidate>
+          <form onSubmit={handleSignupSubmit} className="space-y-4" noValidate>
             <div className="space-y-1.5">
               <AuthInput
                 id="signup-email"
@@ -92,7 +92,7 @@ export default function Signup() {
                 }}
               />
 
-              {fieldError && fieldError.includes('already has an account') && (
+              {fieldError && fieldError.toLowerCase().includes('already') && (
                 <div className="pt-1 text-right">
                   <AuthSecondaryLink to="/login" className="text-xs">
                     Sign in to your existing account →
@@ -102,7 +102,7 @@ export default function Signup() {
             </div>
 
             <div className="pt-2">
-              <AuthPrimaryButton loading={loading} loadingText="Sending code...">
+              <AuthPrimaryButton loading={loading} loadingText="Checking email...">
                 Continue
               </AuthPrimaryButton>
             </div>

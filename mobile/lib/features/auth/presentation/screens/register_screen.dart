@@ -22,20 +22,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  Future<void> _sendOtp() async {
+  Future<void> _continue() async {
     if (!_formKey.currentState!.validate()) return;
-    try {
-      await ref.read(authStateProvider.notifier).sendOtp(_emailCtrl.text.trim());
-      if (mounted) {
-        context.push('/otp?email=${Uri.encodeComponent(_emailCtrl.text.trim())}');
-      }
-    } catch (e) {
-      if (mounted) {
-        final error = ref.read(authStateProvider).error;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error ?? 'Failed to send OTP'), backgroundColor: AppColors.error),
-        );
-      }
+    final trimmedEmail = _emailCtrl.text.trim().toLowerCase();
+    final available = await ref.read(authStateProvider.notifier).checkEmail(trimmedEmail);
+
+    if (!mounted) return;
+
+    if (available) {
+      context.push('/create-password?email=${Uri.encodeComponent(trimmedEmail)}');
+    } else {
+      final error = ref.read(authStateProvider).error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'This email is already registered. Please sign in instead.'),
+          backgroundColor: AppColors.error,
+          action: SnackBarAction(
+            label: 'Sign in',
+            textColor: Colors.white,
+            onPressed: () => context.push('/login'),
+          ),
+        ),
+      );
     }
   }
 
@@ -75,19 +83,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
                 ),
                 const SizedBox(height: 48),
-                // Step indicator
+                // Step indicator (2-step flow)
                 const Row(
                   children: [
                     _StepDot(label: '1', active: true, done: false),
                     _StepLine(active: false),
                     _StepDot(label: '2', active: false, done: false),
-                    _StepLine(active: false),
-                    _StepDot(label: '3', active: false, done: false),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Step 1 of 3: Enter email',
+                  'Step 1 of 2: Enter email',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                 ),
                 const SizedBox(height: 32),
@@ -99,38 +105,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Enter your email';
-                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
+                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v.trim())) {
                       return 'Enter a valid email';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.blue.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.blue.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded, color: AppColors.blue, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'We\'ll send a 6-digit OTP to verify your email.',
-                          style: TextStyle(color: AppColors.blue, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 32),
                 GradientButton(
-                  text: 'Send OTP',
+                  text: 'Continue',
                   isLoading: auth.isLoading,
-                  onPressed: _sendOtp,
+                  onPressed: _continue,
                 ),
                 const SizedBox(height: 24),
                 Row(
