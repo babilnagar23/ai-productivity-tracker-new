@@ -15,6 +15,7 @@ All variables go in `server/.env` (local) or your deployment platform's environm
 | `EMAIL_HOST_USER` | ⚠️ Prod | SMTP username / sender email |
 | `EMAIL_HOST_PASSWORD` | ⚠️ Prod | SMTP password or app-specific password |
 | `GROQ_API_KEY` | ⚠️ Prod | Groq API key from console.groq.com |
+| `GROQ_MODEL` | Optional | Groq model identifier (default: `openai/gpt-oss-20b`) |
 | `GOOGLE_CLIENT_ID` | ⚠️ Prod | Google OAuth2 client ID |
 | `GOOGLE_CLIENT_SECRET` | ⚠️ Prod | Google OAuth2 client secret |
 | `GOOGLE_REDIRECT_URI` | ⚠️ Prod | Authorised redirect URI |

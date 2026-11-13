@@ -9,7 +9,7 @@ A full-stack productivity platform with a React web frontend, Flutter mobile app
 - Django REST Framework API with SimpleJWT authentication.
 - SQLite by default for development, PostgreSQL-ready for production.
 - Routine tracking: study, exercise, ML learning, study hours, sleep/wake time, mobile usage, notes, productivity score, streaks, and XP.
-- **Groq-powered** plan generation, chat coaching, and habit analysis (model: `llama-3.3-70b-versatile`).
+- **Groq-powered** plan generation, chat coaching, and habit analysis (model: `openai/gpt-oss-20b`).
 - Analytics endpoints: weekly trends, habit rates, streaks, score breakdowns, heatmaps, study vs mobile usage, and sleep consistency.
 - Optional Google Calendar OAuth, reminder creation, and routine sync endpoints.
 
@@ -21,7 +21,7 @@ A full-stack productivity platform with a React web frontend, Flutter mobile app
 | Mobile | Flutter 3.44+, Riverpod, GoRouter, Dio |
 | Backend | Django 4.2, Django REST Framework, SimpleJWT |
 | Database | SQLite (dev) / PostgreSQL (prod) |
-| AI | Groq — `llama-3.3-70b-versatile` via `groq` SDK |
+| AI | Groq — `openai/gpt-oss-20b` via `groq` SDK |
 | Calendar | Google Calendar API (optional) |
 
 ## Project Architecture
@@ -93,6 +93,7 @@ JWT_REFRESH_DAYS=30
 
 # Groq AI — get your key at https://console.groq.com/keys
 GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=openai/gpt-oss-20b
 ```
 
 Leave `POSTGRES_DB` empty to use SQLite. Fill the `POSTGRES_*` values for PostgreSQL.

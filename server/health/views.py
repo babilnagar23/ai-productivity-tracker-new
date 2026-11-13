@@ -165,7 +165,18 @@ class HealthCheckView(APIView):
         results = {}
         all_healthy = True
 
-        for name, check_fn, is_critical in self._CHECKS:
+        checks = [
+            ('database', _check_database, True),
+            ('redis', _check_redis, True),
+            ('email', _check_email, False),
+            ('google_calendar', _check_google_calendar, False),
+            ('ai', _check_ai, False),
+            ('environment', _check_environment, True),
+            ('disk', _check_disk, False),
+            ('memory', _check_memory, False),
+        ]
+
+        for name, check_fn, is_critical in checks:
             try:
                 status_str, healthy = check_fn()
             except Exception as exc:

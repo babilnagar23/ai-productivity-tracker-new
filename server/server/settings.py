@@ -282,6 +282,7 @@ SIMPLE_JWT = {
 
 # ── Groq AI ────────────────────────────────────────────────────────
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'openai/gpt-oss-20b')
 
 # ── Google OAuth / Calendar ────────────────────────────────────────
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')

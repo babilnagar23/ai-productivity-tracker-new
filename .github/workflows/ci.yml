@@ -38,5 +38,5 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
         working-directory: ./server
       - name: Run Tests
-        run: pytest users/tests/test_auth.py -v
+        run: pytest -v
         working-directory: ./server
