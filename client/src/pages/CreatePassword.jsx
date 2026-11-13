@@ -1,7 +1,17 @@
-import  { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Eye, EyeOff, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
+import {
+  AuthLayout,
+  AuthCard,
+  AuthHeader,
+  AuthPasswordInput,
+  AuthPrimaryButton,
+  AuthAlert,
+  PasswordStrengthMeter,
+  AuthSuccessState,
+} from '../components/auth';
 
 export default function CreatePassword() {
   const { completeOTPRegistration } = useAuth();
@@ -10,11 +20,11 @@ export default function CreatePassword() {
   const email = location.state?.email || sessionStorage.getItem('otpVerified');
 
   const [form, setForm] = useState({ password: '', confirm: '' });
-  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
 
-  // Rules
+  // Validation rules
   const rules = {
     length: form.password.length >= 8,
     upper: /[A-Z]/.test(form.password),
@@ -23,121 +33,151 @@ export default function CreatePassword() {
     special: /[!@#$%^&*(),.?":{}|<>]/.test(form.password),
   };
   const validCount = Object.values(rules).filter(Boolean).length;
-  
-  // Strength calculation
-  let strength = 'Weak';
-  let strengthColor = 'bg-rose-500';
-  if (validCount >= 3) { strength = 'Medium'; strengthColor = 'bg-yellow-500'; }
-  if (validCount === 5) { strength = 'Strong'; strengthColor = 'bg-emerald-500'; }
-  if (form.password.length === 0) { strength = ''; strengthColor = 'bg-white/10'; }
+  const isAllValid = validCount === 5;
+  const isMatch = form.password && form.confirm && form.password === form.confirm;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validCount !== 5) { setError('Please meet all password requirements'); return; }
-    if (form.password !== form.confirm) { setError('Passwords do not match'); return; }
-    
-    setLoading(true); setError('');
+    setError('');
+
+    if (!isAllValid) {
+      setError('Please satisfy all password strength requirements.');
+      return;
+    }
+
+    if (form.password !== form.confirm) {
+      setError('Passwords do not match. Please verify both fields.');
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await completeOTPRegistration(email, form.password, form.confirm);
       if (res?.success) {
         sessionStorage.removeItem('otpVerified');
-        navigate('/dashboard');
+        setIsSuccess(true);
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 2200);
       } else {
-        setError(res?.error || 'Registration failed');
+        setError(res?.error || 'Registration failed. Please try again.');
       }
     } catch (err) {
-      setError(err.message || 'Registration failed');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // If no email session exists, show a clean expired session card
   if (!email) {
-    return <div className="text-white text-center p-10">Invalid session. <Link to="/signup" className="text-cyan font-semibold hover:underline">Go back</Link></div>;
+    return (
+      <AuthLayout>
+        <div className="w-full flex flex-col items-center">
+          <AuthCard>
+            <div className="text-center space-y-4 py-4">
+              <div className="w-14 h-14 rounded-2xl bg-[#FFF5F6] border border-[#E45D70]/20 flex items-center justify-center mx-auto text-[#E45D70]">
+                <ShieldAlert className="w-7 h-7" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-hero font-extrabold text-[#111C34]">
+                Verification Expired
+              </h2>
+              <p className="text-sm text-[#526179] max-w-sm mx-auto">
+                No verified session was found. Please start by verifying your email address.
+              </p>
+              <div className="pt-2">
+                <AuthPrimaryButton onClick={() => navigate('/signup')}>
+                  Return to Sign Up
+                </AuthPrimaryButton>
+              </div>
+            </div>
+          </AuthCard>
+        </div>
+      </AuthLayout>
+    );
   }
 
-  const inputClass = `w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white
-    placeholder-gray-500 focus:outline-none focus:border-cyan/50 focus:bg-white/8 transition-all`;
-
-  const RuleItem = ({ valid, label }) => (
-    <div className={`flex items-center gap-2 text-xs transition-colors ${valid ? 'text-emerald-400' : 'text-gray-500'}`}>
-      {valid ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-      <span>{label}</span>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-void flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute inset-0 bg-grid-pattern opacity-30" />
+    <AuthLayout>
+      <div className="w-full flex flex-col items-center">
+        {!isSuccess && (
+          <AuthHeader
+            title="Create your password"
+            subtitle="Secure your new account with a strong password"
+            step={3}
+            totalSteps={3}
+            stepLabel="Set password"
+          />
+        )}
 
-      <div className="relative w-full max-w-md animate-fadeInUp">
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-cyan flex items-center justify-center mx-auto mb-4 shadow-xl shadow-glow-cyan">
-            <Lock className="w-7 h-7 text-black" />
-          </div>
-          <h1 className="text-3xl font-hero font-black text-white">Create Password</h1>
-          <p className="text-gray-400 mt-2 text-sm">Secure your new account</p>
-        </div>
+        <AuthCard>
+          {isSuccess ? (
+            /* Screen 8: Account Creation Success */
+            <AuthSuccessState
+              title="Account Created!"
+              message="Welcome to Productivity Tracker. Your account is ready and you are now being redirected to your dashboard."
+              primaryActionLabel="Go to Dashboard"
+              onPrimaryAction={() => navigate('/dashboard')}
+              redirectHint="Redirecting automatically in a moment..."
+            />
+          ) : (
+            <>
+              {error && <AuthAlert type="error" message={error} />}
 
-        <div className="glass card-3d p-8 space-y-5">
-          {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm text-center">{error}</div>}
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-400">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                <input type={showPw ? 'text' : 'password'} required className={`${inputClass} pl-10 pr-10`}
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                {/* New Password */}
+                <AuthPasswordInput
+                  id="create-password"
+                  label="New Password"
                   placeholder="Create a strong password"
-                  value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} disabled={loading} />
-                <button type="button" onClick={() => setShowPw(!showPw)} disabled={loading} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
-                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
+                  value={form.password}
+                  disabled={loading}
+                  autoComplete="new-password"
+                  autoFocus
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, password: e.target.value }));
+                    if (error) setError('');
+                  }}
+                />
 
-            {/* Strength Meter */}
-            <div className="space-y-2 py-1">
-              <div className="flex gap-1 h-1">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className={`flex-1 rounded-full transition-all duration-300 ${
-                    i === 1 && validCount > 0 ? strengthColor :
-                    i === 2 && validCount >= 3 ? strengthColor :
-                    i === 3 && validCount === 5 ? strengthColor : 'bg-white/10'
-                  }`} />
-                ))}
-              </div>
-              <p className={`text-xs text-right font-semibold ${strength === 'Strong' ? 'text-emerald-400' : strength === 'Medium' ? 'text-yellow-500' : strength === 'Weak' ? 'text-rose-500' : 'text-gray-500'}`}>
-                {strength}
-              </p>
-              
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <RuleItem valid={rules.length} label="Minimum 8 characters" />
-                <RuleItem valid={rules.upper} label="1 uppercase letter" />
-                <RuleItem valid={rules.lower} label="1 lowercase letter" />
-                <RuleItem valid={rules.number} label="1 number" />
-                <RuleItem valid={rules.special} label="1 special character" />
-              </div>
-            </div>
+                {/* Password Strength Meter & Requirement Checklist */}
+                <PasswordStrengthMeter password={form.password} />
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-400">Confirm Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                <input type={showPw ? 'text' : 'password'} required className={`${inputClass} pl-10`}
-                  placeholder="Confirm password"
-                  value={form.confirm} onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))} disabled={loading} />
-              </div>
-            </div>
+                {/* Confirm Password */}
+                <AuthPasswordInput
+                  id="create-password-confirm"
+                  label="Confirm Password"
+                  placeholder="Re-enter your password"
+                  value={form.confirm}
+                  disabled={loading}
+                  autoComplete="new-password"
+                  error={
+                    form.confirm && form.password !== form.confirm
+                      ? 'Passwords do not match'
+                      : undefined
+                  }
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, confirm: e.target.value }));
+                    if (error) setError('');
+                  }}
+                />
 
-            <button type="submit" disabled={loading || validCount !== 5 || form.password !== form.confirm}
-              className="w-full py-3 rounded-xl bg-cyan text-black font-bold text-sm hover:opacity-90 transition-all shadow-glow-cyan disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4">
-              {loading ? <div className="w-4 h-4 rounded-full border-2 border-black/30 border-t-black animate-spin" /> : <>Finish Setup <ArrowRight className="w-4 h-4" /></>}
-            </button>
-          </form>
-        </div>
+                {/* Primary Button */}
+                <div className="pt-2">
+                  <AuthPrimaryButton
+                    type="submit"
+                    loading={loading}
+                    loadingText="Finishing setup..."
+                    disabled={!isAllValid || !isMatch}
+                  >
+                    Create Account
+                  </AuthPrimaryButton>
+                </div>
+              </form>
+            </>
+          )}
+        </AuthCard>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

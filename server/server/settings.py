@@ -42,12 +42,12 @@ def validate_env():
 
     required = {
         'DJANGO_SECRET_KEY': 'A long random secret key for Django.',
-        'DATABASE_URL': 'PostgreSQL connection string, e.g. postgresql://user:pass@host:5432/db',
     }
 
     # In production these are also required
     if not _debug:
         required.update({
+            'DATABASE_URL': 'PostgreSQL connection string, e.g. postgresql://user:pass@host:5432/db',
             'EMAIL_HOST': 'SMTP server hostname.',
             'EMAIL_HOST_USER': 'SMTP login username / sender address.',
             'EMAIL_HOST_PASSWORD': 'SMTP password or app-specific password.',
@@ -206,11 +206,16 @@ WSGI_APPLICATION = 'server.wsgi.application'
 # ── Database ───────────────────────────────────────────────────────
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL', f'sqlite:///{BASE_DIR / "db.sqlite3"}'),
+        default=os.getenv('DATABASE_URL') or f'sqlite:///{BASE_DIR / "db.sqlite3"}',
         conn_max_age=60,            # Persistent connections (pool-like behaviour)
         conn_health_checks=True,    # Verify connection health before reuse
     )
 }
+
+if DATABASES['default'].get('ENGINE') == 'django.db.backends.sqlite3':
+    _db_path = Path(DATABASES['default']['NAME'])
+    if not _db_path.is_absolute():
+        DATABASES['default']['NAME'] = str(BASE_DIR / _db_path.name)
 
 # ── Password Validation ────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
